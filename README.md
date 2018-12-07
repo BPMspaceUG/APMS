@@ -1,5 +1,6 @@
 # APMS
 **APMS** means **A**gile **P**rocess **M**anagement **S**ystem
+![APMS Logo](http://www.bpmspace.com/assets/img/BPMspace_APMS.png)
 
 # Requirements
 
