@@ -1,0 +1,42 @@
+/* Table */
+.tablewrapper {overflow: auto;}
+.datatbl {font-size: 0.9em;}
+.datatbl thead tr {background-color: #eee;}
+.datatbl thead th {cursor: pointer; font-weight: 400; }
+.datatbl thead th:first-of-type {cursor: auto;}
+.datatbl .controllcoulm {text-align: center; min-width: 50px; width: 50px;}
+.datatbl .controllcoulm:hover {color: steelblue; cursor: pointer;}
+.datatbl .controllcoulm i {margin-top: 3px;}
+.datatbl th, tr td {white-space: nowrap; }
+.datatbl td {color: #333;}
+.datatbl .datatbl_header:hover {background-color: #ddd; color: steelblue;}
+.datatbl .sorted {background-color: #ddd; color: steelblue;}
+.datatbl .datarow:hover {cursor: auto;}
+.datatbl .editFullRow:hover {cursor: pointer;}
+
+/* Modal */
+.modal {font-size: .9em;}
+.modal-content .form-group {margin: 0; padding: 0; padding-bottom: 5px;}
+.editor {font-family: 'Courier New', 'Courier', 'Lucida Sans Typewriter', 'Lucida Typewriter', monospace; font-size: .8em;}
+.customfooter {width: 100%;}
+
+.ui-autocomplete { z-index:2147483647; }
+
+/* StateEngine */
+.btnGridState {padding: 3px 5px; font-size: .75em;}
+.label-state {background-color: #333; color: white; border: none; }
+.btnStateChange {cursor: pointer; color: white !important;}
+.btnStateChange:hover{color: black !important;}
+
+.state1 {background-color: darkgreen;}
+.state2 {background-color: steelblue;}
+.state3 {background-color: DarkRed ;}
+.state4 {background-color: orange;}
+.state5 {background-color: CornflowerBlue ;}
+.state6 {background-color: darkmagenta;}
+.state7 {background-color: BlueViolet;}
+.state8 {background-color: DarkSlateBlue;}
+.state9 {background-color: mediumorchid;}
+.state10 {background-color: FireBrick ;}
+.state11 {background-color: DarkGoldenRod ;}
+.state12 {background-color: darksalmon;}
