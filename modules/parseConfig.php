@@ -34,7 +34,7 @@
 	// check
 	if ($data != "") {
 		// get data
-		$fname = __DIR__ . "/../../IPMS_test/".$data."/".$data."-config.inc.php";
+		$fname = __DIR__ . "/../../APMS_test/".$data."/".$data."-config.inc.php";
 		if (file_exists($fname)) {
 			include_once($fname);
 			$prjname = DB_NAME;

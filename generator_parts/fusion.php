@@ -13,11 +13,15 @@
   // check if LIAM is present and create a Directory if not exists
   $content = "";
   $content = @file_get_contents("../../.git/config");
+  echo "Looking for LIAM...\n";
   if (!empty($content) && strpos($content,"https://github.com/BPMspaceUG/LIAM.git")) {
+    echo "LIAM found. Looking for Project Directory...\n";
     if (!is_dir('../../APMS_test')) {
       mkdir('../../APMS_test', 0750, true);
+      echo "APMS_test Directory created!\n";
     }
   }
+  echo "\n";
 
   // Open a new DB-Connection
   define('DB_HOST', $db_server);
