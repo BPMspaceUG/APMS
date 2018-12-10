@@ -12,6 +12,6 @@
 ## Compile the Javascript
 The javascript is generated via Typescript. Compile the TS-File in the generator parts directory with the following command:
 
-```
+```javascript
 tsc .\muster.ts -w --lib 'ES2015, DOM' --target ES2015
 ```
