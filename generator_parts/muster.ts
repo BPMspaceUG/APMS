@@ -697,7 +697,8 @@ class Table extends RawTable {
     let EditMID = null;
     let M: Modal = null;
     if (!ExistingModalID) {
-      let TitleText = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted ml-3">#'+RowID+' <small>in '+this.tablename +'</small></span>'
+      let TableAlias = 'in <i class="'+this.TableConfig.table_icon+'"></i> ' + this.TableConfig.table_alias;
+      let TitleText = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+RowID+')</span><span class="text-muted ml-3">'+ TableAlias +'</span>'
       M = new Modal(TitleText, htmlForm, '', true)
       M.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose;
       EditMID = M.getDOMID();
@@ -897,7 +898,9 @@ class Table extends RawTable {
     let me = this
     let SaveBtn = '<button class="btn btn-success btnCreateEntry" type="button">'+
       '<i class="fa fa-plus"></i>&nbsp;'+ this.GUIOptions.modalButtonTextCreate +'</button>';
-    let M = new Modal(this.GUIOptions.modalHeaderTextCreate, me.Form_Create, SaveBtn, true)
+    const TableAlias = 'in <i class="'+this.TableConfig.table_icon+'"></i> ' + this.TableConfig.table_alias;
+    const ModalTitle = this.GUIOptions.modalHeaderTextCreate + '<span class="text-muted ml-3">'+TableAlias+'</span>';
+    let M = new Modal(ModalTitle, me.Form_Create, SaveBtn, true)
     M.options.btnTextClose = me.GUIOptions.modalButtonTextModifyClose
     let ModalID = M.getDOMID()
   
@@ -1034,7 +1037,8 @@ class Table extends RawTable {
         let M: Modal = undefined;
         let ModalID = undefined;
         if (!ExistingModalID) {
-          let TitleText = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted ml-3">#'+id+' <small>in '+this.tablename +'</small></span>'
+          let TableAlias = 'in <i class="'+this.TableConfig.table_icon+'"></i> ' + this.TableConfig.table_alias;
+          let TitleText = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+id+')</span><span class="text-muted ml-3">'+TableAlias+'</span>';
           M = new Modal(TitleText, this.Form_Create, '', true)
           M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose
           ModalID = M.getDOMID();

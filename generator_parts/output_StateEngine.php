@@ -248,7 +248,7 @@
       }
       else if (strtolower($data_type) == 'tinyint') {
         // Boolean
-        return $this->getFormElementStd($isVisible, $alias, '<div class="custom-control custom-checkbox">'.
+        return $this->getFormElementStd($isVisible, $alias, '<div class="custom-control custom-checkbox mt-1">'.
           '<input type="checkbox" class="custom-control-input" id="customCheck1" name="'.$key.'"><label class="custom-control-label" for="customCheck1">&nbsp;</label></div>');
       }
       else if (strtolower($data_type) == 'longtext') {
