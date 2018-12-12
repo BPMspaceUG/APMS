@@ -1043,6 +1043,82 @@ class Table extends RawTable {
         this.selectedIDs = selRows;
         this.renderHTML();
     }
+    renderRow(row) {
+        let t = this;
+        let data_string = '';
+        // Order Headers by col_order
+        function compare(a, b) {
+            a = parseInt(t.Columns[a].col_order);
+            b = parseInt(t.Columns[b].col_order);
+            return a < b ? -1 : (a > b ? 1 : 0);
+        }
+        let sortedColumnNames = Object.keys(t.Columns).sort(compare);
+        // Generate HTML for Headers sorted
+        sortedColumnNames.forEach(function (col) {
+            var value = row[col];
+            // Check if it is displayed
+            if (t.Columns[col].is_in_menu) {
+                // check Cell-Value
+                if (value) {
+                    // Truncate Cell if Content is too long
+                    if (t.Columns[col].DATA_TYPE == 'date') {
+                        var tmp = new Date(value);
+                        if (!isNaN(tmp.getTime()))
+                            value = tmp.toLocaleDateString('de-DE');
+                        else
+                            value = '';
+                    }
+                    else if (t.Columns[col].DATA_TYPE == 'time') {
+                        // Remove seconds from TimeString
+                        if (t.smallestTimeUnitMins) {
+                            var timeArr = value.split(':');
+                            timeArr.pop();
+                            value = timeArr.join(':');
+                        }
+                    }
+                    else if (t.Columns[col].DATA_TYPE == 'datetime') {
+                        var tmp = new Date(value);
+                        if (!isNaN(tmp.getTime())) {
+                            value = tmp.toLocaleString('de-DE');
+                            // Remove seconds from TimeString
+                            if (t.smallestTimeUnitMins) {
+                                var timeArr = value.split(':');
+                                timeArr.pop();
+                                value = timeArr.join(':');
+                            }
+                        }
+                        else
+                            value = '';
+                    }
+                    else if (t.Columns[col].DATA_TYPE == 'tinyint') {
+                        value = parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
+                    }
+                    else {
+                        let isHTML = t.Columns[col].is_virtual;
+                        value = t.formatCell(value, isHTML);
+                    }
+                    // Check for statemachine
+                    if (col == 'state_id' && t.tablename != 'state') {
+                        // Modulo 12 --> see in css file (12 colors)
+                        let cssClass = 'state' + (row['state_id'][0] % 12);
+                        data_string += '<td class="align-middle">\
+                <div class="showNextStates">\
+                  <button class="btn btnGridState btn-sm label-state ' + cssClass + '">' + value + '</button>\
+                </div>\
+            </td>';
+                    }
+                    else
+                        data_string += '<td class="align-middle">' + value + '</td>';
+                }
+                else {
+                    // Add empty cell (null)
+                    data_string += '<td>&nbsp;</td>';
+                }
+            }
+        });
+        // Edit via click
+        return data_string;
+    }
     renderHTML() {
         let t = this;
         $(t.jQSelector).empty(); // GUI: Clear entries
@@ -1097,9 +1173,6 @@ class Table extends RawTable {
         }
         // Create Button
         if (!t.ReadOnly) {
-            /*if (t.TableConfig.is_nm_table)
-              header += '<button class="btn btn-success btn-sm btnCreateEntry"><i class="fa fa-plus"></i>&nbsp;'+t.GUIOptions.modalButtonTextCreateRelation+'</button>';
-            else */
             header += '<button class="btn btn-success btn-sm btnCreateEntry"><i class="fa fa-plus"></i>&nbsp;' + t.GUIOptions.modalButtonTextCreate + '</button>';
         }
         header += '</div></div></div>';
@@ -1131,7 +1204,6 @@ class Table extends RawTable {
                     if (!t.ReadOnly)
                         data_string += '<i class="fa fa-pencil"></i>';
                 }
-                //data_string += '<!--<i class="fa fa-trash" onclick="delRow(\''+jQSelector+'\', '+row[t.PrimaryColumn]+')"></i>-->';
                 data_string += '</td>';
             }
             // Generate HTML for Table-Data Cells sorted
@@ -1333,70 +1405,6 @@ class Table extends RawTable {
         return this.onEntriesModified.expose();
     }
 }
-/*
-function openTableInModal(tablename: string, previousSelRows: Array<number> = [], callback = function(e){}) {
-  let timestr = (new Date()).getTime(); // current Time-String
-  let newFKTableClass = 'foreignTable_abcdef'+timestr;
-  let t = new Table(tablename, '.'+newFKTableClass, SelectType.Single, function(){
-    t.loadRows(function(){
-      t.setSelectedRows(previousSelRows);
-      // create a new Modal layout in DOM
-      let SelectBtn = '<button class="btn btn-warning btnSelectFK" type="button"><i class="fa fa-check"></i> '+
-        t.GUIOptions.modalButtonTextSelect +'</button>';
-      let M = new Modal('Select Foreign Key', '<div class="'+newFKTableClass+'"></div>', SelectBtn, true)
-      M.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose
-      t.renderHTML();
-      // For identification for Search and Filter // TODO: Maybe clean from array after modal is closed
-      // Bind Buttonclick (Select)
-      $('#'+M.getDOMID()+' .btnSelectFK').click(function(e){
-        e.preventDefault();
-        callback(t);
-        // Hide Modal
-        $('#'+M.getDOMID()).modal('hide');
-      })
-      // Finally, show Modal
-      M.show();
-    });
-  }, '');
-}
-*/
-// TODO: Make this into the Class!!!!
-// This function is called from FormData
-/*
-function selectForeignKey(inp){
-  inp = $(inp).parent().find('input');
-  // Extract relevant Variables
-  let originTable = inp.data('origintable');
-  let originColumn = inp.attr('name');
-  let tmp = new Table(originTable, '', 0, function(){
-    let foreignTable = tmp.Columns[originColumn].foreignKey.table
-    //var foreignPrimaryCol = tmp.Columns[originColumn].foreignKey.col_id // useless
-    let foreignSubstCol = tmp.Columns[originColumn].foreignKey.col_subst
-    let prevSelRow = [inp.val()];
-  
-    // Open a Table Instance
-    openTableInModal(foreignTable, prevSelRow, function(forKeyTable){
-      let selRows = forKeyTable.getSelectedRows();
-      let singleSelRow = selRows[0];
-      inp.val(singleSelRow); // Set ID-Value in hidden field
-      // Set Substituted Column
-      if (foreignSubstCol.indexOf('(') >= 0) {
-        // TODO: Load the name correctly from SQL Server
-        inp.parent().parent().find('.fkval').val("ID: "+singleSelRow)
-      }
-      else {
-        // Retrive selected Row
-        let selRow = null
-        forKeyTable.Rows.forEach(row => {
-          if (row[forKeyTable.PrimaryColumn] == singleSelRow)
-            selRow = row;
-        });
-        inp.parent().parent().find('.fkval').val(selRow[foreignSubstCol]);
-      }
-    })
-  });
-}
-*/
 //-------------------------------------------
 // Bootstrap-Helper-Method: Overlay of many Modal windows (newest on top)
 $(document).on('show.bs.modal', '.modal', function () {
