@@ -405,6 +405,7 @@ class Table extends RawTable {
   private selType: SelectType;
   private selectedIDs: number[];
   private Form_Create: string = '';
+  private Form_Modify: string = '';
   private defaultValues = {}; // Default Values in Create-Form
   // TODO: Make these also GUI Options
   private maxCellLength: number = 30;
@@ -454,6 +455,7 @@ class Table extends RawTable {
         resp = JSON.parse(resp);
         // Save Form Data
         me.Form_Create = resp['formcreate'];
+        me.Form_Modify = resp['formmodify'];
         me.actRowCount = resp['count'];
         me.TableConfig = resp['config'];
         // Initialize StateMachine for the Table
@@ -704,7 +706,6 @@ class Table extends RawTable {
       EditMID = M.getDOMID();
     } else {
       EditMID = ExistingModalID;
-      // TODO: Title
       $('#'+EditMID+' .modal-body').html(htmlForm);
     }
 
@@ -1009,7 +1010,7 @@ class Table extends RawTable {
       // Exit if it is a ReadOnly Table
       if (this.ReadOnly) return
       // Indicate which row is getting modified
-      this.addClassToDataRow(id, 'table-warning')
+      this.addClassToDataRow(id, 'table-warning');
       $(this.jQSelector+' .datarow .controllcoulm').html('<i class="fa fa-pencil"></i>'); // for all
       $(this.jQSelector+' .row-'+id+' .controllcoulm').html('<i class="fa fa-arrow-right"></i>');
       // Set Form
@@ -1037,9 +1038,9 @@ class Table extends RawTable {
         let ModalID = undefined;
         if (!ExistingModalID) {
           let TableAlias = 'in <i class="'+this.TableConfig.table_icon+'"></i> ' + this.TableConfig.table_alias;
-          let TitleText = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+id+')</span><span class="text-muted ml-3">'+TableAlias+'</span>';
-          M = new Modal(TitleText, this.Form_Create, '', true)
-          M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose
+          let TitleText = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+id+')</span><span class="text-muted ml-3">'+TableAlias+'</span>';        
+          M = new Modal(TitleText, this.Form_Modify, '', true);
+          M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
           ModalID = M.getDOMID();
         } else {
           ModalID = ExistingModalID;
@@ -1211,42 +1212,55 @@ class Table extends RawTable {
   
 
     // ---- Header
-    let header: string = '<div class="card border-dark element"><div class="card-header p-1 bg-dark"><div class="row">';
+    let header: string = '<div class="element"><div class=""><div class="row">';
+    let footer: string = '';
 
     // Filter
     if (t.showFilter) {
-      header += '<div class="col-4">'
+      header += '<div class="col-12 mb-1">'
       header += '<div class="input-group">'
-      header += '  <input type="text" class="form-control  border-0 form-control-sm filterText" placeholder="'+this.GUIOptions.filterPlaceholderText+'">'
+      console.log('Selected IDs', t.selectedIDs);
+      let selectedValue = t.selectedIDs[0];
+      if (!selectedValue)
+        selectedValue = '';
+      header += '  <input type="text" class="form-control filterText" value="'+selectedValue+'" placeholder="'+t.GUIOptions.filterPlaceholderText+'">'
       header += '  <div class="input-group-append">'
-      header += '    <button class="btn btn-secondary btn-sm btnFilter" type="button"><i class="fa fa-search"></i></button>'
+      if (!t.ReadOnly) {
+        // Create Button
+        header += '<button class="btn btn-success btnCreateEntry"><i class="fa fa-plus"></i>&nbsp;'+t.GUIOptions.modalButtonTextCreate+'</button>';
+      }
+      if (t.SM && t.showWorkflowButton && t.selType == SelectType.NoSelect) {
+        // Workflow Button
+        header += '    <button class="btn btn-secondary btnShowWorkflow"><i class="fa fa-random"></i>&nbsp; Workflow</button>'
+      }
+      if (t.selType == SelectType.Single) {
+        header += '    <button class="btn btn-secondary btnShowTable"><i class="fa fa-angle-down"></i></button>'
+      }
+      //header += '    <button class="btn btn-secondary btnFilter" type="button"><i class="fa fa-search"></i></button>'
       header += '  </div>'
       header += '</div>'
       header += '</div>'
     }
-
-    header += '<div class="col-8">'
-    // Workflow Button
-    if (t.SM && t.showWorkflowButton) {
-      header += '<button class="btn btn-secondary btn-sm btnShowWorkflow mr-1"><i class="fa fa-random"></i>&nbsp;Workflow</button>';
-    }
-    // Create Button
-    if (!t.ReadOnly) {
-      header += '<button class="btn btn-success btn-sm btnCreateEntry"><i class="fa fa-plus"></i>&nbsp;'+t.GUIOptions.modalButtonTextCreate+'</button>';
-    }
-    header += '</div></div></div>';
+    header += '</div></div>';
 
     //------ Table Header
-    header += '<div class="card-body p-0"><div class="tablewrapper border-0"><table class="table table-hover m-0 table-sm datatbl"><thead><tr>'+ths+'</tr></thead><tbody>';
-  
-    let footer: string = '</tbody></table></div>'+
-      '<div class="card-footer text-muted p-0 px-2">'+
-        '<p class="pull-left m-0 mb-1"><small>'+t.getHTMLStatusText()+'</small></p>'+
-        '<nav class="pull-right"><ul class="pagination pagination-sm m-0 my-1">'+pgntn+'</ul></nav>'+
-        '<div class="clearfix"></div>'+
-      '</div>'+
-      '</div>'
-  
+    
+    if (t.Rows.length > 0) {
+      header += '<div class="card-body p-0">';
+      header += '<div class="tablewrapper border border-top-0"><table class="table table-striped table-hover m-0 table-sm datatbl"><thead><tr>'+ths+'</tr></thead><tbody>';
+      
+      footer = '</tbody></table></div>';
+    }
+    // TODO:
+    if (t.selType == SelectType.NoSelect) {
+      footer += '<div class="card-footer text-muted p-0 px-2">'+
+          '<p class="float-left m-0 mb-1"><small>'+t.getHTMLStatusText()+'</small></p>'+
+          '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">'+pgntn+'</ul></nav>'+
+          '<div class="clearfix"></div>'+
+        '</div>';
+    }
+    footer += '</div>';
+
     //============================== data
 
     let tds: string = '';
@@ -1260,7 +1274,9 @@ class Table extends RawTable {
       if (t.showControlColumn) {
         data_string = '<td scope="row" class="controllcoulm modRow align-middle" data-rowid="'+row[t.PrimaryColumn]+'">'
         // Entries are selectable?
-        if (t.selType == SelectType.Single || t.selType == SelectType.Multi) {
+        if (t.selType == SelectType.Single) {
+          data_string += '<i class="fa fa-circle-o"></i>';
+        } else if (t.selType == SelectType.Multi) {
           data_string += '<i class="fa fa-square-o"></i>';
         } else {
           // Entries are editable
@@ -1351,7 +1367,9 @@ class Table extends RawTable {
     })
 
     // GUI
-    $(t.jQSelector).append(header + tds + footer)
+    const content = header + tds + footer;
+    $(t.jQSelector).append(content);
+
     
     //---------------- Bind Events
 
@@ -1443,7 +1461,7 @@ class Table extends RawTable {
 
     // Autofocus Filter    
     //if (t.Filter.length > 0)
-      $(t.jQSelector+' .filterText').focus().val('').val(t.Filter)
+    //$(t.jQSelector+' .filterText').focus().val('').val(t.Filter)
     //else
     //  $(t.jQSelector+' .filterText').val(t.Filter)
 
@@ -1459,8 +1477,12 @@ class Table extends RawTable {
     if (t.selectedIDs) {
       if (t.selectedIDs.length > 0) {
         t.selectedIDs.forEach(selRowID => {
-          if (t.showControlColumn)
-            $(t.jQSelector + ' .row-' + selRowID+ ' td:first').html('<i class="fa fa-check-square-o"></i>');
+          if (t.showControlColumn) {
+            if (t.selType = SelectType.Single)
+            $(t.jQSelector + ' .row-' + selRowID+ ' td:first').html('<i class="fa fa-dot-circle-o"></i>');
+            else
+              $(t.jQSelector + ' .row-' + selRowID+ ' td:first').html('<i class="fa fa-check-square-o"></i>');
+          }
           $(t.jQSelector + ' .row-' + selRowID).addClass('table-success');
         });
       }

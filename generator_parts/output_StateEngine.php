@@ -183,7 +183,7 @@
       $this->log($query);
 
       // Insert states (new, active, inactive)
-      $ID_new = $this->createNewState('new ('.$tablename.')', 1);
+      $ID_new = $this->createNewState('new', 1);
       $ID_active = $this->createNewState('active', 0);
       $ID_update = $this->createNewState('update', 0);
       $ID_inactive = $this->createNewState('inactive', 0);

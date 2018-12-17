@@ -18,9 +18,6 @@
       DB.API_URL = 'api.php';
       // Create objects
 ###JS_TABLE_OBJECTS###
-      // First Tab selection
-      $('.nav-tabs .nav-link:first').addClass('active')
-      $('.tab-content .tab-pane:first').addClass('active')
       // Loading disable
       $('.initloadingtext').hide();
       $('.mainapp').show();

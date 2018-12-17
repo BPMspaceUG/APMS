@@ -59,7 +59,7 @@
     "<?php include_once(__DIR__.'/dashboard.html'); ?>".
     "</div>\n";
 
-
+  $tabCount = 0;
   foreach ($data as $table) {
     // Get Data
     $tablename = $table["table_name"];
@@ -68,11 +68,10 @@
 
     //--- Create HTML Content
     if ($table["is_in_menu"]) {
-
       // Tabs
       $content_tabs .= "            ".
             "<li class=\"nav-item\">
-              <a class=\"nav-link\" href=\"#$tablename\" data-toggle=\"tab\">
+              <a class=\"nav-link".( $tabCount == 0 ? ' active' : '')."\" href=\"#$tablename\" data-toggle=\"tab\">
                 <i class=\"".$table["table_icon"]."\"></i>&nbsp;
                 <span class=\"table_alias\">".$table["table_alias"]."</span>
               </a>
@@ -80,14 +79,14 @@
 
       // TabPanes
       $content_tabpanels .= "            ".
-        "<div role=\"tabpanel\" class=\"tab-pane\" id=\"$tablename\">".
+        "<div role=\"tabpanel\" class=\"tab-pane".( $tabCount == 0 ? ' show active' : '')."\" id=\"$tablename\">".
         "<div class=\"table_$tablename\"></div></div>\n";
 
       // Init a JS-Object
       $tableVarName = "tbl_$tablename";
       $content_jsObjects .= "      let $tableVarName = new Table('$tablename', '.table_$tablename', 0, function(){ $tableVarName.loadRows(function(){ $tableVarName.renderHTML(); }); });\n";
-
     }
+    $tabCount += 1;
     //---/Create HTML Content
 
 

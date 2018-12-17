@@ -1,8 +1,8 @@
 /* Table */
 .tablewrapper {overflow: auto;}
-.datatbl {font-size: 0.9em;}
-.datatbl thead tr {background-color: #eee;}
-.datatbl thead th {cursor: pointer; font-weight: 400; }
+.datatbl {font-size: 0.9em; }
+.datatbl thead tr {/*background-color: #eee;*/ font-size: .8em;}
+.datatbl thead th {cursor: pointer; }
 .datatbl thead th:first-of-type {cursor: auto;}
 .datatbl .controllcoulm {text-align: center; min-width: 50px; width: 50px;}
 .datatbl .controllcoulm:hover {color: steelblue; cursor: pointer;}
@@ -10,7 +10,7 @@
 .datatbl th, tr td {white-space: nowrap; }
 .datatbl td {color: #333;}
 .datatbl .datatbl_header:hover {background-color: #ddd; color: steelblue;}
-.datatbl .sorted {background-color: #ddd; color: steelblue;}
+.datatbl .sorted {/*background-color: #ddd;*/ color: steelblue;}
 .datatbl .datarow:hover {cursor: auto;}
 .datatbl .editFullRow:hover {cursor: pointer;}
 

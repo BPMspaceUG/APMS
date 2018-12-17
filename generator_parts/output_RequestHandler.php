@@ -188,6 +188,7 @@
 
         // ---- CreateForm
         $result['formcreate'] = $this->getFormCreate($param);
+        $result['formmodify'] = $this->getFormData($param);
   
         // Return result as JSON
         return json_encode($result);
@@ -579,7 +580,7 @@
     public function getFormData($param) {
       // Inputs
       $tablename = $param["table"];
-      $row =  $param['row'];
+      @$row =  $param['row'];
       // Check Parameter
       if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
       if (!Config::doesTableExist($tablename)) die('Table does not exist!');
@@ -593,7 +594,17 @@
         return $r;
       } else {
         // respond true if no statemachine (means: allow editing)
-        return "1"; 
+        //return "1";
+
+        // Has NO StateMachine -> Return standard form
+        $cols = Config::getColsByTablename($tablename);   
+
+        $PrimKey = array(Config::getPrimaryColNameByTablename($tablename));
+        $VirtKeys = Config::getVirtualColnames($tablename);
+        $excludeKeys = array_merge($PrimKey, $VirtKeys);
+        
+        $r = $SM->getBasicFormDataByColumns($tablename, Config::getConfig(), $cols, $excludeKeys);
+        return $r;
       }
     }
     public function getFormCreate($param) {
@@ -616,7 +627,7 @@
         $VirtKeys = Config::getVirtualColnames($tablename);
         $excludeKeys = array_merge($PrimKey, $VirtKeys);
         
-        $r = $SM->getBasicFormDataByColumns($tablename, Config::getConfig(), $cols, $excludeKeys);
+        $r = $SM->getBasicFormDataByColumns($tablename, Config::getConfig(), $cols, $excludeKeys, true);
       }
       return $r;
     }
