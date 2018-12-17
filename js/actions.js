@@ -266,7 +266,7 @@ APMS.controller('APMScontrol', function ($scope, $http) {
     col.col_order = parseInt(col.col_order) + inc
   }
 
-  $scope.openProject = function(){ // Build new URL and execute in new Tab
+  $scope.openProject = function(e){ // Build new URL and execute in new Tab
     url = window.location.href.replace("APMS", "APMS_test")
     window.open(url + $scope.dbNames.model+"/")
   }
