@@ -278,26 +278,35 @@
       global $token;
       $tablename = $param["table"];
       $token_uid = $token->uid;
-
+      /*
       $query = 'CALL sp_'.$tablename.'('.$token_uid.')';
       $pdo = DB::getInstance()->getConnection();
       $stmt = $pdo->prepare($query);
       $stmt->execute(array());
-      return json_encode(array(array('cnt' => $stmt->rowCount())));
+      */
+      $params = array('table' => $tablename, 'token' => $token_uid, 'orderby' => '', 'limitstart' => 0, 'limitsize' => 0);
+      $data = json_decode($this->call($params), true);
+      return json_encode(array(array('cnt' => count($data))));
     }
     //================================== CALL
     public function call($param) {
-      global $token;
       $tablename = $param["table"];
-      $token_uid = $token->uid;
-
-      $query = 'CALL sp_'.$tablename.'('.$token_uid.')';
-
+      $keys = [];
+      $vals = [];
+      foreach ($param as $key => $value) {
+        if ($key != "table") { // Exclude tablename
+          $keys[] = '?';
+          $vals[] = $value;
+        }
+      }
+      //$valstring = implode(', ', $vals);
+      $keystring = implode(', ', $keys);
+      $query = 'CALL sp_'.$tablename.'('.$keystring.')';
       // Execute & Fetch
       $result = array();
       $pdo = DB::getInstance()->getConnection();
       $stmt = $pdo->prepare($query);
-      if ($stmt->execute(array())) {
+      if ($stmt->execute($vals)) {
         while($row = $stmt->fetch(PDO::FETCH_NAMED)) {
           $result[] = $row;
         }
@@ -305,15 +314,38 @@
         echo $stmt->queryString."<br />";
         var_dump($stmt->errorInfo());
       }
-
       // Return result as JSON
       return json_encode($result);
     }
     //================================== READ
     public function read($param) {
 
-      //return $this->call($param);
+      // Parameters and default values
+      try {
+        @$tablename = $param["table"];
+        @$ascdesc = isset($param["ascdesc"]) ? $param["ascdesc"] : "";      
+        @$limitStart = isset($param["limitStart"]) ? $param["limitStart"] : null;
+        @$limitSize = isset($param["limitSize"]) ? $param["limitSize"] : null;
+        @$limit = isset($param["limit"]) ? $param["limit"] : null;
+        @$orderby = isset($param["orderby"]) ? $param["orderby"] : ""; // has to be a column name
+        @$filter = isset($param["filter"]) ? $param["filter"] : "";
+        //@$select = isset($param["select"]) ? $param["select"] : "*";
+        //@$where = isset($param["where"]) ? $param["where"] : "";
+      } catch (Exception $e) {
+        die("Invalid Parameter-Data!");
+      }
 
+      // TODO: Give all params to SP like (filter, orderBY, ASCDESC, LIMIT-start, LIMIT-size, spare1, spare2, spare3, spare4, spare5)
+      // Maybe add 1-5 spare parameters for a specific Where or other data
+
+      global $token;
+      $token_uid = $token->uid;
+
+      $params = array('table' => $tablename, 'token' => $token_uid, 'orderby' => 'DemoOrder_order_ID', 'limitstart' => 0, 'limitsize' => 10);
+      return $this->call($params);
+
+
+      //---------------------------------------------------
 
       // Parameters and default values
       try {
@@ -592,17 +624,13 @@
         $r = $SM->getFormDataByStateID($stateID);
         if (empty($r)) $r = "1"; // default: allow editing (if there are no rules set)
         return $r;
-      } else {
-        // respond true if no statemachine (means: allow editing)
-        //return "1";
-
+      }
+      else {
         // Has NO StateMachine -> Return standard form
-        $cols = Config::getColsByTablename($tablename);   
-
+        $cols = Config::getColsByTablename($tablename);
         $PrimKey = array(Config::getPrimaryColNameByTablename($tablename));
         $VirtKeys = Config::getVirtualColnames($tablename);
-        $excludeKeys = array_merge($PrimKey, $VirtKeys);
-        
+        $excludeKeys = array_merge($PrimKey, $VirtKeys);        
         $r = $SM->getBasicFormDataByColumns($tablename, Config::getConfig(), $cols, $excludeKeys);
         return $r;
       }

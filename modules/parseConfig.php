@@ -13,14 +13,10 @@
 	$data = html_entity_decode($data);
 	// check
 	if ($data != "") {
-		// Write config to file
-		file_put_contents("tmp.php", $data);
-		include_once("tmp.php");
+		eval('?>' . $data . '<?php ');
 		// get data
 		$prjname = DB_NAME;
 		$jsvar = $config_tables_json;
-		// delete file
-		unlink("tmp.php");
 		// Return result
 		echo json_encode(array("DBName" => $prjname, "data" => $jsvar));
 		exit();

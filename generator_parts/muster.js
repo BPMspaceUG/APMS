@@ -1179,8 +1179,8 @@ class Table extends RawTable {
         if (t.showFilter) {
             header += '<div class="col-12 mb-1">';
             header += '<div class="input-group">';
-            console.log('Selected IDs', t.selectedIDs);
-            console.log(t);
+            //console.log('Selected IDs', t.selectedIDs);
+            //console.log(t)
             let valText = '';
             let selectedValue = t.selectedIDs[0];
             if (selectedValue)

@@ -97,8 +97,20 @@ APMS.controller('APMScontrol', function ($scope, $http) {
       data: {config_data: text}
     })
     .success(function(data) {
-      $scope.refreshConfig(data)
       $scope.isLoading = false
+      let res = data;
+      const DBName = res.DBName;
+      if (DBName == $scope.dbNames.model) {
+        // Success
+        $scope.refreshConfig(data)
+        $scope.configFileWasFound = true;
+        $scope.configFileWasNotFound = false;
+      } else {
+        // Wrong Config loaded
+        console.log('The Database names of the configs does not match!');
+        $scope.configFileWasNotFound = true;
+        $scope.configFileWasFound = false;
+      }
     })
   }
   /*

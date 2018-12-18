@@ -94,10 +94,26 @@
 
 
     //--- Create a stored procedure for each Table
-    $con->exec('CREATE PROCEDURE sp_'.$tablename.'(IN token_uid INT)
-BEGIN
-  SELECT * FROM '.$tablename.';
-END');
+    $sp_name = 'sp_'.$tablename;
+    $con->exec('DROP PROCEDURE IF EXISTS `'.$sp_name.'`'); // TODO: Ask user if it should be overwritten
+
+    //$sp1 = "DELIMITER $$";
+    $sp2 = "CREATE PROCEDURE ".$sp_name."(IN token_uid INT, IN orderCol VARCHAR(100), IN LimitStart INT, IN LimitSize INT)
+BEGIN   
+  SET @s = CONCAT('SELECT * FROM ".$tablename." ORDER BY ', orderCol, ' ', 'DESC LIMIT ', LimitStart, ', ', LimitSize);
+  PREPARE stmt FROM @s;
+  EXECUTE stmt;
+  DEALLOCATE PREPARE stmt;
+END";
+    //$sp3 = "DELIMITER ;";
+
+    //echo $sp1."\n";
+    echo $sp2."\n";
+    //echo $sp3."\n\n";
+
+    $res = $con->exec($sp2);
+    var_dump($res);
+    echo "\n\n";
 
     //--- Create StateMachine
     if ($se_active) {
@@ -111,19 +127,11 @@ END');
       $excludeKeys = Config::getPrimaryColsByTablename($tablename, $data);      
       $excludeKeys[] = 'state_id'; // Also exclude StateMachine in the FormData
       $form_data_default = $SM->getBasicFormDataByColumns($tablename, json_encode($data), $colData, $excludeKeys);
-      //$form_data = $SM->getBasicFormDataByColumns($tablename, json_encode($data), $colData, $excludeKeys, true);
 
       // Default Form
       $query = "UPDATE state_machines SET form_data_default = ? WHERE tablename = ? AND NULLIF(form_data_default, '') IS NULL";
       $stmt = $con->prepare($query);
       $stmt->execute(array($form_data_default, $tablename));
-
-      // Special create Form - without Reverse Foreign Keys
-      /*
-      $query = "UPDATE state_machines SET form_data = ? WHERE tablename = ? AND NULLIF(form_data, '') IS NULL";
-      $stmt = $con->prepare($query);
-      $stmt->execute(array($form_data, $tablename));
-      */
 
       $queries1 = '';
       $queries1 = $SM->getQueryLog();
@@ -233,7 +241,6 @@ END');
   // Structure Configuration Data
   $config_tables_json = \''.$json.'\';
 ?>';
-
 
   function createSubDirIfNotExists($dirname) {
     if (!is_dir($dirname))

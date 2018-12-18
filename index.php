@@ -81,29 +81,29 @@
 		    <div class="card mb-3">
           <div class="card-body">
 		        <h5><span class="badge badge-warning text-white mr-2">Optional</span> Load Configuration</h5>
-            <div class="panel panel-default">
-              <div class="panel-body">
-                <div class="row">
-                  <!-- Automatically load config -->
-                  <div class="col-6">
-                    <strong>[1] Automatically load config</strong><br>
-                    <button class="btn btn-default" ng-click="loadConfigByName()"><i class="fa fa-search"></i> Look for last config</button>
-                    <p class="text-danger" ng-show="configFileWasNotFound">No configuration file found</p>
-                    <p class="text-success" ng-show="configFileWasFound">Configuration file found and loaded</p>
-                  </div>
-                  <!-- Manually load config -->
-                  <div class="col-6">
-                    <strong>[2] Manually load config</strong><br>
-                    <p>Paste the contents of the configuration file here:</p>
-                    <textarea class="form-control configtxt" ng-model="configtext" placeholder="Post Content of the Config-File here"></textarea>
-                    <button class="btn btn-default" ng-click="loadconfig(configtext)">
-                      <i class="fa fa-arrow-right"></i> Parse and Load configuration file
-                    </button>
-                  </div>
-                </div>
+            <div class="row mb-0">
+              <!-- Automatically load config -->
+              <div class="col-6">
+                <p><strong>[1] Automatically load config</strong></p>
+                <button class="btn btn-default" ng-click="loadConfigByName()"><i class="fa fa-search"></i> Look for last config</button>
               </div>
-		        </div>
+              <!-- Manually load config -->
+              <div class="col-6">
+                <p><strong>[2] Manually load config</strong></p>
+                <textarea class="form-control configtxt" ng-model="configtext" placeholder="Paste Content of the Config-File here"></textarea>
+                <button class="btn btn-default" ng-click="loadconfig(configtext)">
+                  <i class="fa fa-arrow-right"></i> Parse and Load configuration file
+                </button>
+              </div>
+            </div>
 		      </div>
+          <div class="card-footer text-center font-weight-bold">
+            <p class="m-0 p-0">
+              &nbsp;
+              <span class="text-danger" ng-if="configFileWasNotFound"><i class="fa fa-times"></i> Error when loading Configuration</span>
+              <span class="text-success" ng-if="configFileWasFound"><i class="fa fa-check"></i> Configuration loaded successfully</span>
+            </p>
+          </div>
 		    </div>
 
         <!-- Content of Databases -->        
