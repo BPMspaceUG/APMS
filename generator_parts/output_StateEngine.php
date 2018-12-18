@@ -385,7 +385,7 @@
     public function getCreateFormByTablename() {
       if (!($this->ID > 0)) return "";
       $result = '';
-      $sql = 'SELECT IF(form_data IS NULL OR form_data = \'\', form_data_default, form_data) AS fd FROM state_machines WHERE id = ?';
+      $sql = 'SELECT form_data AS fd FROM state_machines WHERE id = ?';
       $stmt = $this->db->prepare($sql);
       $stmt->execute(array($this->ID));
       while($row = $stmt->fetch()) {

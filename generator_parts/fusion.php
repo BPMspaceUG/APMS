@@ -111,7 +111,7 @@ END');
       $excludeKeys = Config::getPrimaryColsByTablename($tablename, $data);      
       $excludeKeys[] = 'state_id'; // Also exclude StateMachine in the FormData
       $form_data_default = $SM->getBasicFormDataByColumns($tablename, json_encode($data), $colData, $excludeKeys);
-      $form_data = $SM->getBasicFormDataByColumns($tablename, json_encode($data), $colData, $excludeKeys, true);
+      //$form_data = $SM->getBasicFormDataByColumns($tablename, json_encode($data), $colData, $excludeKeys, true);
 
       // Default Form
       $query = "UPDATE state_machines SET form_data_default = ? WHERE tablename = ? AND NULLIF(form_data_default, '') IS NULL";
@@ -119,9 +119,11 @@ END');
       $stmt->execute(array($form_data_default, $tablename));
 
       // Special create Form - without Reverse Foreign Keys
+      /*
       $query = "UPDATE state_machines SET form_data = ? WHERE tablename = ? AND NULLIF(form_data, '') IS NULL";
       $stmt = $con->prepare($query);
       $stmt->execute(array($form_data, $tablename));
+      */
 
       $queries1 = '';
       $queries1 = $SM->getQueryLog();

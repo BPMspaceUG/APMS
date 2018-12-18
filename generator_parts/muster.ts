@@ -29,6 +29,16 @@ class LiteEvent<T> implements ILiteEvent<T> {
   }
 }
 
+
+abstract class GUI {
+  public static ID = function () {
+    // Math.random should be unique because of its seeding algorithm.
+    // Convert it to base 36 (numbers + letters), and grab the first 9 characters
+    // after the decimal.
+    return Math.random().toString(36).substr(2, 9);
+  };
+}
+
 //==============================================================
 // Class: Database
 //==============================================================
@@ -75,11 +85,7 @@ class Modal {
   }
 
   public constructor(heading: string, content: string, footer: string = '', isBig: boolean = false) {
-    this.DOM_ID = 'msgBx'
-    // Check if ID exists then add Number -> like 'idStrxxx'
-    while ( $("#"+this.DOM_ID).length ) {
-      this.DOM_ID  += "X"
-    }
+    this.DOM_ID = GUI.ID()
     // Set Params
     this.heading = heading
     this.content = content
@@ -728,8 +734,12 @@ class Table extends RawTable {
         let btn = '';
         // Override the state-name if it is a Loop (Save)
         if (actStateID == s.id) {
-          saveBtn = '<button class="btn btn-primary mr-0 ml-auto btnState btnStateSave" data-rowid="'+RowID+'" data-targetstate="'+s.id+'" type="button">'+
+          saveBtn = '<div class="btn-group ml-auto mr-0" role="group">';
+          saveBtn += '<button class="btn btn-primary btnState btnStateSave" data-rowid="'+RowID+'" data-targetstate="'+s.id+'" type="button">'+
           '<i class="fa fa-floppy-o"></i> '+t.GUIOptions.modalButtonTextModifySave +'</button>';
+          saveBtn += '<button class="btn btn-primary btnState btnSaveAndClose" data-rowid="'+RowID+'" data-targetstate="'+s.id+'" type="button">'+
+            t.GUIOptions.modalButtonTextModifySaveAndClose +'</button>';
+          saveBtn += '</div>';
         } else {
           cnt_states++;
           btn = '<a class="dropdown-item btnState btnStateChange state'+(s.id % 12)+'" data-rowid="'+RowID+'" data-targetstate="'+s.id+'">' + btn_text + '</a>';
@@ -753,6 +763,9 @@ class Table extends RawTable {
       let RowID = $(this).data('rowid')
       let TargetStateID = $(this).data('targetstate')
       t.setState(EditMID, RowID, TargetStateID)
+      // Check Class and Close window
+      if ($(this).hasClass("btnSaveAndClose"))
+        $('#'+EditMID).modal('hide');
     })
 
     $('#'+EditMID+' .label-state').addClass('state'+(actStateID % 12)).text(TheRow.state_id[1]);  
@@ -1214,16 +1227,18 @@ class Table extends RawTable {
     // ---- Header
     let header: string = '<div class="element"><div class=""><div class="row">';
     let footer: string = '';
+    let GUID: string = GUI.ID();
 
     // Filter
     if (t.showFilter) {
       header += '<div class="col-12 mb-1">'
       header += '<div class="input-group">'
       console.log('Selected IDs', t.selectedIDs);
+      console.log(t)
+      let valText: string = ''
       let selectedValue = t.selectedIDs[0];
-      if (!selectedValue)
-        selectedValue = '';
-      header += '  <input type="text" class="form-control filterText" value="'+selectedValue+'" placeholder="'+t.GUIOptions.filterPlaceholderText+'">'
+      if (selectedValue) valText = String(selectedValue);
+      header += '  <input type="text" class="form-control filterText" value="'+valText+'" placeholder="'+t.GUIOptions.filterPlaceholderText+'">'
       header += '  <div class="input-group-append">'
       if (!t.ReadOnly) {
         // Create Button
@@ -1234,9 +1249,8 @@ class Table extends RawTable {
         header += '    <button class="btn btn-secondary btnShowWorkflow"><i class="fa fa-random"></i>&nbsp; Workflow</button>'
       }
       if (t.selType == SelectType.Single) {
-        header += '    <button class="btn btn-secondary btnShowTable"><i class="fa fa-angle-down"></i></button>'
+        header += '    <button class="btn btn-secondary" type="button" data-toggle="collapse" data-target=".'+GUID+'"><i class="fa fa-angle-down"></i></button>'
       }
-      //header += '    <button class="btn btn-secondary btnFilter" type="button"><i class="fa fa-search"></i></button>'
       header += '  </div>'
       header += '</div>'
       header += '</div>'
@@ -1246,9 +1260,8 @@ class Table extends RawTable {
     //------ Table Header
     
     if (t.Rows.length > 0) {
-      header += '<div class="card-body p-0">';
+      header += '<div class="card-body '+GUID+' p-0'+(t.selType == SelectType.Single ? ' collapse' : '')+'">';
       header += '<div class="tablewrapper border border-top-0"><table class="table table-striped table-hover m-0 table-sm datatbl"><thead><tr>'+ths+'</tr></thead><tbody>';
-      
       footer = '</tbody></table></div>';
     }
     // TODO:

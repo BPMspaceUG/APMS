@@ -618,17 +618,17 @@
       if ($SM->getID() > 0) {
         // Has StateMachine
         $r = $SM->getCreateFormByTablename();
-        if (empty($r)) $r = "1"; // default: allow editing (if there are no rules set)
-      } else {
-        // Has NO StateMachine -> Return standard form
-        $cols = Config::getColsByTablename($tablename);   
-
-        $PrimKey = array(Config::getPrimaryColNameByTablename($tablename));
-        $VirtKeys = Config::getVirtualColnames($tablename);
-        $excludeKeys = array_merge($PrimKey, $VirtKeys);
-        
-        $r = $SM->getBasicFormDataByColumns($tablename, Config::getConfig(), $cols, $excludeKeys, true);
+        if (empty($r))
+          $r = "1"; // default: allow editing (if there are no rules set)
+        else
+          return $r;
       }
+      // Return standard form
+      $cols = Config::getColsByTablename($tablename);
+      $PrimKey = array(Config::getPrimaryColNameByTablename($tablename));
+      $VirtKeys = Config::getVirtualColnames($tablename);
+      $excludeKeys = array_merge($PrimKey, $VirtKeys, array('state_id'));
+      $r = $SM->getBasicFormDataByColumns($tablename, Config::getConfig(), $cols, $excludeKeys, true);
       return $r;
     }
     public function getNextStates($param) {
