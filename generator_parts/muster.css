@@ -1,6 +1,6 @@
 /* Table */
 .tablewrapper {overflow: auto;}
-.datatbl {font-size: 0.9em; }
+.datatbl {font-size: 1em; }
 .datatbl thead tr {/*background-color: #eee;*/ font-size: .8em;}
 .datatbl thead th {cursor: pointer; }
 .datatbl thead th:first-of-type {cursor: auto;}

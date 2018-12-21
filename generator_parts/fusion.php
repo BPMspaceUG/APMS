@@ -97,21 +97,91 @@
     $sp_name = 'sp_'.$tablename;
     $con->exec('DROP PROCEDURE IF EXISTS `'.$sp_name.'`'); // TODO: Ask user if it should be overwritten
 
-    //$sp1 = "DELIMITER $$";
-    $sp2 = "CREATE PROCEDURE ".$sp_name."(IN token_uid INT, IN orderCol VARCHAR(100), IN LimitStart INT, IN LimitSize INT)
-BEGIN   
-  SET @s = CONCAT('SELECT * FROM ".$tablename." ORDER BY ', orderCol, ' ', 'DESC LIMIT ', LimitStart, ', ', LimitSize);
+    // TODO: Count
+    // TODO: Where
+
+    //-- All standard columns
+    $colnames = array_keys($table["columns"]);    
+
+    // Generate joins
+    unset($joincolsubst); // clear due to loop
+    unset($jointexts);
+    unset($virtualcols);
+    unset($stdcols);
+    unset($allcolnames);
+
+    $joincolsubst = [];
+    $jointexts = [];
+    $virtualcols = [];
+    $stdcols = [];
+    $allcolnames = [];
+    $fTableCount = 0;
+
+    foreach ($colnames as $colname) {
+      $ft = $table["columns"][$colname]["foreignKey"]["table"];
+      $isVc = $table["columns"][$colname]["is_virtual"];
+      // -- Foreign Key
+      if ($ft != "") {
+        $fkey = $table["columns"][$colname]["foreignKey"]["col_id"];
+        $fsub = $table["columns"][$colname]["foreignKey"]["col_subst"];
+        // Template: ' LEFT JOIN [fktable] AS t[0] ON a.[stdkey] = t[0].[fkey] '
+        $jointexts[] = ' LEFT JOIN '.$ft.' AS t'.$fTableCount.' ON a.'.$colname.' = t'.$fTableCount.'.'.$fkey.' ';
+        // Check if contains a function or the char "("
+        if (strpos($fsub, "(") !== FALSE) {
+          $joincolsubst[] = addslashes($fsub).' AS '.$colname;
+          $allcolnames[] = $colname;
+        }
+        else {
+          $joincolsubst[] = 't'.$fTableCount.'.'.$fsub.' AS '.$colname;
+          $allcolnames[] = 't'.$fTableCount.'.'.$fsub;
+        }
+        $fTableCount += 1;
+      }
+      // -- Virtual Column
+      if ($isVc) {
+        $virtualcols[] = addslashes($table["columns"][$colname]["virtual_select"]).' AS '.$colname;
+        $allcolnames[] = addslashes($table["columns"][$colname]["virtual_select"]);
+      }
+      else {
+        $stdcols[] = "a.".$colname;
+        $allcolnames[] = "a.".$colname;
+      }
+    }
+
+    // Prepare for SP -> add prefixes/aliases for each column
+    $stdColText = implode(", ", $stdcols);    
+    $joinTables = implode("", $jointexts);
+
+    $select = $stdColText;
+    if (count($virtualcols) > 0) {
+      $select .= ', '.implode(", ", $virtualcols);
+    }
+    if (count($joincolsubst) > 0) {
+      $select .= ', '.implode(", ", $joincolsubst);
+    }
+
+    // Filter
+    // Template: ' WHERE ([col1] LIKE '%[searchtext]%' OR [col2] LIKE '%[searchtext]%')
+    $filtertext = "(" . implode(" LIKE \'%', filter ,'%\' OR ", $allcolnames) . " LIKE \'%', filter ,'%\')";
+
+    // STORED PROECEDURE START
+    $sp = "CREATE PROCEDURE ".$sp_name."(IN token_uid INT, IN filter VARCHAR(256), IN whereParam VARCHAR(256), IN orderCol VARCHAR(100), IN ascDesc VARCHAR(4), IN LimitStart INT, IN LimitSize INT)
+BEGIN
+  SET @select = '$select';
+  SET @joins =  '$joinTables';
+  SET @where = CONCAT(' WHERE $filtertext ', COALESCE(CONCAT('AND ', NULLIF(whereParam, '')),''));
+  SET @order = CONCAT(' ORDER BY ', orderCol, ' ', ascDesc);
+  SET @limit = CONCAT(' LIMIT ', LimitStart, ', ', LimitSize);
+
+  SET @s = CONCAT('SELECT ', @select, ' FROM ".$tablename." AS a', @joins, @where, @order, @limit);
   PREPARE stmt FROM @s;
   EXECUTE stmt;
   DEALLOCATE PREPARE stmt;
 END";
-    //$sp3 = "DELIMITER ;";
+    // STORED PROECEDURE END
 
-    //echo $sp1."\n";
-    echo $sp2."\n";
-    //echo $sp3."\n\n";
-
-    $res = $con->exec($sp2);
+    echo $sp."\n";
+    $res = $con->exec($sp);
     var_dump($res);
     echo "\n\n";
 

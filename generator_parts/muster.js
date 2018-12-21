@@ -377,13 +377,12 @@ class Table extends RawTable {
         this.Form_Create = '';
         this.Form_Modify = '';
         this.defaultValues = {}; // Default Values in Create-Form
-        // TODO: Make these also GUI Options
-        this.maxCellLength = 30;
-        this.showControlColumn = true;
-        this.showWorkflowButton = true;
-        this.showFilter = true;
-        this.smallestTimeUnitMins = true;
         this.GUIOptions = {
+            maxCellLength: 30,
+            showControlColumn: true,
+            showWorkflowButton: true,
+            showFilter: true,
+            smallestTimeUnitMins: true,
             modalHeaderTextCreate: 'Create Entry',
             modalHeaderTextModify: 'Modify Entry',
             modalButtonTextCreate: 'Create',
@@ -391,7 +390,6 @@ class Table extends RawTable {
             modalButtonTextModifySave: 'Save',
             modalButtonTextModifySaveAndClose: 'Save &amp; Close',
             modalButtonTextModifyClose: 'Close',
-            //modalButtonTextSetStates: 'Set State',
             modalButtonTextSelect: 'Select',
             filterPlaceholderText: 'Enter searchword',
             statusBarTextNoEntries: 'No Entries',
@@ -430,7 +428,7 @@ class Table extends RawTable {
                 me.ReadOnly = me.TableConfig.is_read_only;
                 // check if is read only and no select then hide first column
                 if (me.ReadOnly && me.selType == SelectType.NoSelect)
-                    me.showControlColumn = false;
+                    me.GUIOptions.showControlColumn = false;
                 // Loop all cloumns form this table
                 Object.keys(me.Columns).forEach(function (col) {
                     // Get Primary and SortColumn
@@ -451,7 +449,11 @@ class Table extends RawTable {
     toggleSort(ColumnName) {
         let me = this;
         this.AscDesc = (this.AscDesc == SortOrder.DESC) ? SortOrder.ASC : SortOrder.DESC;
-        this.OrderBy = ColumnName;
+        // Check if column is a foreign key
+        if (me.Columns[ColumnName].foreignKey['table'] != '')
+            this.OrderBy = 'a.' + ColumnName;
+        else
+            this.OrderBy = ColumnName;
         // Refresh
         this.loadRows(function () {
             me.renderHTML();
@@ -516,8 +518,8 @@ class Table extends RawTable {
         // check cell type
         if (typeof cellContent == 'string') {
             // String, and longer than X chars
-            if (cellContent.length > this.maxCellLength)
-                return escapeHtml(cellContent.substr(0, this.maxCellLength) + "\u2026");
+            if (cellContent.length > this.GUIOptions.maxCellLength)
+                return escapeHtml(cellContent.substr(0, this.GUIOptions.maxCellLength) + "\u2026");
         }
         else if (Array.isArray(cellContent)) {
             // Foreign Key
@@ -630,7 +632,7 @@ class Table extends RawTable {
                                 e.val(value.split(" ")[0]);
                             else if (e.attr('type') == 'time') {
                                 // Remove seconds from TimeString
-                                if (me.smallestTimeUnitMins) {
+                                if (me.GUIOptions.smallestTimeUnitMins) {
                                     var timeArr = value.split(':');
                                     timeArr.pop();
                                     value = timeArr.join(':');
@@ -640,7 +642,7 @@ class Table extends RawTable {
                         }
                         else if (DataType == 'time') {
                             // Remove seconds from TimeString
-                            if (me.smallestTimeUnitMins) {
+                            if (me.GUIOptions.smallestTimeUnitMins) {
                                 var timeArr = value.split(':');
                                 timeArr.pop();
                                 value = timeArr.join(':');
@@ -1088,7 +1090,7 @@ class Table extends RawTable {
                     }
                     else if (t.Columns[col].DATA_TYPE == 'time') {
                         // Remove seconds from TimeString
-                        if (t.smallestTimeUnitMins) {
+                        if (t.GUIOptions.smallestTimeUnitMins) {
                             var timeArr = value.split(':');
                             timeArr.pop();
                             value = timeArr.join(':');
@@ -1099,7 +1101,7 @@ class Table extends RawTable {
                         if (!isNaN(tmp.getTime())) {
                             value = tmp.toLocaleString('de-DE');
                             // Remove seconds from TimeString
-                            if (t.smallestTimeUnitMins) {
+                            if (t.GUIOptions.smallestTimeUnitMins) {
                                 var timeArr = value.split(':');
                                 timeArr.pop();
                                 value = timeArr.join(':');
@@ -1142,7 +1144,7 @@ class Table extends RawTable {
         $(t.jQSelector).empty(); // GUI: Clear entries
         //---------------------------- Table Headers
         let ths = '';
-        if (t.showControlColumn)
+        if (t.GUIOptions.showControlColumn)
             ths = '<th class="border-0" scope="col"></th>'; // Pre fill with 1 because of selector
         // Order Headers by col_order
         function compare(a, b) {
@@ -1154,8 +1156,9 @@ class Table extends RawTable {
         // Generate HTML for Headers sorted
         sortedColumnNames.forEach(function (col) {
             if (t.Columns[col].is_in_menu) {
-                ths += '<th scope="col" data-colname="' + col + '" class="border-0 datatbl_header' + (col == t.OrderBy ? ' sorted' : '') + '">' +
-                    t.Columns[col].column_alias + (col == t.OrderBy ? '&nbsp;' + (t.AscDesc == SortOrder.ASC ?
+                const ordercol = t.OrderBy.replace('a.', '');
+                ths += '<th scope="col" data-colname="' + col + '" class="border-0 datatbl_header' + (col == ordercol ? ' sorted' : '') + '">' +
+                    t.Columns[col].column_alias + (col == ordercol ? '&nbsp;' + (t.AscDesc == SortOrder.ASC ?
                     '<i class="fa fa-sort-asc">' : (t.AscDesc == SortOrder.DESC ?
                     '<i class="fa fa-sort-desc">' : '')) + '' : '') + '</th>';
             }
@@ -1176,7 +1179,7 @@ class Table extends RawTable {
         let footer = '';
         let GUID = GUI.ID();
         // Filter
-        if (t.showFilter) {
+        if (t.GUIOptions.showFilter) {
             header += '<div class="col-12 mb-1">';
             header += '<div class="input-group">';
             //console.log('Selected IDs', t.selectedIDs);
@@ -1191,7 +1194,7 @@ class Table extends RawTable {
                 // Create Button
                 header += '<button class="btn btn-success btnCreateEntry"><i class="fa fa-plus"></i>&nbsp;' + t.GUIOptions.modalButtonTextCreate + '</button>';
             }
-            if (t.SM && t.showWorkflowButton && t.selType == SelectType.NoSelect) {
+            if (t.SM && t.GUIOptions.showWorkflowButton && t.selType == SelectType.NoSelect) {
                 // Workflow Button
                 header += '    <button class="btn btn-secondary btnShowWorkflow"><i class="fa fa-random"></i>&nbsp; Workflow</button>';
             }
@@ -1226,7 +1229,7 @@ class Table extends RawTable {
         t.Rows.forEach(function (row) {
             let data_string = '';
             // If a Control Column is set then Add one before each row
-            if (t.showControlColumn) {
+            if (t.GUIOptions.showControlColumn) {
                 data_string = '<td scope="row" class="controllcoulm modRow align-middle" data-rowid="' + row[t.PrimaryColumn] + '">';
                 // Entries are selectable?
                 if (t.selType == SelectType.Single) {
@@ -1259,7 +1262,7 @@ class Table extends RawTable {
                         }
                         else if (t.Columns[col].DATA_TYPE == 'time') {
                             // Remove seconds from TimeString
-                            if (t.smallestTimeUnitMins) {
+                            if (t.GUIOptions.smallestTimeUnitMins) {
                                 var timeArr = value.split(':');
                                 timeArr.pop();
                                 value = timeArr.join(':');
@@ -1270,7 +1273,7 @@ class Table extends RawTable {
                             if (!isNaN(tmp.getTime())) {
                                 value = tmp.toLocaleString('de-DE');
                                 // Remove seconds from TimeString
-                                if (t.smallestTimeUnitMins) {
+                                if (t.GUIOptions.smallestTimeUnitMins) {
                                     var timeArr = value.split(':');
                                     timeArr.pop();
                                     value = timeArr.join(':');
@@ -1309,7 +1312,7 @@ class Table extends RawTable {
                 }
             });
             // Add row to table
-            if (t.showControlColumn) {
+            if (t.GUIOptions.showControlColumn) {
                 // Edit via first column
                 tds += '<tr class="datarow row-' + row[t.PrimaryColumn] + '">' + data_string + '</tr>';
             }
@@ -1411,9 +1414,10 @@ class Table extends RawTable {
             t.setPageIndex(newPageIndex);
         });
         //-------------------------------
-        // Autofocus Filter    
-        //if (t.Filter.length > 0)
-        //$(t.jQSelector+' .filterText').focus().val('').val(t.Filter)
+        // Autofocus Filter
+        if (t.Filter.length > 0)
+            $(t.jQSelector + ' .filterText').val(t.Filter);
+        $(t.jQSelector + ' .filterText').focus(); //.val('').val(t.Filter)
         //else
         //  $(t.jQSelector+' .filterText').val(t.Filter)
         // Mark last modified Row
@@ -1427,7 +1431,7 @@ class Table extends RawTable {
         if (t.selectedIDs) {
             if (t.selectedIDs.length > 0) {
                 t.selectedIDs.forEach(selRowID => {
-                    if (t.showControlColumn) {
+                    if (t.GUIOptions.showControlColumn) {
                         if (t.selType = SelectType.Single)
                             $(t.jQSelector + ' .row-' + selRowID + ' td:first').html('<i class="fa fa-dot-circle-o"></i>');
                         else

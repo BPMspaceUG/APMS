@@ -275,16 +275,20 @@
       return json_encode($script_result);
     }
     public function count($param) {
+      // TODO: Make a special count function maybe inside of SP
       global $token;
       $tablename = $param["table"];
       $token_uid = $token->uid;
-      /*
-      $query = 'CALL sp_'.$tablename.'('.$token_uid.')';
-      $pdo = DB::getInstance()->getConnection();
-      $stmt = $pdo->prepare($query);
-      $stmt->execute(array());
-      */
-      $params = array('table' => $tablename, 'token' => $token_uid, 'orderby' => '', 'limitstart' => 0, 'limitsize' => 0);
+      $params = array(
+        'table' => $tablename,
+        'token' => $token_uid,
+        'filter' => '',
+        'where' => '',
+        'orderby' => 'NULL',
+        'ascdesc' => 'ASC',
+        'limitstart' => 0,
+        'limitsize' => 1000000
+      );
       $data = json_decode($this->call($params), true);
       return json_encode(array(array('cnt' => count($data))));
     }
@@ -327,26 +331,43 @@
         @$limitStart = isset($param["limitStart"]) ? $param["limitStart"] : null;
         @$limitSize = isset($param["limitSize"]) ? $param["limitSize"] : null;
         @$limit = isset($param["limit"]) ? $param["limit"] : null;
-        @$orderby = isset($param["orderby"]) ? $param["orderby"] : ""; // has to be a column name
+        @$orderby = isset($param["orderby"]) ? $param["orderby"] : "NULL"; // has to be a column name
         @$filter = isset($param["filter"]) ? $param["filter"] : "";
         //@$select = isset($param["select"]) ? $param["select"] : "*";
-        //@$where = isset($param["where"]) ? $param["where"] : "";
+        @$where = isset($param["where"]) ? $param["where"] : "";
       } catch (Exception $e) {
         die("Invalid Parameter-Data!");
       }
 
-      // TODO: Give all params to SP like (filter, orderBY, ASCDESC, LIMIT-start, LIMIT-size, spare1, spare2, spare3, spare4, spare5)
-      // Maybe add 1-5 spare parameters for a specific Where or other data
+      // Give all params to SP like (filter, orderBY, ASCDESC, LIMIT-start, LIMIT-size, [spare1, spare2, spare3, spare4, spare5])
 
+      //--- Token
       global $token;
       $token_uid = $token->uid;
 
-      $params = array('table' => $tablename, 'token' => $token_uid, 'orderby' => 'DemoOrder_order_ID', 'limitstart' => 0, 'limitsize' => 10);
-      return $this->call($params);
+      //--- ASC/DESC
+      $ascdesc = strtolower(trim($ascdesc));
+      if ($ascdesc == "") $ascdesc == "";
+      elseif ($ascdesc == "asc") $ascdesc == "ASC";
+      elseif ($ascdesc == "desc") $ascdesc == "DESC";
+      else die("AscDesc has no valid value (value has to be empty, ASC or DESC)!");
 
+      $params = array(
+        'table' => $tablename,
+        'token' => $token_uid,
+        'filter' => $filter,
+        'where' => $where,
+        'orderby' => $orderby,
+        'ascdesc' => $ascdesc,
+        'limitstart' => $limitStart,
+        'limitsize' => $limitSize
+      );
+
+      return $this->call($params);
 
       //---------------------------------------------------
 
+      /*
       // Parameters and default values
       try {
         @$tablename = $param["table"];
@@ -370,8 +391,10 @@
       
       // For internal use only (values of the prepared stmt)
       $vals = array();
+      */
 
       //--- ORDER BY
+      /*
       if (trim($orderby) <> "") {
         // TODO: Check if orderby is a valid Column name and does not contain any special chars
         if (!Config::isValidColname($orderby)) die('Param OrderBy has invalid chars in it!');
@@ -390,8 +413,10 @@
         // No Orderby is set
         $sql_orderby = " "; // ORDER BY replacer_id DESC";
       }
+      */
       
       //--- LIMIT (sec)
+      /*
       $sql_limit = '';
       if (!is_null($limit)) {
         if (!is_int($limit)) die("Limit is no integer!");
@@ -405,9 +430,11 @@
         if (!is_int($limitStart)) die("Limit-Start is no integer!");
         $sql_limit = " LIMIT ".$limitStart.",".$limitSize;
       }
-      
+      */
+
       //--- JOINS
       // Only get Joins from Server-Side
+      /*
       $joins = Config::getJoinedCols($tablename);
       $join_from = $tablename." AS a"; // if there is no join
       $sel = array();
@@ -434,8 +461,10 @@
         }
         $sel_str = implode(",", $sel);
       }
+      */
 
       // Check for virtual columns
+      /*
       $cols = Config::getColsByTablename($tablename);
       $virtCols = Config::getVirtualColnames($tablename);
       $virtSelects = [];
@@ -446,8 +475,10 @@
           $sel_str .= ",".$virtSel.' AS '.$vcol;
         }
       }
+      */
 
       //--- WHERE (SEARCH / Filter)
+      /*
       if ($where <> "" && $filter == "") {
         $where = " WHERE ".$where;
       }
@@ -461,9 +492,7 @@
         $stmt->execute();
         while ($row = $stmt->fetch()) {
           $k[] = $row[0];
-        }
-
-        
+        }        
         $k = array_merge($k, $sel_raw); // Additional JOIN-columns
         $k = array_merge($k, $virtSelects); // Also add virtual columns
 
@@ -486,8 +515,10 @@
         else
           $where = " WHERE $where AND ($q_str)";
       }
+      */
 
       //--- SELECT
+      /*
       if ($select == 'COUNT(*) AS cnt') $sql_select = 'COUNT(*) AS cnt';
       elseif ($select == 'a.*') $sql_select = "a.*";
       elseif ($select == '*') {
@@ -498,19 +529,13 @@
       else $sql_select = $select.', '.$sel_str;
       // bugfix
       $sql_select = str_replace(', ,', ',', $sql_select);
+      */
 
       // TODO: sel_str can only contain columnnames and , and COUNT(*)
-
+      /*
       $query = "SELECT " . $sql_select . " FROM " . $join_from . $where . $sql_orderby . $sql_limit;
       // Clean up a bit
       $query = str_replace("  ", " ", $query);
-
-      // For debugging
-      /*
-      if (strpos($query, 'COUNT') === FALSE) {
-        file_put_contents("query-log.txt", $query);
-      }
-      */
 
       // Execute & Fetch
       $result = array();
@@ -527,6 +552,7 @@
 
       // Return result as JSON
       return json_encode($result);
+      */
     }
     //================================== UPDATE
     public function update($param, $allowUpdateFromSM = false) {
