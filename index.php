@@ -70,10 +70,16 @@
         <div class="card mb-3">
           <div class="card-body">
             <h5><span class="badge badge-success mr-2">1</span> Select a Database</h5>
-            <select class="custom-select" name="repeatSelect" id="repeatSelect" ng-model="dbNames.model" ng-change="changeSelection()">
-              <option ng-repeat="name in dbNames.names" value="{{name}}">{{name}}</option>
-            </select>
-            <button ng-click="changeSelection()" class="btn btn-default"><i class="fa fa-refresh"></i> Refresh</button>
+
+            <div class="input-group">
+              <select class="custom-select" id="repeatSelect" name="repeatSelect" ng-model="dbNames.model" ng-change="changeSelection()">
+                <option ng-repeat="name in dbNames.names" value="{{name}}">{{name}}</option>
+              </select>
+              <div class="input-group-append">
+                <button class="btn btn-outline-secondary" ng-click="changeSelection()" type="button"><i class="fa fa-refresh"></i> Refresh</button>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -116,6 +122,8 @@
               <table class="table table-sm table-striped" id="loadedtables" ng-model="tbl" id="row{{$index}}">
                 <thead>
                   <tr>
+                    <th width="200px">
+                    </th>
                     <th width="200px"><span class="text-muted">Order</span></th>
                     <th width="25%">TABLENAME</th>
                     <th width="25%">ALIAS</th>
@@ -129,7 +137,14 @@
                 <tbody ng-repeat="(name, tbl) in tables">
                   <!-- Table START -->
                   <tr>
-
+                    <!-- Order Tabs -->
+                    <td>
+                      <div style="white-space:nowrap;overflow:hidden;">
+                        <input type="text" style="width: 40px" ng-model="col.col_order">
+                        <a ng-click="changeSortOrder(col, 1)"><i class="fa fa-angle-down p-1 pl-2"></i></a>
+                        <a ng-click="changeSortOrder(col, -1)"><i class="fa fa-angle-up p-1"></i></a>
+                      </div>
+                    </td>
                     <td>
                       <!-- Expand / Collapse -->
                       <div style="white-space:nowrap; overflow: hidden;">
@@ -161,7 +176,7 @@
                     <td ng-class="{'bg-success' : tbl.is_nm_table}"><input type="checkbox" class="form-control" ng-model="tbl.is_nm_table"></td>
 
                     <!-- Icon -->
-                    <td>
+                    <td class="align-middle">
                       <div class="row">
                         <div class="col-3"><i class="{{tbl.table_icon}}"></i></div>
                         <div class="col-9"><input type="text" class="form-control" ng-model="tbl.table_icon"/></div>
@@ -179,10 +194,10 @@
                       </div>
                     </td>
                     <!-- Column Name and Type -->
-                    <td>
+                    <td class="align-middle" colspan="2">
                       <div class="row">
                         <div class="col-6">
-                          <small>{{col.COLUMN_NAME}}</small>
+                          <span>{{col.COLUMN_NAME}}</span>
                         </div>
                         <div class="col-6">
                           <!--{{col.COLUMN_TYPE}}-->
@@ -197,13 +212,13 @@
                         </div>
                       </div>
                     </td>
-                    <td><input type="text" ng-model="col.column_alias"></td>
+                    <td><input type="text" class="form-control form-control-sm" ng-model="col.column_alias"></td>
 
                     <td colspan="5" ng-if="!col.is_virtual">
-                      <input type="checkbox" class="mr-2" ng-model="col.is_in_menu"> Visible
+                      <input type="checkbox" class="mr-2" ng-model="col.is_in_menu">Vis
                       <!--<input type="checkbox" ng-model="col.is_read_only"> RO&nbsp;&nbsp;&nbsp;-->
                       <!--<input type="checkbox" ng-model="col.is_ckeditor"> CKEditor-->                      
-                      &nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;<b>FK:</b>
+                      &nbsp;-<b>FK:</b>
                       <input type="text" style="width: 80px" ng-model="col.foreignKey.table" placeholder="Table">
                       <input type="text" style="width: 80px" ng-model="col.foreignKey.col_id" placeholder="JoinID">
                       <input type="text" style="width: 120px" ng-model="col.foreignKey.col_subst" placeholder="ReplacedCloumn">

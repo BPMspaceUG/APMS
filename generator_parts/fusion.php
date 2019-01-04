@@ -194,8 +194,15 @@ END";
 
       // Create a default form for statemachine
       $colData = $table["columns"];
-      $excludeKeys = Config::getPrimaryColsByTablename($tablename, $data);      
+
+      // Exclude the following Columns:
+      $excludeKeys = Config::getPrimaryColsByTablename($tablename, $data);
       $excludeKeys[] = 'state_id'; // Also exclude StateMachine in the FormData
+      $vcols = Config::getVirtualColnames($tablename, $data);
+      foreach ($vcols as $vc) {
+        $excludeKeys[] = $vc;
+      }
+      
       $form_data_default = $SM->getBasicFormDataByColumns($tablename, json_encode($data), $colData, $excludeKeys);
 
       // Default Form

@@ -66,9 +66,9 @@
       // = boolean // check if contains only vaild letters
       return (!preg_match('/[^A-Za-z0-9_]/', $colname));
     }
-    public static function getVirtualColnames($tablename) {
+    public static function getVirtualColnames($tablename, $data = null) {
       $res = array();
-      $cols = Config::getColsByTablename($tablename);
+      $cols = Config::getColsByTablename($tablename, $data);
       // Collect only virtual Columns
       foreach ($cols as $col) {
         if ($col["is_virtual"])

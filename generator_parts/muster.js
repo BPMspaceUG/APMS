@@ -608,16 +608,29 @@ class Table extends RawTable {
             // isFK?
             if (value) {
                 if (Array.isArray(value)) {
+                    //console.log(value)
                     //--- ForeignKey
                     if (col == 'state_id') {
                         // Special case if name = 'state_id'
+                        /*
                         var label = e.parent().find('.label');
-                        label.addClass('state' + value[0]);
+                        label.addClass('state'+value[0])
                         label.text(value[1]);
+                        */
                     }
                     else {
                         // GUI Foreign Key
-                        e.parent().parent().find('.fkval').val(value[1]);
+                        /*
+                        let x = e.parent().find('.filterText');
+            
+                        console.log('xxx', e, x);
+                        console.log(value[1]);
+                        console.log(x);
+                        x.attr('value', value[1]);
+            
+                        x.val(value[1]);
+                        */
+                        //me.defaultFilterValue = value[1];
                     }
                     // Save in hidden input
                     e.val(value[0]);
@@ -685,31 +698,30 @@ class Table extends RawTable {
         let btns = '';
         let saveBtn = '';
         let actStateID = TheRow.state_id[0]; // ID
+        let cssClass = ' state' + (TheRow.state_id[0] % 12);
         // Check States -> generate Footer HTML
         if (nextStates.length > 0) {
             let cnt_states = 0;
-            let cssClass = ' state' + (TheRow.state_id[0] % 12);
             // Header
-            btns = '<div class="btn-group dropup ml-0 mr-auto">' +
-                '<button type="button" class="btn ' + cssClass + ' text-white dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">' +
-                TheRow.state_id[1] +
-                '</button><div class="dropdown-menu p-0">';
+            btns = '<div class="btn-group dropup ml-0 mr-auto">';
+            btns += '<button type="button" class="btn ' + cssClass + ' text-white dropdown-toggle" data-toggle="dropdown">' + TheRow.state_id[1] + '</button>';
+            btns += '<div class="dropdown-menu p-0">';
             // Loop States
-            nextStates.forEach(function (s) {
-                let btn_text = s.name;
+            nextStates.forEach(function (state) {
+                let btn_text = state.name;
                 let btn = '';
                 // Override the state-name if it is a Loop (Save)
-                if (actStateID == s.id) {
+                if (actStateID == state.id) {
                     saveBtn = '<div class="btn-group ml-auto mr-0" role="group">';
-                    saveBtn += '<button class="btn btn-primary btnState btnStateSave" data-rowid="' + RowID + '" data-targetstate="' + s.id + '" type="button">' +
+                    saveBtn += '<button class="btn btn-primary btnState btnStateSave" data-rowid="' + RowID + '" data-targetstate="' + state.id + '" type="button">' +
                         '<i class="fa fa-floppy-o"></i> ' + t.GUIOptions.modalButtonTextModifySave + '</button>';
-                    saveBtn += '<button class="btn btn-primary btnState btnSaveAndClose" data-rowid="' + RowID + '" data-targetstate="' + s.id + '" type="button">' +
+                    saveBtn += '<button class="btn btn-primary btnState btnSaveAndClose" data-rowid="' + RowID + '" data-targetstate="' + state.id + '" type="button">' +
                         t.GUIOptions.modalButtonTextModifySaveAndClose + '</button>';
                     saveBtn += '</div>';
                 }
                 else {
                     cnt_states++;
-                    btn = '<a class="dropdown-item btnState btnStateChange state' + (s.id % 12) + '" data-rowid="' + RowID + '" data-targetstate="' + s.id + '">' + btn_text + '</a>';
+                    btn = '<a class="dropdown-item btnState btnStateChange state' + (state.id % 12) + '" data-rowid="' + RowID + '" data-targetstate="' + state.id + '">' + btn_text + '</a>';
                 }
                 btns += btn;
             });
@@ -717,9 +729,13 @@ class Table extends RawTable {
             btns += '</div></div>';
             // Save buttons
             if (cnt_states == 0)
-                btns = ''; // Reset html if only Save button exists
-            btns += saveBtn;
+                btns = '<button type="button" class="btn ' + cssClass + ' text-white" tabindex="-1" disabled>' + TheRow.state_id[1] + '</button>'; // Reset html if only Save button exists      
         }
+        else {
+            // No Next States
+            btns = '<button type="button" class="btn ' + cssClass + ' text-white" tabindex="-1" disabled>' + TheRow.state_id[1] + '</button>';
+        }
+        btns += saveBtn;
         // TODO: Rewrite to MID
         //M.setFooter(btns);
         $('#' + EditMID + ' .customfooter').html(btns);
@@ -984,9 +1000,9 @@ class Table extends RawTable {
             if (this.ReadOnly)
                 return;
             // Indicate which row is getting modified
-            this.addClassToDataRow(id, 'table-warning');
+            //this.addClassToDataRow(id, 'table-warning');
             $(this.jQSelector + ' .datarow .controllcoulm').html('<i class="fa fa-pencil"></i>'); // for all
-            $(this.jQSelector + ' .row-' + id + ' .controllcoulm').html('<i class="fa fa-arrow-right"></i>');
+            $(this.jQSelector + ' .row-' + id + ' .controllcoulm').html('<i class="fa fa-pencil text-primary"></i>');
             // Set Form
             if (this.SM) {
                 // EDIT-Modal WITH StateMachine
@@ -1182,13 +1198,7 @@ class Table extends RawTable {
         if (t.GUIOptions.showFilter) {
             header += '<div class="col-12 mb-1">';
             header += '<div class="input-group">';
-            //console.log('Selected IDs', t.selectedIDs);
-            //console.log(t)
-            let valText = '';
-            let selectedValue = t.selectedIDs[0];
-            if (selectedValue)
-                valText = String(selectedValue);
-            header += '  <input type="text" class="form-control filterText" value="' + valText + '" placeholder="' + t.GUIOptions.filterPlaceholderText + '">';
+            header += '  <input type="text" class="form-control filterText text-muted bg-light" value="" placeholder="' + t.GUIOptions.filterPlaceholderText + '">';
             header += '  <div class="input-group-append">';
             if (!t.ReadOnly) {
                 // Create Button
@@ -1196,10 +1206,10 @@ class Table extends RawTable {
             }
             if (t.SM && t.GUIOptions.showWorkflowButton && t.selType == SelectType.NoSelect) {
                 // Workflow Button
-                header += '    <button class="btn btn-secondary btnShowWorkflow"><i class="fa fa-random"></i>&nbsp; Workflow</button>';
+                header += '    <button class="btn btn-secondary text-muted bg-light border-left-0 btnShowWorkflow"><i class="fa fa-random"></i>&nbsp; Workflow</button>';
             }
             if (t.selType == SelectType.Single) {
-                header += '    <button class="btn btn-secondary" type="button" data-toggle="collapse" data-target=".' + GUID + '"><i class="fa fa-angle-down"></i></button>';
+                header += '    <button class="btn btn-secondary text-muted bg-light border-left-0" type="button" data-toggle="collapse" data-target=".' + GUID + '"><i class="fa fa-angle-down"></i></button>';
             }
             header += '  </div>';
             header += '</div>';
@@ -1415,8 +1425,9 @@ class Table extends RawTable {
         });
         //-------------------------------
         // Autofocus Filter
-        if (t.Filter.length > 0)
-            $(t.jQSelector + ' .filterText').val(t.Filter);
+        /*if (t.Filter.length > 0)
+          $(t.jQSelector+' .filterText').val(t.Filter);
+        */
         $(t.jQSelector + ' .filterText').focus(); //.val('').val(t.Filter)
         //else
         //  $(t.jQSelector+' .filterText').val(t.Filter)
