@@ -28,6 +28,7 @@
 .btnStateChange {cursor: pointer; color: white !important;}
 .btnStateChange:hover{color: black !important;}
 
+/* TODO: Autogenerate */
 .state1 {background-color: darkgreen;}
 .state2 {background-color: steelblue;}
 .state3 {background-color: DarkRed ;}

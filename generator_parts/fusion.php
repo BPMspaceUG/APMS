@@ -126,10 +126,15 @@
         $fsub = $table["columns"][$colname]["foreignKey"]["col_subst"];
         // Template: ' LEFT JOIN [fktable] AS t[0] ON a.[stdkey] = t[0].[fkey] '
         $jointexts[] = ' LEFT JOIN '.$ft.' AS t'.$fTableCount.' ON a.'.$colname.' = t'.$fTableCount.'.'.$fkey.' ';
-        // Check if contains a function or the char "("
-        if (strpos($fsub, "(") !== FALSE) {
-          $joincolsubst[] = addslashes($fsub).' AS '.$colname;
-          $allcolnames[] = $colname;
+
+        // Check if contains more than one
+        if (strpos($fsub, "[") !== FALSE) {
+          //$joincolsubst[] = addslashes($fsub).' AS '.$colname;
+          $multifkcols = json_decode($fsub, true);
+          foreach ($multifkcols as $c) {
+            $joincolsubst[] = 't'.$fTableCount.'.'.$c.' AS '.$colname;
+          }
+          $allcolnames[] = 't'.$fTableCount.'.'.$colname;
         }
         else {
           $joincolsubst[] = 't'.$fTableCount.'.'.$fsub.' AS '.$colname;

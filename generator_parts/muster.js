@@ -539,8 +539,19 @@ class Table extends RawTable {
         }
         else if (Array.isArray(cellContent)) {
             // Foreign Key
-            if (cellContent[1] !== null)
-                return escapeHtml(cellContent[1]);
+            if (cellContent[0] !== null) {
+                let content = '';
+                const split = (100 * (1 / (cellContent.length - 1))).toFixed(0);
+                content += '<table class="w-100 border-0"><tr class="border-0">';
+                let cnt = 0;
+                cellContent.forEach(c => {
+                    if (cnt != 0)
+                        content += '<td class="border-0" style="width: ' + split + '%">' + escapeHtml(c) + '</td>';
+                    cnt += 1;
+                });
+                content += '</tr></table>';
+                return content;
+            }
             else
                 return '';
         }
@@ -1099,82 +1110,85 @@ class Table extends RawTable {
         this.selectedIDs = selRows;
         this.renderHTML();
     }
-    renderRow(row) {
-        let t = this;
-        let data_string = '';
-        // Order Headers by col_order
-        function compare(a, b) {
-            a = parseInt(t.Columns[a].col_order);
-            b = parseInt(t.Columns[b].col_order);
-            return a < b ? -1 : (a > b ? 1 : 0);
-        }
-        let sortedColumnNames = Object.keys(t.Columns).sort(compare);
-        // Generate HTML for Headers sorted
-        sortedColumnNames.forEach(function (col) {
-            var value = row[col];
-            // Check if it is displayed
-            if (t.Columns[col].is_in_menu) {
-                // check Cell-Value
-                if (value) {
-                    // Truncate Cell if Content is too long
-                    if (t.Columns[col].DATA_TYPE == 'date') {
-                        var tmp = new Date(value);
-                        if (!isNaN(tmp.getTime()))
-                            value = tmp.toLocaleDateString('de-DE');
-                        else
-                            value = '';
-                    }
-                    else if (t.Columns[col].DATA_TYPE == 'time') {
-                        // Remove seconds from TimeString
-                        if (t.GUIOptions.smallestTimeUnitMins) {
-                            var timeArr = value.split(':');
-                            timeArr.pop();
-                            value = timeArr.join(':');
-                        }
-                    }
-                    else if (t.Columns[col].DATA_TYPE == 'datetime') {
-                        var tmp = new Date(value);
-                        if (!isNaN(tmp.getTime())) {
-                            value = tmp.toLocaleString('de-DE');
-                            // Remove seconds from TimeString
-                            if (t.GUIOptions.smallestTimeUnitMins) {
-                                var timeArr = value.split(':');
-                                timeArr.pop();
-                                value = timeArr.join(':');
-                            }
-                        }
-                        else
-                            value = '';
-                    }
-                    else if (t.Columns[col].DATA_TYPE == 'tinyint') {
-                        value = parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
-                    }
-                    else {
-                        let isHTML = t.Columns[col].is_virtual;
-                        value = t.formatCell(value, isHTML);
-                    }
-                    // Check for statemachine
-                    if (col == 'state_id' && t.tablename != 'state') {
-                        // Modulo 12 --> see in css file (12 colors)
-                        let cssClass = 'state' + (row['state_id'][0] % 12);
-                        data_string += '<td class="align-middle">\
-                <div class="showNextStates">\
-                  <button class="btn btnGridState btn-sm label-state ' + cssClass + '">' + value + '</button>\
-                </div>\
-            </td>';
-                    }
-                    else
-                        data_string += '<td class="align-middle">' + value + '</td>';
-                }
-                else {
-                    // Add empty cell (null)
-                    data_string += '<td>&nbsp;</td>';
-                }
+    /*
+    public renderRow(row) {
+      let t = this
+      let data_string: string = '';
+      
+      // Order Headers by col_order
+      function compare(a,b) {
+        a = parseInt(t.Columns[a].col_order);
+        b = parseInt(t.Columns[b].col_order);
+        return a < b ? -1 : (a > b ? 1 : 0);
+      }
+  
+      let sortedColumnNames = Object.keys(t.Columns).sort(compare);
+      // Generate HTML for Headers sorted
+      sortedColumnNames.forEach(function(col) {
+        var value = row[col]
+        // Check if it is displayed
+        if (t.Columns[col].is_in_menu) {
+          // check Cell-Value
+          if (value) {
+            // Truncate Cell if Content is too long
+            if (t.Columns[col].DATA_TYPE == 'date') {
+              var tmp = new Date(value)
+              if(!isNaN(tmp.getTime()))
+                value = tmp.toLocaleDateString('de-DE')
+              else
+                value = ''
             }
-        });
-        // Edit via click
-        return data_string;
+            else if(t.Columns[col].DATA_TYPE == 'time') {
+              // Remove seconds from TimeString
+              if (t.GUIOptions.smallestTimeUnitMins) {
+                var timeArr = value.split(':');
+                timeArr.pop();
+                value = timeArr.join(':')
+              }
+            }
+            else if (t.Columns[col].DATA_TYPE == 'datetime') {
+              var tmp = new Date(value)
+              if(!isNaN(tmp.getTime())) {
+                value = tmp.toLocaleString('de-DE')
+                // Remove seconds from TimeString
+                if (t.GUIOptions.smallestTimeUnitMins) {
+                  var timeArr = value.split(':');
+                  timeArr.pop();
+                  value = timeArr.join(':')
+                }
+              } else
+                value = ''
+            }
+            else if (t.Columns[col].DATA_TYPE == 'tinyint') {
+              value = parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
+            }
+            else {
+              let isHTML = t.Columns[col].is_virtual;
+              value = t.formatCell(value, isHTML);
+            }
+  
+            // Check for statemachine
+            if (col == 'state_id' && t.tablename != 'state') {
+              // Modulo 12 --> see in css file (12 colors)
+              let cssClass = 'state' + (row['state_id'][0] % 12);
+              data_string += '<td class="align-middle">\
+                  <div class="showNextStates">\
+                    <button class="btn btnGridState btn-sm label-state '+cssClass+'">'+value+'</button>\
+                  </div>\
+              </td>';
+            }
+            else
+              data_string += '<td class="align-middle">'+value+'</td>'
+          } else {
+            // Add empty cell (null)
+            data_string += '<td>&nbsp;</td>'
+          }
+        }
+      })
+      // Edit via click
+      return data_string;
     }
+    */
     renderHTML() {
         let t = this;
         $(t.jQSelector).empty(); // GUI: Clear entries
@@ -1202,9 +1216,18 @@ class Table extends RawTable {
                 // TODO: if this col is a FK, then include complete row
                 console.log(t.Columns[col]);
                 if (t.Columns[col].foreignKey.table != '') {
-                    ths += '<table class="w-100"><tr><td>';
-                    ths += t.Columns[col].foreignKey.col_subst;
-                    ths += '</td></tr></table>';
+                    ths += '<table class="w-100 border-0"><tr>';
+                    let cols = [];
+                    try {
+                        cols = JSON.parse(t.Columns[col].foreignKey.col_subst);
+                    }
+                    catch (error) {
+                        cols = [t.Columns[col].foreignKey.col_subst];
+                    }
+                    cols.forEach(c => {
+                        ths += '<td>' + c + '</td>';
+                    });
+                    ths += '</tr></table>';
                 }
                 ths += '<div class="clearfix"></div>';
                 ths += '</th>';
@@ -1307,7 +1330,7 @@ class Table extends RawTable {
                 if (t.Columns[col].is_in_menu) {
                     // check Cell-Value
                     if (value) {
-                        // Truncate Cell if Content is too long
+                        // Check data type
                         if (t.Columns[col].DATA_TYPE == 'date') {
                             var tmp = new Date(value);
                             if (!isNaN(tmp.getTime()))
@@ -1358,7 +1381,7 @@ class Table extends RawTable {
               </td>';
                         }
                         else
-                            data_string += '<td class="align-middle">' + value + '</td>';
+                            data_string += '<td class="align-middle p-0">' + value + '</td>';
                     }
                     else {
                         // Add empty cell (null)

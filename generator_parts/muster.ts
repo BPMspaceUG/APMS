@@ -570,8 +570,19 @@ class Table extends RawTable {
     }
     else if (Array.isArray(cellContent)) {
       // Foreign Key
-      if (cellContent[1] !== null)
-        return escapeHtml(cellContent[1])
+      if (cellContent[0] !== null) {
+        let content = '';
+        const split = (100 * (1 / (cellContent.length - 1))).toFixed(0); 
+        content += '<table class="w-100 border-0"><tr class="border-0">';
+        let cnt = 0;
+        cellContent.forEach(c => {
+          if (cnt != 0)
+            content += '<td class="border-0" style="width: '+ split +'%">' + escapeHtml(c) + '</td>';
+          cnt += 1;
+        })
+        content += '</tr></table>';
+        return content;
+      }
       else
         return '';
     }
@@ -1146,6 +1157,7 @@ class Table extends RawTable {
     this.selectedIDs = selRows;
     this.renderHTML()
   }
+  /*
   public renderRow(row) {
     let t = this
     let data_string: string = '';
@@ -1223,6 +1235,7 @@ class Table extends RawTable {
     // Edit via click
     return data_string;
   }
+  */
   public renderHTML(): void {
     let t = this
     $(t.jQSelector).empty() // GUI: Clear entries
@@ -1255,11 +1268,19 @@ class Table extends RawTable {
 
         // TODO: if this col is a FK, then include complete row
         console.log(t.Columns[col])
-        
+
         if (t.Columns[col].foreignKey.table != '') {
-          ths += '<table class="w-100"><tr><td>'
-          ths += t.Columns[col].foreignKey.col_subst
-          ths += '</td></tr></table>';
+          ths += '<table class="w-100 border-0"><tr>'
+          let cols = [];
+          try {
+            cols = JSON.parse(t.Columns[col].foreignKey.col_subst);            
+          } catch (error) {
+            cols = [t.Columns[col].foreignKey.col_subst];
+          }
+          cols.forEach(c => {
+            ths += '<td>' + c + '</td>';
+          });
+          ths += '</tr></table>';
         }
 
         ths += '<div class="clearfix"></div>';
@@ -1373,8 +1394,8 @@ class Table extends RawTable {
         // Check if it is displayed
         if (t.Columns[col].is_in_menu) {
           // check Cell-Value
-          if (value) {            
-            // Truncate Cell if Content is too long
+          if (value) {
+            // Check data type
             if (t.Columns[col].DATA_TYPE == 'date') {
               var tmp = new Date(value)
               if(!isNaN(tmp.getTime()))
@@ -1425,7 +1446,7 @@ class Table extends RawTable {
               </td>';
             }
             else
-              data_string += '<td class="align-middle">'+value+'</td>'
+              data_string += '<td class="align-middle p-0">'+value+'</td>'
           } else {
             // Add empty cell (null)
             data_string += '<td>&nbsp;</td>'
