@@ -237,7 +237,10 @@
     });
     x.SelectionHasChanged.on(function(){
       const selRow = x.getSelectedRows()[0];
-      $("input[name='.$key.']").val(selRow);
+      if (selRow)
+        $("input[name='.$key.']").val(selRow);
+      else
+      $("input[name='.$key.']").val("");
     })
   })();
 </script>');
@@ -333,7 +336,7 @@
           // Add extra column for reverse N:M
           if ($tablename == $src) {
             $nm_table = $dest;
-            $nm_table_alias = $config[$nm_table]['table_alias'];
+            $nm_table_alias = 'links from ' . $config[$nm_table]['table_alias'];
 
             // TODO: optimize, get primary column
             $array = $config[$tablename]['columns'];
@@ -349,7 +352,7 @@
     (function(){
       elLoaded(\'input[name='.$this_primary.']\', function(el) {
         let PrimID = $(\'input[name='.$this_primary.']\').val();
-        let x = new Table(\''.$nm_table.'\', \'.extern_table'.$dest.'\', 0, function(){
+        let x = new Table(\''.$nm_table.'\', \'.extern_table'.$dest.'\', 2, function(){
           x.Columns[\''.$foreignPrimaryColname.'\'].is_in_menu = false;
           x.loadRows(function(){
             x.renderHTML();

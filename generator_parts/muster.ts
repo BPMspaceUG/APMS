@@ -5,6 +5,7 @@ declare var vis: any;
 // Enums
 enum SortOrder {ASC = 'ASC', DESC = 'DESC'}
 enum SelectType {NoSelect = 0, Single = 1, Multi = 2}
+enum TableType {t1_1 = 0, t1_n = 1, tn_1 = 2, tn_m = 3}
 
 // Events
 // see here: https://stackoverflow.com/questions/12881212/does-typescript-support-events-on-classes
@@ -295,6 +296,8 @@ class RawTable {
   protected Where: string = '';
   protected Rows: any;
   protected actRowCount: number; // Count total
+  protected TableType: TableType = TableType.t1_1;
+  protected selRowIDs: number[] = [];
 
   constructor (tablename: string) {
     this.tablename = tablename;
@@ -376,26 +379,29 @@ class RawTable {
     // HTTP Request
     DB.request('read', data, function(r){
       let response = JSON.parse(r);
-      me.Rows = response;
-      callback(response)
+
+      // Check if n_1 or n_m // TODO:
+      if (me.Where != '' && (me.TableType == TableType.tn_1 || me.TableType == TableType.tn_m || true)) {
+        
+        // Mark the selected
+        response.forEach(row => {
+          me.selRowIDs.push(row[me.PrimaryColumn]);
+        });
+
+        data.where = ' NOT ' + data.where;
+        DB.request('read', data, function(r2) {
+          let response2 = JSON.parse(r2);
+          me.Rows = response.concat(response2);
+          callback(response); // For the selection
+        })
+      } else {
+        me.Rows = response;
+        callback(response);
+      }
     })
   }
   public getNrOfRows(): number {
     return this.actRowCount
-  }
-  public getRowByID(RowID: number, callback) {
-    let data = {
-      table: this.tablename,
-      limitStart: 0,
-      limitSize: 1,
-      select: '*',
-      where: this.PrimaryColumn + '=' + RowID
-    }
-    // HTTP Request
-    DB.request('read', data, function(r){
-      let response = JSON.parse(r);
-      callback(response[0])
-    })
   }
 }
 //==============================================================
@@ -407,8 +413,8 @@ class Table extends RawTable {
   private jQSelector: string = '';
   private SM: StateMachine;
   private ReadOnly: boolean;
-  //private defaultFilterValue: string;
-  public originTable: string;
+  private FilterText: string = '';
+  //public originTable: string;
   private selType: SelectType;
   private selectedIDs: number[];
   private Form_Create: string = '';
@@ -476,7 +482,13 @@ class Table extends RawTable {
         // Loop all cloumns form this table
         Object.keys(me.Columns).forEach(function(col){
           // Get Primary and SortColumn
-          if (me.Columns[col].is_in_menu && me.OrderBy == '') me.OrderBy = col; // DEFAULT: Sort by first visible Col
+          if (me.Columns[col].is_in_menu && me.OrderBy == '') {
+            // DEFAULT: Sort by first visible Col
+            if (me.Columns[col].foreignKey['table'] != '')
+              me.OrderBy = 'a.'+col;
+            else
+              me.OrderBy = col;
+          }
           if (me.Columns[col].EXTRA == 'auto_increment') me.PrimaryColumn = col;
         })
         // Initializing finished
@@ -592,41 +604,45 @@ class Table extends RawTable {
     let inputs = $(MID+' :input')
   
     inputs.each(function(){
-      var e = $(this);
-      var key = e.attr('name')
+      const e = $(this);
+      const key = e.attr('name');
+      const val = e.val();
+
       if (key) {
-        var column = null
+        let column = null;
         try {
-          column = me.Columns[key]
-        } catch (error) {        
-          column = null // Column doesnt exist in current Table
+          column = me.Columns[key];
+        } catch (error) {
+          column = null; // Column doesnt exist in current Table
         }
   
         if (column) {
-          var DataType = column.DATA_TYPE.toLowerCase()
+          const DataType = column.DATA_TYPE.toLowerCase()
+          //console.log('[', DataType, ']', key, ' -> ', val );
+
           //  if empty then value should be NULL
-          if (e.val() == '' && (DataType.indexOf('text') < 0 || column.foreignKey.table != '')) {
-            data[key] = null
+          if ( (val == '' || val == null ) && (DataType.indexOf('text') < 0 || column.foreignKey.table != '')) {
+            data[key] = null;
           } else {
             // [NO FK]          
             if (DataType == 'datetime') {
               // For DATETIME
               if (e.attr('type') == 'date')
-                data[key] = e.val() // overwrite
+                data[key] = val // overwrite
               else if (e.attr('type') == 'time')
-                data[key] += ' '+e.val() // append
+                data[key] += ' '+val // append
             }
             else if (DataType == 'tinyint') {
               // Boolean
               data[key] = e.prop('checked') ? '1' : '0';
             }
             else {
-              data[key] = e.val()
+              data[key] = val
             }
           }
         } else {
           // Virtual Element in FormData
-          data[key] = e.val()
+          data[key] = val
         }
       }
     })
@@ -930,11 +946,15 @@ class Table extends RawTable {
   //-------------------------------------------------- PUBLIC METHODS
   public createEntry(): void {
     let me = this
-    let SaveBtn = '<button class="btn btn-success btnCreateEntry" type="button">'+
-      '<i class="fa fa-plus"></i>&nbsp;'+ this.GUIOptions.modalButtonTextCreate +'</button>';
-    const TableAlias = 'in <i class="'+this.TableConfig.table_icon+'"></i> ' + this.TableConfig.table_alias;
-    const ModalTitle = this.GUIOptions.modalHeaderTextCreate + '<span class="text-muted ml-3">'+TableAlias+'</span>';
-    let M = new Modal(ModalTitle, me.Form_Create, SaveBtn, true)
+
+    const TableIcon = '<i class="'+this.TableConfig.table_icon+'"></i>';
+    const TableAlias = this.TableConfig.table_alias;
+    const ModalTitle = this.GUIOptions.modalHeaderTextCreate + '<span class="text-muted ml-3">in '+TableIcon + ' ' + TableAlias+'</span>';
+    let CreateBtn = '<button class="btn btn-success btnCreateEntry" type="button">'+
+      '<i class="fa fa-plus"></i>&nbsp;'+ this.GUIOptions.modalButtonTextCreate + ' ' + TableAlias + '</button>';
+    
+    // Create Modal
+    let M = new Modal(ModalTitle, me.Form_Create, CreateBtn, true);
     M.options.btnTextClose = me.GUIOptions.modalButtonTextModifyClose
     let ModalID = M.getDOMID()
   
@@ -1104,6 +1124,7 @@ class Table extends RawTable {
           e.preventDefault();
           me.saveEntry(ModalID)
         })
+
         // Add the Primary RowID
         $('#'+ModalID+' .modal-body').append('<input type="hidden" name="'+this.PrimaryColumn+'" value="'+id+'">')
         // Write all input fields with {key:value}
@@ -1181,8 +1202,6 @@ class Table extends RawTable {
             value = t.formatCell(value, isHTML);
           }
 
-
-
           // Check for statemachine
           if (col == 'state_id' && t.tablename != 'state') {
             // Modulo 12 --> see in css file (12 colors)
@@ -1204,7 +1223,6 @@ class Table extends RawTable {
     // Edit via click
     return data_string;
   }
-
   public renderHTML(): void {
     let t = this
     $(t.jQSelector).empty() // GUI: Clear entries
@@ -1221,14 +1239,31 @@ class Table extends RawTable {
       return a < b ? -1 : (a > b ? 1 : 0);
     }
     let sortedColumnNames = Object.keys(t.Columns).sort(compare);
+
     // Generate HTML for Headers sorted
     sortedColumnNames.forEach(function(col) {
       if (t.Columns[col].is_in_menu) {
         const ordercol = t.OrderBy.replace('a.', '');
-        ths += '<th scope="col" data-colname="'+col+'" class="border-0 datatbl_header'+(col == ordercol ? ' sorted' : '')+'">'+
-                t.Columns[col].column_alias + (col == ordercol ? '&nbsp;'+(t.AscDesc == SortOrder.ASC ?
-                '<i class="fa fa-sort-asc">' : (t.AscDesc == SortOrder.DESC ?
-                '<i class="fa fa-sort-desc">' : '') )+'' : '') + '</th>';
+        ths += '<th scope="col" data-colname="'+col+'" class="border-0 p-0 align-top datatbl_header'+(col == ordercol ? ' sorted' : '')+'">'+
+          // Title
+          '<div class="float-left">' + t.Columns[col].column_alias + '</div>' +
+          // Sorting
+          '<div class="float-right">' + (col == ordercol ? '&nbsp;' + (
+            t.AscDesc == SortOrder.ASC ? '<i class="fa fa-sort-asc">' : (t.AscDesc == SortOrder.DESC ? '<i class="fa fa-sort-desc">' : '')
+          ) + '' : '')
+          + '</div>';
+
+        // TODO: if this col is a FK, then include complete row
+        console.log(t.Columns[col])
+        
+        if (t.Columns[col].foreignKey.table != '') {
+          ths += '<table class="w-100"><tr><td>'
+          ths += t.Columns[col].foreignKey.col_subst
+          ths += '</td></tr></table>';
+        }
+
+        ths += '<div class="clearfix"></div>';
+        ths += '</th>';
       }
     })
 
@@ -1247,26 +1282,38 @@ class Table extends RawTable {
   
 
     // ---- Header
-    let header: string = '<div class="element"><div class=""><div class="row">';
+    let header: string = '<div class="element"><div><div class="row">'; // TODO: improve html -> remove divs
     let footer: string = '';
     let GUID: string = GUI.ID();
 
     // Filter
     if (t.GUIOptions.showFilter) {
+
+      if (t.selectedIDs.length > 0) {
+        if (t.selectedIDs[0] != null)
+          t.FilterText = '' + t.selectedIDs[0];
+        else
+          t.FilterText = '';
+      }
+
       header += '<div class="col-12 mb-1">'
       header += '<div class="input-group">'
-      header += '  <input type="text" class="form-control filterText text-muted bg-light" value="" placeholder="'+t.GUIOptions.filterPlaceholderText+'">'
+      header += '  <input type="text" class="form-control filterText text-muted bg-light" '+ (t.FilterText != '' ? 'value="'+t.FilterText+'"' : '') +' placeholder="'+t.GUIOptions.filterPlaceholderText+'">'
       header += '  <div class="input-group-append">'
       if (!t.ReadOnly) {
+        const TableAlias = t.TableConfig.table_alias;
         // Create Button
-        header += '<button class="btn btn-success btnCreateEntry"><i class="fa fa-plus"></i>&nbsp;'+t.GUIOptions.modalButtonTextCreate+'</button>';
+        header += '<button class="btn btn-success btnCreateEntry">';
+        header += '<i class="fa fa-plus"></i>&nbsp;'+t.GUIOptions.modalButtonTextCreate + ' ' + TableAlias;
+        header += '</button>';
       }
       if (t.SM && t.GUIOptions.showWorkflowButton && t.selType == SelectType.NoSelect) {
         // Workflow Button
         header += '    <button class="btn btn-secondary text-muted bg-light border-left-0 btnShowWorkflow"><i class="fa fa-random"></i>&nbsp; Workflow</button>'
       }
       if (t.selType == SelectType.Single) {
-        header += '    <button class="btn btn-secondary text-muted bg-light border-left-0" type="button" data-toggle="collapse" data-target=".'+GUID+'"><i class="fa fa-angle-down"></i></button>'
+        header += '    <button class="btn btn-secondary text-muted bg-light resetSelection" type="button"><i class="fa fa-times"></i></button>';
+        header += '    <button class="btn btn-secondary text-muted bg-light border-left-0" type="button" data-toggle="collapse" data-target=".'+GUID+'"><i class="fa fa-angle-down"></i></button>';
       }
       header += '  </div>'
       header += '</div>'
@@ -1274,11 +1321,16 @@ class Table extends RawTable {
     }
     header += '</div></div>';
 
+    // Check If it is a n_1 or n_m Table and mark the selected
+    if (t.selRowIDs.length > 0)
+      t.selectedIDs = t.selRowIDs;
+
     //------ Table Header
     
     if (t.Rows.length > 0) {
       header += '<div class="card-body '+GUID+' p-0'+(t.selType == SelectType.Single ? ' collapse' : '')+'">';
-      header += '<div class="tablewrapper border border-top-0"><table class="table table-striped table-hover m-0 table-sm datatbl"><thead><tr>'+ths+'</tr></thead><tbody>';
+      header += '<div class="tablewrapper border border-top-0"><table class="table table-striped table-hover m-0 table-sm datatbl">';
+      header += '<thead><tr>'+ths+'</tr></thead><tbody>';
       footer = '</tbody></table></div>';
     }
     // TODO:
@@ -1433,6 +1485,12 @@ class Table extends RawTable {
       e.preventDefault();
       t.SM.openSEPopup();
     })
+    // Reset Selection Button clicked
+    $(t.jQSelector+' .resetSelection').off('click').on('click', function(e){
+      e.preventDefault();
+      //console.log('Reset selection', t);
+      t.modifyRow(null);
+    })
     // Show Workflow Button clicked
     $(t.jQSelector+' .btnCreateEntry').off('click').on('click', function(e){
       e.preventDefault();
@@ -1490,12 +1548,7 @@ class Table extends RawTable {
     //-------------------------------
 
     // Autofocus Filter
-    /*if (t.Filter.length > 0)
-      $(t.jQSelector+' .filterText').val(t.Filter);
-    */
-    $(t.jQSelector+' .filterText').focus(); //.val('').val(t.Filter)
-    //else
-    //  $(t.jQSelector+' .filterText').val(t.Filter)
+    $(t.jQSelector+' .filterText').focus();
 
     // Mark last modified Row
     if (t.lastModifiedRowID) {
@@ -1510,8 +1563,8 @@ class Table extends RawTable {
       if (t.selectedIDs.length > 0) {
         t.selectedIDs.forEach(selRowID => {
           if (t.GUIOptions.showControlColumn) {
-            if (t.selType = SelectType.Single)
-            $(t.jQSelector + ' .row-' + selRowID+ ' td:first').html('<i class="fa fa-dot-circle-o"></i>');
+            if (t.selType == SelectType.Single)
+              $(t.jQSelector + ' .row-' + selRowID+ ' td:first').html('<i class="fa fa-dot-circle-o"></i>');
             else
               $(t.jQSelector + ' .row-' + selRowID+ ' td:first').html('<i class="fa fa-check-square-o"></i>');
           }

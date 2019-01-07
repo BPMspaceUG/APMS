@@ -164,35 +164,23 @@
         // Send only data from a specific Table
         // Send info: structure (from config) the createForm and Count of all entries
         $tablename = $param["table"];
-        $where = $param["where"] != '' ? $param["where"] : '1=1';
+        $where = $param["where"] != '' ? $param["where"] : '';
         // Check Parameter
         if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
         if (!Config::doesTableExist($tablename)) die('Table does not exist!');
 
         $pdo = DB::getInstance()->getConnection();
         $result = [];
-
         // ---- Structure
         $config = json_decode(Config::getConfig(), true);
         $result['config'] = $config[$tablename];
-
         // ---- Count
-        $stmt = $pdo->prepare("SELECT COUNT(*) AS cnt FROM $tablename AS a WHERE $where");
-        if ($stmt->execute()) {
-          $row = $stmt->fetch(PDO::FETCH_NAMED);
-          $result['count'] = $row['cnt'];
-        } else {
-          echo $stmt->queryString."<br />";
-          var_dump($stmt->errorInfo());
-        }
-
-        // ---- CreateForm
+        $result['count'] = json_decode($this->count($param), true)[0]['cnt'];
+        // ---- Forms
         $result['formcreate'] = $this->getFormCreate($param);
-        $result['formmodify'] = $this->getFormData($param);
-  
+        $result['formmodify'] = $this->getFormData($param);  
         // Return result as JSON
         return json_encode($result);
-
       }
     }
     //================================== CREATE
@@ -364,195 +352,6 @@
       );
 
       return $this->call($params);
-
-      //---------------------------------------------------
-
-      /*
-      // Parameters and default values
-      try {
-        @$tablename = $param["table"];
-        @$ascdesc = isset($param["ascdesc"]) ? $param["ascdesc"] : "";      
-        @$limitStart = isset($param["limitStart"]) ? $param["limitStart"] : null;
-        @$limitSize = isset($param["limitSize"]) ? $param["limitSize"] : null;
-        @$limit = isset($param["limit"]) ? $param["limit"] : null;
-        @$orderby = isset($param["orderby"]) ? $param["orderby"] : "";
-        @$filter = isset($param["filter"]) ? $param["filter"] : "";
-        @$select = isset($param["select"]) ? $param["select"] : "*";
-        @$where = isset($param["where"]) ? $param["where"] : "";
-      } catch (Exception $e) {
-        die("Invalid Parameter-Data!");
-      }
-
-      // Check Parameters
-      if (!Config::checkSQLParts($select)) die('Select Param contains blacklisted words!');
-      if (!Config::checkSQLParts($where)) die('Where Param contains blacklisted words!');     
-      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
-      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
-      
-      // For internal use only (values of the prepared stmt)
-      $vals = array();
-      */
-
-      //--- ORDER BY
-      /*
-      if (trim($orderby) <> "") {
-        // TODO: Check if orderby is a valid Column name and does not contain any special chars
-        if (!Config::isValidColname($orderby)) die('Param OrderBy has invalid chars in it!');
-        //--- ASC/DESC (sec)
-        $ascdesc = strtolower(trim($ascdesc));
-        if ($ascdesc == "") $ascdesc == "";
-        elseif ($ascdesc == "asc") $ascdesc == "ASC";
-        elseif ($ascdesc == "desc") $ascdesc == "DESC";
-        else die("AscDesc has no valid value (value has to be empty, ASC or DESC)!");
-        // Check if is a foreign key then add 'a.' at front
-        if (Config::hasColumnFK($tablename, $orderby))
-        $orderby = 'a.'.$orderby;
-        // Build query
-        $sql_orderby = " ORDER BY ".$orderby." ".$ascdesc;
-      } else {
-        // No Orderby is set
-        $sql_orderby = " "; // ORDER BY replacer_id DESC";
-      }
-      */
-      
-      //--- LIMIT (sec)
-      /*
-      $sql_limit = '';
-      if (!is_null($limit)) {
-        if (!is_int($limit)) die("Limit is no integer!");
-        // Only use one limit param
-        $sql_limit = " LIMIT ".$limit;
-      }
-      if (!is_null($limitStart) || !is_null($limitSize)) {
-        if (is_null($limitStart) || is_null($limitSize))
-        die('Limit-Start and Limit-Size have to be set.');
-        if (!is_int($limitSize)) die("Limit-Size is no integer!");
-        if (!is_int($limitStart)) die("Limit-Start is no integer!");
-        $sql_limit = " LIMIT ".$limitStart.",".$limitSize;
-      }
-      */
-
-      //--- JOINS
-      // Only get Joins from Server-Side
-      /*
-      $joins = Config::getJoinedCols($tablename);
-      $join_from = $tablename." AS a"; // if there is no join
-      $sel = array();
-      $sel_raw = array();
-      $sel_str = "";
-      if (count($joins) > 0) {
-        // Multi-join
-        for ($i=0;$i<count($joins);$i++) {
-          $substCol = $joins[$i]["col_subst"];
-          // The FROM Part
-          $join_from .= " LEFT JOIN ".$joins[$i]["table"]." AS t$i ON ".
-            "t$i.".$joins[$i]["col_id"]."= a.".$joins[$i]["replace"];
-          // The SELECT Part
-          if (strpos($substCol, '(')) {
-            // Check if contains a function parenthesis, then handle differently
-            $sel[] = $substCol." AS '".$joins[$i]["replace"]."'";
-            $sel_raw[] = $substCol; // This is only for the filter later
-          }
-          else {
-            // No concat function involved
-            $sel[] = "t$i.".$substCol." AS '".$joins[$i]["replace"]."'";
-            $sel_raw[] = "t$i.".$substCol; // This is only for the filter later
-          }          
-        }
-        $sel_str = implode(",", $sel);
-      }
-      */
-
-      // Check for virtual columns
-      /*
-      $cols = Config::getColsByTablename($tablename);
-      $virtCols = Config::getVirtualColnames($tablename);
-      $virtSelects = [];
-      if (count($virtCols) > 0) {
-        foreach ($virtCols as $vcol) {
-          $virtSel = $cols[$vcol]['virtual_select'];
-          $virtSelects[] = $virtSel;
-          $sel_str .= ",".$virtSel.' AS '.$vcol;
-        }
-      }
-      */
-
-      //--- WHERE (SEARCH / Filter)
-      /*
-      if ($where <> "" && $filter == "") {
-        $where = " WHERE ".$where;
-      }
-      else if ($filter <> "") {
-        //------------ FILTER
-
-        // TODO: Maybe get the columns from the config file!
-        // Get columns from the table -> also is faster than a new request
-        $stmt = DB::getInstance()->getConnection()->prepare("SHOW COLUMNS FROM $tablename");
-        $k = [];
-        $stmt->execute();
-        while ($row = $stmt->fetch()) {
-          $k[] = $row[0];
-        }        
-        $k = array_merge($k, $sel_raw); // Additional JOIN-columns
-        $k = array_merge($k, $virtSelects); // Also add virtual columns
-
-        // xxx LIKE = '%".$param["filter"]."%' OR yyy LIKE '%'
-        $q_str = "";
-        foreach ($k as $key) {
-          $prefix = "";
-          // if no "." in string and no function in key then refer to first table
-          if (strpos($key, ".") === FALSE && strpos($key, '(') === FALSE)
-            $prefix = "a.";
-          $q_str .= " ".$prefix.$key." LIKE :filter OR ";
-        }
-        // Remove last 'OR '
-        $q_str = substr($q_str, 0, -3);
-        $vals[':filter'] = '%'.$filter.'%';
-
-        // Build WHERE String
-        if ($where == '')
-          $where = " WHERE $q_str";
-        else
-          $where = " WHERE $where AND ($q_str)";
-      }
-      */
-
-      //--- SELECT
-      /*
-      if ($select == 'COUNT(*) AS cnt') $sql_select = 'COUNT(*) AS cnt';
-      elseif ($select == 'a.*') $sql_select = "a.*";
-      elseif ($select == '*') {
-        $sql_select = "a.*";
-        if ($sel_str <> "")
-          $sql_select .= ", ".$sel_str;
-      }
-      else $sql_select = $select.', '.$sel_str;
-      // bugfix
-      $sql_select = str_replace(', ,', ',', $sql_select);
-      */
-
-      // TODO: sel_str can only contain columnnames and , and COUNT(*)
-      /*
-      $query = "SELECT " . $sql_select . " FROM " . $join_from . $where . $sql_orderby . $sql_limit;
-      // Clean up a bit
-      $query = str_replace("  ", " ", $query);
-
-      // Execute & Fetch
-      $result = array();
-      $pdo = DB::getInstance()->getConnection();
-      $stmt = $pdo->prepare($query);
-      if ($stmt->execute($vals)) {
-        while($row = $stmt->fetch(PDO::FETCH_NAMED)) {
-          $result[] = $row;
-        }
-      } else {
-        echo $stmt->queryString."<br />";
-        var_dump($stmt->errorInfo());
-      }
-
-      // Return result as JSON
-      return json_encode($result);
-      */
     }
     //================================== UPDATE
     public function update($param, $allowUpdateFromSM = false) {
