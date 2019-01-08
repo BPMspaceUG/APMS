@@ -9,6 +9,10 @@
 - Tablename must contain only this Letters: "A-Z", "a-z" and "_"
 - The columnname "state_id" is reserved and can NOT be used
 
+- The structure must be structured via *objects* or *relations*
+  - **Objects** are tables with at least ONE attribute (for example: name, duration, size, time, etc.)
+  - **Relations** are basically n:m tables with only foreign keys
+
 ## Compile the Javascript
 The javascript is generated via Typescript. Compile the TS-File in the generator parts directory with the following command:
 
