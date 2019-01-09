@@ -70,7 +70,6 @@
         <div class="card mb-3">
           <div class="card-body">
             <h5><span class="badge badge-success mr-2">1</span> Select a Database</h5>
-
             <div class="input-group">
               <select class="custom-select" id="repeatSelect" name="repeatSelect" ng-model="dbNames.model" ng-change="changeSelection()">
                 <option ng-repeat="name in dbNames.names" value="{{name}}">{{name}}</option>
@@ -79,7 +78,6 @@
                 <button class="btn btn-outline-secondary" ng-click="changeSelection()" type="button"><i class="fa fa-refresh"></i> Refresh</button>
               </div>
             </div>
-
           </div>
         </div>
 
@@ -124,14 +122,14 @@
                   <tr>
                     <th width="200px">
                     </th>
-                    <th width="200px"><span class="text-muted">Order</span></th>
-                    <th width="25%">TABLENAME</th>
+                    <th width="250px"><span class="text-muted">Order</span></th>
+                    <th width="20%">TABLENAME</th>
                     <th width="25%">ALIAS</th>
                     <th width="5%"><a href="" ng-click="tbl_toggle_sel_all()">IN MENU</a></th>
                     <th width="5%">STATE-ENGINE</th>
                     <th width="5%">RO (View)</th>
-                    <th width="5%">N:M or N:1</th>
-                    <th width="20%">ICON</th>
+                    <!--<th width="5%">N:M or N:1</th>-->
+                    <th width="30%">ICON</th>
                   </tr>
                 </thead>
                 <tbody ng-repeat="(name, tbl) in tables">
@@ -152,7 +150,14 @@
                           <i class="fa fa-plus-square" ng-if="!tbl.showKids"></i>
                           <i class="fa fa-minus-square" ng-if="tbl.showKids"></i>
                         </a>
-                        <button class="btn btn-sm btn-success" ng-click="add_virtCol(tbl)">+ v. Col</button>
+                        <button class="btn btn-sm btn-success" ng-click="add_virtCol(tbl)">+VCol</button>
+                        <select class="custom-select" ng-model="tbl.table_type" style="width: 80px;">
+                          <option value="obj">Obj</option>
+                          <option value="1_1">1:1</option>
+                          <option value="1_n">1:N</option>
+                          <option value="n_1">N:1</option>
+                          <option value="n_m">N:M</option>
+                        </select>
                       </div>
                     </td>
 
@@ -161,19 +166,20 @@
                       <p><b>{{name}}</b></p>
                     </td>
                     <td>
-                      <input type="text" class="form-control" rows="1" cols="{{tbl.table_alias.length}}" 
-                      ng-blur="checkSpell(tbl.table_alias)" ng-model="tbl.table_alias"/>
+                      <input type="text" class="form-control" ng-model="tbl.table_alias"/>
                     </td>
                     <td>
                       <input type="checkbox" class="form-control" ng-model="tbl.is_in_menu">
                     </td>
                     <td>
-                      <input type="checkbox" class="form-control"
-                        ng-model="tbl.se_active"
+                      <input type="checkbox" class="form-control" ng-model="tbl.se_active"
                         ng-disabled="tbl.table_name == 'state' || tbl.table_name == 'state_rules'">
-                    </td>         
+                    </td>
                     <td><input type="checkbox" class="form-control" ng-model="tbl.is_read_only"></td>
-                    <td ng-class="{'bg-success' : tbl.is_nm_table}"><input type="checkbox" class="form-control" ng-model="tbl.is_nm_table"></td>
+                    
+                    <!--
+                    <td><input type="checkbox" class="form-control" ng-model="tbl.is_nm_table"></td>
+                    -->
 
                     <!-- Icon -->
                     <td class="align-middle">
@@ -196,14 +202,14 @@
                     <!-- Column Name and Type -->
                     <td class="align-middle" colspan="2">
                       <div class="row">
-                        <div class="col-6">
-                          <span>{{col.COLUMN_NAME}}</span>
+                        <div class="col-9">
+                          <b>{{col.COLUMN_NAME}}</b>
                         </div>
-                        <div class="col-6">
+                        <div class="col-3">
                           <!--{{col.COLUMN_TYPE}}-->
                           <select class="custom-select custom-select-sm">
-                            <option value="1">Textfield Single-Line</option>
-                            <option value="2">Textfield Multi-Line</option>
+                            <option value="1">Text SL</option>
+                            <option value="2">Text ML</option>
                             <option value="3">Number</option>
                             <option value="4">Date</option>
                             <option value="5">Time</option>
@@ -214,7 +220,7 @@
                     </td>
                     <td><input type="text" class="form-control form-control-sm" ng-model="col.column_alias"></td>
 
-                    <td colspan="5" ng-if="!col.is_virtual">
+                    <td colspan="4" ng-if="!col.is_virtual">
                       <input type="checkbox" class="mr-2" ng-model="col.is_in_menu">Vis
                       <!--<input type="checkbox" ng-model="col.is_read_only"> RO&nbsp;&nbsp;&nbsp;-->
                       <!--<input type="checkbox" ng-model="col.is_ckeditor"> CKEditor-->                      
@@ -224,7 +230,7 @@
                       <input type="text" style="width: 120px" ng-model="col.foreignKey.col_subst" placeholder="ReplacedCloumn">
                     </td>
 
-                    <td colspan="5" ng-if="col.is_virtual">
+                    <td colspan="4" ng-if="col.is_virtual">
                       <span>SELECT ( i.e. CONCAT(a, b) ): </span>
                       <input type="text" ng-model="col.virtual_select" style="width: 300px" placeholder="CONCAT(id, col1, col2)">
                       <button class="btn btn-sm btn-danger" ng-click="del_virtCol(tbl, col)">delete</button>

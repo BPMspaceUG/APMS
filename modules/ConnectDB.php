@@ -15,17 +15,10 @@
   $pwd = isset($params['pwd']) ? $params['pwd'] : null;
   $x_table = isset($params['x_table']) ? $params['x_table'] : null;
 
-
-
   // If all relevant params are available
   if (isset($host) && isset($user) && isset($pwd)) {
-    
-    // Connect (with different or standard port)
-    /*if (isset($port))
-      $con = new mysqli($host.":".$port, $user, $pwd);
-    else*/ 
-      $con = new mysqli($host, $user, $pwd);
-    
+    // Connect to DB
+    $con = new mysqli($host, $user, $pwd);    
 
     // Connection Error ?
     if ($con->connect_error) {
@@ -36,14 +29,12 @@
       if (!is_null($x_table)) {
         // Return output [Tables, Specific Schema/DB]
         $json = getTables($con, $x_table);
-        header('Content-Type: application/json');
-        echo json_encode($json);
       } else {
         // Return output [Schemata/Databases]
         $json = getData($con);
-        header('Content-Type: application/json');
-        echo json_encode($json);
       }
+      header('Content-Type: application/json');
+      echo json_encode($json);
       // Close Connection
       $con->close();
     }
@@ -76,12 +67,10 @@
     $nameParam = "Tables_in_$db";
     $res = array();
     $result = mysqli_query($con, $query);
-    
     $tables = array();
     while ($row = $result->fetch_assoc()) {
       $tables[] = $row[$nameParam];
-    }
-    
+    }    
 
     foreach ($tables as $table) {
       $query = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '$db' AND TABLE_NAME = '$table';";
@@ -132,7 +121,7 @@
             "column_alias" => ucfirst($column_name),
             "is_in_menu" => true,
             "read_only" => false,
-            "is_ckeditor" => false,
+            //"is_ckeditor" => false, // obsolete
             "foreignKey" => $fk,
             "col_order" => (int)$column_counter,
             "is_virtual" => false,
@@ -165,7 +154,7 @@
             'column_alias' => "SM",
             'is_in_menu' => true,
             'read_only' => false,
-            'is_ckeditor' => false,
+            //'is_ckeditor' => false, // obsolete in future
             'foreignKey' => array(
               'table' => "",
               'col_id' => "",
@@ -223,13 +212,13 @@
       /*------------------------------
               T A B L E S
       ------------------------------*/
-      //$table = strtolower($table);
       $res[$table] = array(
         "table_name" => $table,
         "table_alias" => $table_alias,
+        "table_type" => 'obj',
         "is_in_menu" => true,
         "is_read_only" => false,
-        "is_nm_table" => false,
+        //"is_nm_table" => false, // obsolete
         "se_active" => $TableHasStateMachine,
         "columns" => $columns
       );

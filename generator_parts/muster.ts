@@ -5,7 +5,7 @@ declare var vis: any;
 // Enums
 enum SortOrder {ASC = 'ASC', DESC = 'DESC'}
 enum SelectType {NoSelect = 0, Single = 1, Multi = 2}
-enum TableType {t1_1 = 0, t1_n = 1, tn_1 = 2, tn_m = 3}
+enum TableType {obj = 'obj', t1_1 = '1_1', t1_n = '1_n', tn_1 = 'n_1', tn_m = 'n_m'}
 
 // Events
 // see here: https://stackoverflow.com/questions/12881212/does-typescript-support-events-on-classes
@@ -296,7 +296,7 @@ class RawTable {
   protected Where: string = '';
   protected Rows: any;
   protected actRowCount: number; // Count total
-  protected TableType: TableType = TableType.t1_1;
+  protected TableType: TableType = TableType.obj;
   protected selRowIDs: number[] = [];
 
   constructor (tablename: string) {
@@ -381,6 +381,7 @@ class RawTable {
       let response = JSON.parse(r);
 
       // Check if n_1 or n_m // TODO:
+      /*
       if (me.Where != '' && (me.TableType == TableType.tn_1 || me.TableType == TableType.tn_m || true)) {
         
         // Mark the selected
@@ -395,9 +396,10 @@ class RawTable {
           callback(response); // For the selection
         })
       } else {
+        */
         me.Rows = response;
         callback(response);
-      }
+      //}
     })
   }
   public getNrOfRows(): number {
@@ -414,7 +416,6 @@ class Table extends RawTable {
   private SM: StateMachine;
   private ReadOnly: boolean;
   private FilterText: string = '';
-  //public originTable: string;
   private selType: SelectType;
   private selectedIDs: number[];
   private Form_Create: string = '';
@@ -476,6 +477,10 @@ class Table extends RawTable {
           me.SM = null;
         me.Columns = me.TableConfig.columns;
         me.ReadOnly = me.TableConfig.is_read_only;
+        me.TableType = me.TableConfig.table_type;
+
+        console.log('Init -> ', me.tablename, '[', me.TableType, ']');
+
         // check if is read only and no select then hide first column
         if (me.ReadOnly && me.selType == SelectType.NoSelect)
           me.GUIOptions.showControlColumn = false;
@@ -1277,8 +1282,9 @@ class Table extends RawTable {
           } catch (error) {
             cols = [t.Columns[col].foreignKey.col_subst];
           }
+          const split = (100 * (1 / cols.length)).toFixed(0);
           cols.forEach(c => {
-            ths += '<td>' + c + '</td>';
+            ths += '<td class="border-0" style="width: '+ split +'%">' + c + '</td>';
           });
           ths += '</tr></table>';
         }
@@ -1427,13 +1433,9 @@ class Table extends RawTable {
             else if (t.Columns[col].DATA_TYPE == 'tinyint') {
               value = parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
             }
-            else {
-              let isHTML = t.Columns[col].is_virtual;
-              value = t.formatCell(value, isHTML);
-            }
-
-            // Check for statemachine
-            if (col == 'state_id' && t.tablename != 'state') {
+            else if (col == 'state_id' && t.tablename != 'state') {
+              value = value[1];
+              // Check for statemachine
               // Modulo 12 --> see in css file (12 colors)
               let cssClass = 'state' + (row['state_id'][0] % 12);
               data_string += '<td class="align-middle">\
@@ -1445,8 +1447,13 @@ class Table extends RawTable {
                   </div>\
               </td>';
             }
-            else
-              data_string += '<td class="align-middle p-0">'+value+'</td>'
+            else {
+              let isHTML = t.Columns[col].is_virtual;
+              value = t.formatCell(value, isHTML);
+              data_string += '<td class="align-middle p-0">'+value+'</td>';
+            }
+            /*else */
+
           } else {
             // Add empty cell (null)
             data_string += '<td>&nbsp;</td>'
@@ -1472,7 +1479,6 @@ class Table extends RawTable {
     // GUI
     const content = header + tds + footer;
     $(t.jQSelector).append(content);
-
     
     //---------------- Bind Events
 

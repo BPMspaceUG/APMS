@@ -63,7 +63,9 @@
   foreach ($data as $table) {
     // Get Data
     $tablename = $table["table_name"];
-    @$se_active = (bool)$table["se_active"];
+    $se_active = (bool)$table["se_active"];
+    $table_type = $table["table_type"];
+
     $con = DB::getInstance()->getConnection();
 
     //--- Create HTML Content
@@ -192,10 +194,11 @@ END";
 
     //--- Create StateMachine
     if ($se_active) {
+
       // ------- StateMachine Creation
       $SM = new StateMachine($con);
       $SM->createDatabaseStructure();
-      $SM_ID = $SM->createBasicStateMachine($tablename);
+      $SM_ID = $SM->createBasicStateMachine($tablename, $table_type);
 
       // Create a default form for statemachine
       $colData = $table["columns"];

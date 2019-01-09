@@ -169,35 +169,53 @@
       $this->log($query);
       return $result;
     }
-    public function createBasicStateMachine($tablename) {
+    public function createBasicStateMachine($tablename, $table_type) {
       // check if a statemachine already exists for this table
       $ID = $this->getSMIDByTablename($tablename);
-      if ($ID > 0) return $ID; // SM already exists
-      $this->log("-- [Start] Creating a Basic StateMachine for Table '$tablename'"); 
+      if ($ID > 0) return $ID; // SM already exists => exit
+
+      $this->log("-- [Start] Creating StateMachine for Table '$tablename'"); 
 
       // Insert new statemachine for a table
-      $stmt = $this->db->prepare("INSERT INTO state_machines (tablename) VALUES (?)");
+      $query = "INSERT INTO state_machines (tablename) VALUES (?)";
+      $stmt = $this->db->prepare($query);
       $stmt->execute(array($tablename));
       $ID = $this->db->lastInsertId(); // returns the ID for the created SM
       $this->ID = $ID;
       $this->log($query);
 
-      // Insert states (new, active, inactive)
-      $ID_new = $this->createNewState('new', 1);
-      $ID_active = $this->createNewState('active', 0);
-      $ID_update = $this->createNewState('update', 0);
-      $ID_inactive = $this->createNewState('inactive', 0);
+      // TODO: Check Table Type
+      if ($table_type == 'obj') {
+        /*******************************************
+         * OBJECT                                  *
+         *******************************************/
+        // Insert states (new, active, update, inactive)
+        $ID_new = $this->createNewState('new', 1);
+        $ID_active = $this->createNewState('active', 0);
+        $ID_update = $this->createNewState('update', 0);
+        $ID_inactive = $this->createNewState('inactive', 0);
+        // Insert rules (new -> active, active -> inactive, ...)
+        $this->createTransition($ID_new, $ID_new);
+        $this->createTransition($ID_active, $ID_active);
+        $this->createTransition($ID_update, $ID_update);
+        $this->createTransition($ID_new, $ID_active);
+        $this->createTransition($ID_active, $ID_update);
+        $this->createTransition($ID_update, $ID_active);
+        $this->createTransition($ID_active, $ID_inactive);      
+      } else {
+        /*******************************************
+         * RELATION                                *
+         *******************************************/
+        // Insert states (selected, unselected)
+        $ID_selected = $this->createNewState('selected', 1);
+        $ID_unselected = $this->createNewState('unselected', 0);
+        // Insert rules (selected -> unselected, unselected -> selected)
+        $this->createTransition($ID_selected, $ID_unselected);
+        $this->createTransition($ID_unselected, $ID_selected);
+      }
 
-      // Insert rules (new -> active, active -> inactive)
-      $this->createTransition($ID_new, $ID_new);
-      $this->createTransition($ID_active, $ID_active);
-      $this->createTransition($ID_update, $ID_update);
-      $this->createTransition($ID_new, $ID_active);
-      $this->createTransition($ID_active, $ID_update);
-      $this->createTransition($ID_update, $ID_active);
-      $this->createTransition($ID_active, $ID_inactive);
+      $this->log("-- [END] StateMachine created for Table '$tablename'"); 
 
-      $this->log("-- [END] Basic StateMachine created for Table '$tablename'"); 
       return $ID;
     }
 
@@ -291,7 +309,7 @@
         // REVERSE FOREIGN KEYS
         $reverseFKs = array();
         foreach ($config as $tbl => $tbl_content) {
-          if ($config[$tbl]['is_nm_table']) {
+          if ($config[$tbl]['table_type'] != 'obj') {
             // Save linked tables, except state_id
             $cols = $config[$tbl]['columns'];
             foreach ($cols as $colname => $col) {

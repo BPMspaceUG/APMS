@@ -12,10 +12,11 @@ var SelectType;
 })(SelectType || (SelectType = {}));
 var TableType;
 (function (TableType) {
-    TableType[TableType["t1_1"] = 0] = "t1_1";
-    TableType[TableType["t1_n"] = 1] = "t1_n";
-    TableType[TableType["tn_1"] = 2] = "tn_1";
-    TableType[TableType["tn_m"] = 3] = "tn_m";
+    TableType["obj"] = "obj";
+    TableType["t1_1"] = "1_1";
+    TableType["t1_n"] = "1_n";
+    TableType["tn_1"] = "n_1";
+    TableType["tn_m"] = "n_m";
 })(TableType || (TableType = {}));
 class LiteEvent {
     constructor() {
@@ -271,7 +272,7 @@ class RawTable {
         this.AscDesc = SortOrder.DESC;
         this.PageIndex = 0;
         this.Where = '';
-        this.TableType = TableType.t1_1;
+        this.TableType = TableType.obj;
         this.selRowIDs = [];
         this.tablename = tablename;
         this.actRowCount = 0;
@@ -354,22 +355,25 @@ class RawTable {
         DB.request('read', data, function (r) {
             let response = JSON.parse(r);
             // Check if n_1 or n_m // TODO:
+            /*
             if (me.Where != '' && (me.TableType == TableType.tn_1 || me.TableType == TableType.tn_m || true)) {
-                // Mark the selected
-                response.forEach(row => {
-                    me.selRowIDs.push(row[me.PrimaryColumn]);
-                });
-                data.where = ' NOT ' + data.where;
-                DB.request('read', data, function (r2) {
-                    let response2 = JSON.parse(r2);
-                    me.Rows = response.concat(response2);
-                    callback(response); // For the selection
-                });
-            }
-            else {
-                me.Rows = response;
-                callback(response);
-            }
+              
+              // Mark the selected
+              response.forEach(row => {
+                me.selRowIDs.push(row[me.PrimaryColumn]);
+              });
+      
+              data.where = ' NOT ' + data.where;
+              DB.request('read', data, function(r2) {
+                let response2 = JSON.parse(r2);
+                me.Rows = response.concat(response2);
+                callback(response); // For the selection
+              })
+            } else {
+              */
+            me.Rows = response;
+            callback(response);
+            //}
         });
     }
     getNrOfRows() {
@@ -437,6 +441,8 @@ class Table extends RawTable {
                     me.SM = null;
                 me.Columns = me.TableConfig.columns;
                 me.ReadOnly = me.TableConfig.is_read_only;
+                me.TableType = me.TableConfig.table_type;
+                console.log('Init -> ', me.tablename, '[', me.TableType, ']');
                 // check if is read only and no select then hide first column
                 if (me.ReadOnly && me.selType == SelectType.NoSelect)
                     me.GUIOptions.showControlColumn = false;
@@ -1224,8 +1230,9 @@ class Table extends RawTable {
                     catch (error) {
                         cols = [t.Columns[col].foreignKey.col_subst];
                     }
+                    const split = (100 * (1 / cols.length)).toFixed(0);
                     cols.forEach(c => {
-                        ths += '<td>' + c + '</td>';
+                        ths += '<td class="border-0" style="width: ' + split + '%">' + c + '</td>';
                     });
                     ths += '</tr></table>';
                 }
@@ -1363,12 +1370,9 @@ class Table extends RawTable {
                         else if (t.Columns[col].DATA_TYPE == 'tinyint') {
                             value = parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
                         }
-                        else {
-                            let isHTML = t.Columns[col].is_virtual;
-                            value = t.formatCell(value, isHTML);
-                        }
-                        // Check for statemachine
-                        if (col == 'state_id' && t.tablename != 'state') {
+                        else if (col == 'state_id' && t.tablename != 'state') {
+                            value = value[1];
+                            // Check for statemachine
                             // Modulo 12 --> see in css file (12 colors)
                             let cssClass = 'state' + (row['state_id'][0] % 12);
                             data_string += '<td class="align-middle">\
@@ -1380,8 +1384,12 @@ class Table extends RawTable {
                   </div>\
               </td>';
                         }
-                        else
+                        else {
+                            let isHTML = t.Columns[col].is_virtual;
+                            value = t.formatCell(value, isHTML);
                             data_string += '<td class="align-middle p-0">' + value + '</td>';
+                        }
+                        /*else */
                     }
                     else {
                         // Add empty cell (null)
