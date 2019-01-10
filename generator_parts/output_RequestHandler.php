@@ -175,7 +175,7 @@
         $config = json_decode(Config::getConfig(), true);
         $result['config'] = $config[$tablename];
         // ---- Count
-        $result['count'] = json_decode($this->count($param), true)[0]['cnt'];
+        $result['count'] = 10000; //json_decode($this->count($param), true)[0]['cnt'];
         // ---- Forms
         $result['formcreate'] = $this->getFormCreate($param);
         $result['formmodify'] = $this->getFormData($param);  
@@ -297,13 +297,81 @@
       // Execute & Fetch
       $result = array();
       $pdo = DB::getInstance()->getConnection();
-      $stmt = $pdo->prepare($query);
+      $stmt = $pdo->prepare($query);      
       if ($stmt->execute($vals)) {
+        // Query executed successfully
+
+        /*
+        $colCnt = $stmt->columnCount();
+        $aliases = [];
+        for ($i=0; $i < $colCnt; $i++) {
+          $meta = $stmt->getColumnMeta($i);
+          $aliases[$meta["table"]][] = $meta["name"];
+        }
+        */
+
+        /* DEBUG
+        echo '<pre>';
+        var_dump($aliases);
+        echo '</pre>';
+        */
+
+        /* old:
         while($row = $stmt->fetch(PDO::FETCH_NAMED)) {
           $result[] = $row;
         }
+        */
+
+        while($row = $stmt->fetch(PDO::FETCH_NUM)) {
+          //var_dump($stmt->columnCount());
+          $r = [];
+          $x = [];
+          foreach($row as $idx => $val) {
+            $meta = $stmt->getColumnMeta($idx);            
+            $table = $meta["table"];
+            $col = $meta["name"];
+            //echo "$table.$col -> $val<br>";
+
+            // Split Table and place into correct place in origin
+            if (strpos($table, '_____') !== FALSE) {
+              // Foreign Table or nested Foreign Table
+              $splited = explode('_____', $table);
+
+              if (count($splited) == 2) {
+                // Layer 1
+                if (is_array($x[$splited[1]]))
+                  $x[$splited[1]][$col] = $val; // Append
+                else {
+                  // Convert to array
+                  $x[$splited[1]] = array();
+                  $x[$splited[1]][$col] = $val; // Append
+                }
+              }
+              elseif (count($splited) == 3) {
+                // Layer 2
+                if (is_array($x[$splited[1]][$splited[2]] ))
+                  $x[$splited[1]][$splited[2]][$col] = $val; // Append
+                else {
+                  // Convert to array
+                  $x[$splited[1]][$splited[2]] = array();
+                  $x[$splited[1]][$splited[2]][$col] = $val; // Append
+                }
+              }
+
+            } else {
+              // Origin Table
+              $x[$col] = $val;
+            }
+            $r[$table][$col] = $val;
+
+          }
+          $result[] = $x;
+        }
+
+
       } else {
-        echo $stmt->queryString."<br />";
+        echo $stmt->queryString."<br>";
+        echo json_encode($vals)."<br>";
         var_dump($stmt->errorInfo());
       }
       // Return result as JSON

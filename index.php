@@ -35,7 +35,7 @@
 		    </div>
 		    <!-- Button: Load -->
 		    <div class="col-sm-1">
-		      <a href="#loadDb" name="load" data-toggle="modal" id="loadF" class="btn btn-default "
+		      <a href="#loadDb" name="load" data-toggle="modal" id="loadF" class="btn btn-secondary "
 		         name="load">Load</a>
 		    </div>
 		    <!-- Button: Save -->
@@ -56,11 +56,11 @@
 
       <!-- Loading -->
       <div class="alert alert-info" ng-show="isLoading">
-        <p><i class="fa fa-cog fa-spin"></i> Loading...</p>
+        <p class="m-0"><i class="fa fa-cog fa-spin"></i> Loading...</p>
       </div>
       <!-- Error Message -->
       <div class="alert alert-danger" ng-show="isError">
-        <p><i class="fa fa-exclamation"></i> <strong>Error:</strong> Login data is not correct.</p>
+        <p class="m-0"><i class="fa fa-exclamation"></i> <strong>Error:</strong> Login data is not correct.</p>
       </div>
 
       <!-- DB Configuration -->
@@ -89,13 +89,13 @@
               <!-- Automatically load config -->
               <div class="col-6">
                 <p><strong>[1] Automatically load config</strong></p>
-                <button class="btn btn-default" ng-click="loadConfigByName()"><i class="fa fa-search"></i> Look for last config</button>
+                <button class="btn btn-secondary" ng-click="loadConfigByName()"><i class="fa fa-search"></i> Look for last config</button>
               </div>
               <!-- Manually load config -->
               <div class="col-6">
                 <p><strong>[2] Manually load config</strong></p>
                 <textarea class="form-control configtxt" ng-model="configtext" placeholder="Paste Content of the Config-File here"></textarea>
-                <button class="btn btn-default" ng-click="loadconfig(configtext)">
+                <button class="btn btn-secondary" ng-click="loadconfig(configtext)">
                   <i class="fa fa-arrow-right"></i> Parse and Load configuration file
                 </button>
               </div>
@@ -135,6 +135,7 @@
                 <tbody ng-repeat="(name, tbl) in tables">
                   <!-- Table START -->
                   <tr>
+
                     <!-- Order Tabs -->
                     <td>
                       <div style="white-space:nowrap;overflow:hidden;">
@@ -143,8 +144,9 @@
                         <a ng-click="changeSortOrder(col, -1)"><i class="fa fa-angle-up p-1"></i></a>
                       </div>
                     </td>
+
+                    <!-- Expand / Collapse -->
                     <td>
-                      <!-- Expand / Collapse -->
                       <div style="white-space:nowrap; overflow: hidden;">
                         <a class="btn" ng-click="toggle_kids(tbl)" title="Show column settings">
                           <i class="fa fa-plus-square" ng-if="!tbl.showKids"></i>
@@ -161,26 +163,33 @@
                       </div>
                     </td>
 
+                    <!-- Tablename -->
                     <td>
-                      <!-- Tablename -->
-                      <p><b>{{name}}</b></p>
+                      <p><b>{{name}}</b>
+                        <div class="row mt-2" ng-if="tbl.table_type != 'obj'">
+                          <input class="form-control form-control-sm col-6" placeholder="caption forward" />
+                          <input class="form-control form-control-sm col-6" placeholder="caption backward" />
+                        </div>
+                      </p>
                     </td>
+
                     <td>
                       <input type="text" class="form-control" ng-model="tbl.table_alias"/>
                     </td>
+
                     <td>
                       <input type="checkbox" class="form-control" ng-model="tbl.is_in_menu">
                     </td>
+
                     <td>
                       <input type="checkbox" class="form-control" ng-model="tbl.se_active"
                         ng-disabled="tbl.table_name == 'state' || tbl.table_name == 'state_rules'">
                     </td>
-                    <td><input type="checkbox" class="form-control" ng-model="tbl.is_read_only"></td>
-                    
-                    <!--
-                    <td><input type="checkbox" class="form-control" ng-model="tbl.is_nm_table"></td>
-                    -->
 
+                    <td>
+                      <input type="checkbox" class="form-control" ng-model="tbl.is_read_only">
+                    </td>
+                    
                     <!-- Icon -->
                     <td class="align-middle">
                       <div class="row">
@@ -189,7 +198,12 @@
                       </div>
                     </td>
                   </tr>
+
+                  <!-- C O L U M N S -->
                   <!-- Columns START -->
+
+
+
                   <tr ng-repeat="col in convertObjToArr(tbl.columns) | orderBy: 'col_order'" ng-show="tbl.showKids" ng-class="{'bg-warning' : col.is_virtual}" style="font-size: .8em;">
                     <!-- Column Order -->
                     <td>
@@ -255,7 +269,7 @@
               <button name="createScript" ng-disabled="GUI_generating" class="btn btn-danger" id="createScript" ng-click="create_fkt()">
                 <i class="fa fa-rocket"></i> Generate!</button>
               <!-- Open Project -->
-              <button class="btn btn-default" href="#" ng-click="openProject(e)" target="_blank"><i class="fa fa-folder-open"></i> Open Project</button>
+              <button class="btn btn-secondary" href="#" ng-click="openProject(e)" target="_blank"><i class="fa fa-folder-open"></i> Open Project</button>
               <!-- Open Test Dir Button -->
               <!--
               <button class="btn btn-default mr-3" href="../APMS_test/" target="_blank"><i class="fa fa-folder-open"></i> Open Test-Directory</button>

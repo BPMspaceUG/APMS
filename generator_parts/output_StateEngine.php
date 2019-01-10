@@ -370,7 +370,7 @@
     (function(){
       elLoaded(\'input[name='.$this_primary.']\', function(el) {
         let PrimID = $(\'input[name='.$this_primary.']\').val();
-        let x = new Table(\''.$nm_table.'\', \'.extern_table'.$dest.'\', 2, function(){
+        let x = new Table(\''.$nm_table.'\', \'.extern_table'.$dest.'\', 0, function(){
           x.Columns[\''.$foreignPrimaryColname.'\'].is_in_menu = false;
           x.loadRows(function(){
             x.renderHTML();

@@ -459,7 +459,7 @@ class Table extends RawTable {
     this.selectedIDs = []; // empty array
     this.tablename = tablename
     this.Filter = '';
-    this.Select = '*';
+    //this.Select = '*';
     this.OrderBy = '';
 
     DB.request('init', {table: tablename, where: whereFilter}, function(resp) {
@@ -574,8 +574,11 @@ class Table extends RawTable {
         return escapeHtml(cellContent.substr(0, this.GUIOptions.maxCellLength) + "\u2026");      
     }
     else if (Array.isArray(cellContent)) {
+      //-----------------------
       // Foreign Key
-      if (cellContent[0] !== null) {
+      //-----------------------
+      if (cellContent[0] !== null) {       
+
         let content = '';
         const split = (100 * (1 / (cellContent.length - 1))).toFixed(0); 
         content += '<table class="w-100 border-0"><tr class="border-0">';
@@ -587,6 +590,7 @@ class Table extends RawTable {
         })
         content += '</tr></table>';
         return content;
+
       }
       else
         return '';
@@ -1262,29 +1266,30 @@ class Table extends RawTable {
     sortedColumnNames.forEach(function(col) {
       if (t.Columns[col].is_in_menu) {
         const ordercol = t.OrderBy.replace('a.', '');
-        ths += '<th scope="col" data-colname="'+col+'" class="border-0 p-0 align-top datatbl_header'+(col == ordercol ? ' sorted' : '')+'">'+
+        ths += '<th scope="col" data-colname="'+col+'" class="border-0 p-0 align-middle datatbl_header'+(col == ordercol ? ' sorted' : '')+'">'+
           // Title
-          '<div class="float-left">' + t.Columns[col].column_alias + '</div>' +
+          '<div class="float-left pl-1 pb-1">' + t.Columns[col].column_alias + '</div>' +
           // Sorting
-          '<div class="float-right">' + (col == ordercol ? '&nbsp;' + (
+          '<div class="float-right pr-3">' + (col == ordercol ? '&nbsp;' + (
             t.AscDesc == SortOrder.ASC ? '<i class="fa fa-sort-asc">' : (t.AscDesc == SortOrder.DESC ? '<i class="fa fa-sort-desc">' : '')
           ) + '' : '')
           + '</div>';
 
         // TODO: if this col is a FK, then include complete row
-        console.log(t.Columns[col])
+        //console.log(t.Columns[col])
 
         if (t.Columns[col].foreignKey.table != '') {
           ths += '<table class="w-100 border-0"><tr>'
-          let cols = [];
+          let cols = {};
           try {
-            cols = JSON.parse(t.Columns[col].foreignKey.col_subst);            
+            cols = JSON.parse(t.Columns[col].foreignKey.col_subst);
           } catch (error) {
-            cols = [t.Columns[col].foreignKey.col_subst];
+            cols[t.Columns[col].foreignKey.col_subst] = 1;
           }
-          const split = (100 * (1 / cols.length)).toFixed(0);
-          cols.forEach(c => {
-            ths += '<td class="border-0" style="width: '+ split +'%">' + c + '</td>';
+          const split = (100 * (1 / Object.keys(cols).length)).toFixed(0);
+          Object.keys(cols).forEach(c => {
+            //console.log('col', c);
+            ths += '<td class="border-0 align-middle" style="width: '+ split +'%">' + c + '</td>';
           });
           ths += '</tr></table>';
         }
@@ -1381,7 +1386,7 @@ class Table extends RawTable {
       
       // If a Control Column is set then Add one before each row
       if (t.GUIOptions.showControlColumn) {
-        data_string = '<td scope="row" class="controllcoulm modRow align-middle" data-rowid="'+row[t.PrimaryColumn]+'">'
+        data_string = '<td scope="row" class="controllcoulm modRow align-middle" data-rowid="'+row[t.PrimaryColumn]+'">';
         // Entries are selectable?
         if (t.selType == SelectType.Single) {
           data_string += '<i class="fa fa-circle-o"></i>';
@@ -1389,9 +1394,9 @@ class Table extends RawTable {
           data_string += '<i class="fa fa-square-o"></i>';
         } else {
           // Entries are editable
-          if (!t.ReadOnly) data_string += '<i class="fa fa-pencil"></i>'
+          if (!t.ReadOnly) data_string += '<i class="fa fa-pencil"></i>';
         }
-        data_string += '</td>'
+        data_string += '</td>';
       }
 
       // Generate HTML for Table-Data Cells sorted
@@ -1407,14 +1412,16 @@ class Table extends RawTable {
               if(!isNaN(tmp.getTime()))
                 value = tmp.toLocaleDateString('de-DE')
               else
-                value = ''
+                value = '';
+              data_string += '<td class="align-middle p-0">'+value+'</td>';
             }
             else if(t.Columns[col].DATA_TYPE == 'time') {
               // Remove seconds from TimeString
               if (t.GUIOptions.smallestTimeUnitMins) {
                 var timeArr = value.split(':');
                 timeArr.pop();
-                value = timeArr.join(':')
+                value = timeArr.join(':');
+                data_string += '<td class="align-middle p-0">'+value+'</td>';
               }
             }
             else if (t.Columns[col].DATA_TYPE == 'datetime') {
@@ -1427,11 +1434,14 @@ class Table extends RawTable {
                   timeArr.pop();
                   value = timeArr.join(':')
                 }             
-              } else
-                value = ''
+              } else {
+                value = '';
+              }
+              data_string += '<td class="align-middle p-0">'+value+'</td>';
             }
             else if (t.Columns[col].DATA_TYPE == 'tinyint') {
               value = parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
+              data_string += '<td class="align-middle p-0">'+value+'</td>';
             }
             else if (col == 'state_id' && t.tablename != 'state') {
               value = value[1];
@@ -1447,12 +1457,32 @@ class Table extends RawTable {
                   </div>\
               </td>';
             }
+            else if (
+              (t.tablename == 'state' && col == 'name')
+              || (t.tablename == 'state_rules' && (col == 'state_id_FROM' || col == 'state_id_TO'))
+            ) {
+              // Render States as buttons
+              // console.log(' lel ', row[col] , row['state_id']);
+              let stateID = 0;
+              let text = '';
+              if (Array.isArray(row[col])) {
+                stateID = row[col][0];
+                text = value[1];
+              } else {
+                stateID = row['state_id'];
+                text = value;
+              }
+              //let stateID  = (row['state_id'] ? row['state_id'][0] : row[col][0]);              
+              let cssClass = 'state' + (stateID % 12);
+              //let text = (Array.isArray(value) ? value[1] : value);
+              value = '<button class="btn btnGridState btn-sm label-state '+cssClass+'">' + text + '</button>';
+              data_string += '<td class="align-middle p-0">'+value+'</td>';
+            }
             else {
               let isHTML = t.Columns[col].is_virtual;
               value = t.formatCell(value, isHTML);
               data_string += '<td class="align-middle p-0">'+value+'</td>';
             }
-            /*else */
 
           } else {
             // Add empty cell (null)
@@ -1460,6 +1490,7 @@ class Table extends RawTable {
           }
         }
       })
+
       // Add row to table
       if (t.GUIOptions.showControlColumn) {
         // Edit via first column

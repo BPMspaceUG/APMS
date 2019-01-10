@@ -424,7 +424,7 @@ class Table extends RawTable {
         this.selectedIDs = []; // empty array
         this.tablename = tablename;
         this.Filter = '';
-        this.Select = '*';
+        //this.Select = '*';
         this.OrderBy = '';
         DB.request('init', { table: tablename, where: whereFilter }, function (resp) {
             if (resp.length > 0) {
@@ -544,7 +544,9 @@ class Table extends RawTable {
                 return escapeHtml(cellContent.substr(0, this.GUIOptions.maxCellLength) + "\u2026");
         }
         else if (Array.isArray(cellContent)) {
+            //-----------------------
             // Foreign Key
+            //-----------------------
             if (cellContent[0] !== null) {
                 let content = '';
                 const split = (100 * (1 / (cellContent.length - 1))).toFixed(0);
@@ -1213,26 +1215,27 @@ class Table extends RawTable {
         sortedColumnNames.forEach(function (col) {
             if (t.Columns[col].is_in_menu) {
                 const ordercol = t.OrderBy.replace('a.', '');
-                ths += '<th scope="col" data-colname="' + col + '" class="border-0 p-0 align-top datatbl_header' + (col == ordercol ? ' sorted' : '') + '">' +
+                ths += '<th scope="col" data-colname="' + col + '" class="border-0 p-0 align-middle datatbl_header' + (col == ordercol ? ' sorted' : '') + '">' +
                     // Title
-                    '<div class="float-left">' + t.Columns[col].column_alias + '</div>' +
+                    '<div class="float-left pl-1 pb-1">' + t.Columns[col].column_alias + '</div>' +
                     // Sorting
-                    '<div class="float-right">' + (col == ordercol ? '&nbsp;' + (t.AscDesc == SortOrder.ASC ? '<i class="fa fa-sort-asc">' : (t.AscDesc == SortOrder.DESC ? '<i class="fa fa-sort-desc">' : '')) + '' : '')
+                    '<div class="float-right pr-3">' + (col == ordercol ? '&nbsp;' + (t.AscDesc == SortOrder.ASC ? '<i class="fa fa-sort-asc">' : (t.AscDesc == SortOrder.DESC ? '<i class="fa fa-sort-desc">' : '')) + '' : '')
                     + '</div>';
                 // TODO: if this col is a FK, then include complete row
-                console.log(t.Columns[col]);
+                //console.log(t.Columns[col])
                 if (t.Columns[col].foreignKey.table != '') {
                     ths += '<table class="w-100 border-0"><tr>';
-                    let cols = [];
+                    let cols = {};
                     try {
                         cols = JSON.parse(t.Columns[col].foreignKey.col_subst);
                     }
                     catch (error) {
-                        cols = [t.Columns[col].foreignKey.col_subst];
+                        cols[t.Columns[col].foreignKey.col_subst] = 1;
                     }
-                    const split = (100 * (1 / cols.length)).toFixed(0);
-                    cols.forEach(c => {
-                        ths += '<td class="border-0" style="width: ' + split + '%">' + c + '</td>';
+                    const split = (100 * (1 / Object.keys(cols).length)).toFixed(0);
+                    Object.keys(cols).forEach(c => {
+                        //console.log('col', c);
+                        ths += '<td class="border-0 align-middle" style="width: ' + split + '%">' + c + '</td>';
                     });
                     ths += '</tr></table>';
                 }
@@ -1344,6 +1347,7 @@ class Table extends RawTable {
                                 value = tmp.toLocaleDateString('de-DE');
                             else
                                 value = '';
+                            data_string += '<td class="align-middle p-0">' + value + '</td>';
                         }
                         else if (t.Columns[col].DATA_TYPE == 'time') {
                             // Remove seconds from TimeString
@@ -1351,6 +1355,7 @@ class Table extends RawTable {
                                 var timeArr = value.split(':');
                                 timeArr.pop();
                                 value = timeArr.join(':');
+                                data_string += '<td class="align-middle p-0">' + value + '</td>';
                             }
                         }
                         else if (t.Columns[col].DATA_TYPE == 'datetime') {
@@ -1364,11 +1369,14 @@ class Table extends RawTable {
                                     value = timeArr.join(':');
                                 }
                             }
-                            else
+                            else {
                                 value = '';
+                            }
+                            data_string += '<td class="align-middle p-0">' + value + '</td>';
                         }
                         else if (t.Columns[col].DATA_TYPE == 'tinyint') {
                             value = parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
+                            data_string += '<td class="align-middle p-0">' + value + '</td>';
                         }
                         else if (col == 'state_id' && t.tablename != 'state') {
                             value = value[1];
@@ -1384,12 +1392,31 @@ class Table extends RawTable {
                   </div>\
               </td>';
                         }
+                        else if ((t.tablename == 'state' && col == 'name')
+                            || (t.tablename == 'state_rules' && (col == 'state_id_FROM' || col == 'state_id_TO'))) {
+                            // Render States as buttons
+                            // console.log(' lel ', row[col] , row['state_id']);
+                            let stateID = 0;
+                            let text = '';
+                            if (Array.isArray(row[col])) {
+                                stateID = row[col][0];
+                                text = value[1];
+                            }
+                            else {
+                                stateID = row['state_id'];
+                                text = value;
+                            }
+                            //let stateID  = (row['state_id'] ? row['state_id'][0] : row[col][0]);              
+                            let cssClass = 'state' + (stateID % 12);
+                            //let text = (Array.isArray(value) ? value[1] : value);
+                            value = '<button class="btn btnGridState btn-sm label-state ' + cssClass + '">' + text + '</button>';
+                            data_string += '<td class="align-middle p-0">' + value + '</td>';
+                        }
                         else {
                             let isHTML = t.Columns[col].is_virtual;
                             value = t.formatCell(value, isHTML);
                             data_string += '<td class="align-middle p-0">' + value + '</td>';
                         }
-                        /*else */
                     }
                     else {
                         // Add empty cell (null)

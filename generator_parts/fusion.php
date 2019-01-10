@@ -117,34 +117,59 @@
     $virtualcols = [];
     $stdcols = [];
     $allcolnames = [];
-    $fTableCount = 0;
+    $seperator = '_____';
 
     foreach ($colnames as $colname) {
-      $ft = $table["columns"][$colname]["foreignKey"]["table"];
-      $isVc = $table["columns"][$colname]["is_virtual"];
+      $fk = $table["columns"][$colname]["foreignKey"];
+
       // -- Foreign Key
+      $ft = $fk["table"];
       if ($ft != "") {
-        $fkey = $table["columns"][$colname]["foreignKey"]["col_id"];
-        $fsub = $table["columns"][$colname]["foreignKey"]["col_subst"];
-        // Template: ' LEFT JOIN [fktable] AS t[0] ON a.[stdkey] = t[0].[fkey] '
-        $jointexts[] = ' LEFT JOIN '.$ft.' AS t'.$fTableCount.' ON a.'.$colname.' = t'.$fTableCount.'.'.$fkey.' ';
+        $fkey = $fk["col_id"];
+        $fsub = $fk["col_subst"];
+        // Template: ' LEFT JOIN [fktable] AS a___[0] ON a.[stdkey] = a____[0].[fkey] '
+        $jointexts[] = ' LEFT JOIN '.$ft.' AS a'.$seperator.$colname.' ON a.'.$colname.' = a'.$seperator.$colname.'.'.$fkey;
+        $joincolsubst[] = 'a'.$seperator.$colname.'.'.$fkey;
+
 
         // Check if contains more than one
-        if (strpos($fsub, "[") !== FALSE) {
-          //$joincolsubst[] = addslashes($fsub).' AS '.$colname;
+        if (strpos($fsub, "{") !== FALSE) {
           $multifkcols = json_decode($fsub, true);
-          foreach ($multifkcols as $c) {
-            $joincolsubst[] = 't'.$fTableCount.'.'.$c.' AS '.$colname;
+          var_dump($multifkcols);
+
+
+          foreach ($multifkcols as $c => $val) {
+            // Nested FKs         FK(FK)
+            if (is_array($val)) {
+              echo "LOOOOL\n\n";
+              $layer1 = 'a'.$seperator.$colname;
+              $joincolsubst[] = $layer1.'.'.$c; // The nested FK
+              
+              // Then normally recursion
+              $_table = $multifkcols[$c]["table"];
+              $_fkey = $multifkcols[$c]["col_id"];
+              $_fsub = $multifkcols[$c]["col_subst"];
+
+              $jointexts[] = ' LEFT JOIN '.$_table.' AS '.$layer1.$seperator.$c.' ON '.$layer1.'.'.$c.' = '.$layer1.$seperator.$c.'.'.$_fkey;
+              $joincolsubst[] = 'a'.$seperator.$colname.$seperator.$c.'.'.$_fkey;
+              $joincolsubst[] = 'a'.$seperator.$colname.$seperator.$c.'.'.$_fsub;
+            }
+            else {
+              // Normal FK
+              $joincolsubst[] = 'a'.$seperator.$colname.'.'.$c;
+            }
           }
-          $allcolnames[] = 't'.$fTableCount.'.'.$colname;
+          $allcolnames[] = 'a'.$seperator.$colname.'.'.$colname;
         }
         else {
-          $joincolsubst[] = 't'.$fTableCount.'.'.$fsub.' AS '.$colname;
-          $allcolnames[] = 't'.$fTableCount.'.'.$fsub;
+          $joincolsubst[] = 'a'.$seperator.$colname.'.'.$fsub;
+          $allcolnames[] = 'a'.$seperator.$colname.'.'.$fsub;
         }
-        $fTableCount += 1;
       }
+
+
       // -- Virtual Column
+      $isVc = $table["columns"][$colname]["is_virtual"];
       if ($isVc) {
         $virtualcols[] = addslashes($table["columns"][$colname]["virtual_select"]).' AS '.$colname;
         $allcolnames[] = addslashes($table["columns"][$colname]["virtual_select"]);
@@ -169,10 +194,11 @@
 
     // Filter
     // Template: ' WHERE ([col1] LIKE '%[searchtext]%' OR [col2] LIKE '%[searchtext]%')
-    $filtertext = "(" . implode(" LIKE \'%', filter ,'%\' OR ", $allcolnames) . " LIKE \'%', filter ,'%\')";
+    //$filtertext = "(" . implode(" LIKE \'%', filter ,'%\' OR ", $allcolnames) . " LIKE \'%', filter ,'%\')";
+    $filtertext = '1=1';
 
     // STORED PROECEDURE START
-    $sp = "CREATE PROCEDURE ".$sp_name."(IN token_uid INT, IN filter VARCHAR(256), IN whereParam VARCHAR(256), IN orderCol VARCHAR(100), IN ascDesc VARCHAR(4), IN LimitStart INT, IN LimitSize INT)
+    $sp = "CREATE PROCEDURE $sp_name(IN token_uid INT, IN filter VARCHAR(256), IN whereParam VARCHAR(256), IN orderCol VARCHAR(100), IN ascDesc VARCHAR(4), IN LimitStart INT, IN LimitSize INT)
 BEGIN
   SET @select = '$select';
   SET @joins =  '$joinTables';
@@ -180,7 +206,7 @@ BEGIN
   SET @order = CONCAT(' ORDER BY ', orderCol, ' ', ascDesc);
   SET @limit = CONCAT(' LIMIT ', LimitStart, ', ', LimitSize);
 
-  SET @s = CONCAT('SELECT ', @select, ' FROM ".$tablename." AS a', @joins, @where, @order, @limit);
+  SET @s = CONCAT('SELECT ', @select, ' FROM $tablename AS a', @joins, @where, @order, @limit);
   PREPARE stmt FROM @s;
   EXECUTE stmt;
   DEALLOCATE PREPARE stmt;
