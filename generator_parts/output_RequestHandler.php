@@ -175,7 +175,7 @@
         $config = json_decode(Config::getConfig(), true);
         $result['config'] = $config[$tablename];
         // ---- Count
-        $result['count'] = 10000; //json_decode($this->count($param), true)[0]['cnt'];
+        $result['count'] = json_decode($this->count($param), true)[0]['cnt'];
         // ---- Forms
         $result['formcreate'] = $this->getFormCreate($param);
         $result['formmodify'] = $this->getFormData($param);  
@@ -297,33 +297,11 @@
       // Execute & Fetch
       $result = array();
       $pdo = DB::getInstance()->getConnection();
-      $stmt = $pdo->prepare($query);      
+      $stmt = $pdo->prepare($query);
       if ($stmt->execute($vals)) {
+
         // Query executed successfully
-
-        /*
-        $colCnt = $stmt->columnCount();
-        $aliases = [];
-        for ($i=0; $i < $colCnt; $i++) {
-          $meta = $stmt->getColumnMeta($i);
-          $aliases[$meta["table"]][] = $meta["name"];
-        }
-        */
-
-        /* DEBUG
-        echo '<pre>';
-        var_dump($aliases);
-        echo '</pre>';
-        */
-
-        /* old:
-        while($row = $stmt->fetch(PDO::FETCH_NAMED)) {
-          $result[] = $row;
-        }
-        */
-
         while($row = $stmt->fetch(PDO::FETCH_NUM)) {
-          //var_dump($stmt->columnCount());
           $r = [];
           $x = [];
           foreach($row as $idx => $val) {

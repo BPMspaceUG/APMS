@@ -166,10 +166,12 @@
                     <!-- Tablename -->
                     <td>
                       <p><b>{{name}}</b>
+                        <!--
                         <div class="row mt-2" ng-if="tbl.table_type != 'obj'">
-                          <input class="form-control form-control-sm col-6" placeholder="caption forward" />
-                          <input class="form-control form-control-sm col-6" placeholder="caption backward" />
+                          <input class="form-control form-control-sm col-6" ng-model="tbl.rel_caption_forward"/>
+                          <input class="form-control form-control-sm col-6" ng-model="tbl.rel_caption_backward"/>
                         </div>
+                        -->
                       </p>
                     </td>
 
@@ -199,10 +201,9 @@
                     </td>
                   </tr>
 
+
                   <!-- C O L U M N S -->
                   <!-- Columns START -->
-
-
 
                   <tr ng-repeat="col in convertObjToArr(tbl.columns) | orderBy: 'col_order'" ng-show="tbl.showKids" ng-class="{'bg-warning' : col.is_virtual}" style="font-size: .8em;">
                     <!-- Column Order -->
@@ -216,32 +217,40 @@
                     <!-- Column Name and Type -->
                     <td class="align-middle" colspan="2">
                       <div class="row">
-                        <div class="col-9">
-                          <b>{{col.COLUMN_NAME}}</b>
+                        <div class="col-8">
+                          <b>{{col.COLUMN_NAME}}</b><br>
+                          <small>{{col.COLUMN_TYPE}}</small><br>
+                          <small>{{col.EXTRA}}</small>
                         </div>
-                        <div class="col-3">
-                          <!--{{col.COLUMN_TYPE}}-->
+                        <div class="col-4">                          
                           <select class="custom-select custom-select-sm">
-                            <option value="1">Text SL</option>
-                            <option value="2">Text ML</option>
+                            <option value="1">Input</option>
+                            <option value="2">Textarea</option>
                             <option value="3">Number</option>
                             <option value="4">Date</option>
                             <option value="5">Time</option>
                             <option value="6">Date & Time</option>
+                            <option value="7">Passwordfield</option>
+                            <option value="8">HTML-Editor</option>
                           </select>
                         </div>
                       </div>
                     </td>
-                    <td><input type="text" class="form-control form-control-sm" ng-model="col.column_alias"></td>
+
+                    <td>
+                      <input type="text" class="form-control form-control-sm float-left w-50" ng-model="col.column_alias">
+                      <input type="text" class="form-control form-control-sm float-left w-50" ng-if="(tbl.table_type != 'obj' && col.foreignKey.table != '')" ng-model="col.rel_caption">    
+                    </td>
 
                     <td colspan="4" ng-if="!col.is_virtual">
                       <input type="checkbox" class="mr-2" ng-model="col.is_in_menu">Vis
-                      <!--<input type="checkbox" ng-model="col.is_read_only"> RO&nbsp;&nbsp;&nbsp;-->
-                      <!--<input type="checkbox" ng-model="col.is_ckeditor"> CKEditor-->                      
-                      &nbsp;-<b>FK:</b>
-                      <input type="text" style="width: 80px" ng-model="col.foreignKey.table" placeholder="Table">
-                      <input type="text" style="width: 80px" ng-model="col.foreignKey.col_id" placeholder="JoinID">
-                      <input type="text" style="width: 120px" ng-model="col.foreignKey.col_subst" placeholder="ReplacedCloumn">
+                      <!-- Show FK Menu if it is no Primary column -->
+                      <span ng-if="(col.EXTRA != 'auto_increment')">
+                        &nbsp;-<b>FK:</b>
+                        <input type="text" style="width: 80px" ng-model="col.foreignKey.table" placeholder="Table">
+                        <input type="text" style="width: 80px" ng-model="col.foreignKey.col_id" placeholder="JoinID">
+                        <input type="text" style="width: 120px" ng-model="col.foreignKey.col_subst" placeholder="ReplacedCloumn">
+                      </span>
                     </td>
 
                     <td colspan="4" ng-if="col.is_virtual">

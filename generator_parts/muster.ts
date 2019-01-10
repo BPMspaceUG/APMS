@@ -478,8 +478,7 @@ class Table extends RawTable {
         me.Columns = me.TableConfig.columns;
         me.ReadOnly = me.TableConfig.is_read_only;
         me.TableType = me.TableConfig.table_type;
-
-        console.log('Init -> ', me.tablename, '[', me.TableType, ']');
+        //console.log('InitTable -> ', me.tablename, '[', me.TableType, ']');
 
         // check if is read only and no select then hide first column
         if (me.ReadOnly && me.selType == SelectType.NoSelect)
@@ -557,46 +556,6 @@ class Table extends RawTable {
       }
     }
     return pages
-  }
-  private formatCell(cellContent: any, isHTML: boolean = false) {
-    if (isHTML) return cellContent;
-    // string -> escaped string
-    function escapeHtml(string) {
-      let entityMap = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '/': '&#x2F;', '`': '&#x60;', '=': '&#x3D;'};
-      return String(string).replace(/[&<>"'`=\/]/g, function (s) {
-        return entityMap[s];
-      });
-    }
-    // check cell type
-    if (typeof cellContent == 'string') {
-      // String, and longer than X chars
-      if (cellContent.length > this.GUIOptions.maxCellLength)
-        return escapeHtml(cellContent.substr(0, this.GUIOptions.maxCellLength) + "\u2026");      
-    }
-    else if (Array.isArray(cellContent)) {
-      //-----------------------
-      // Foreign Key
-      //-----------------------
-      if (cellContent[0] !== null) {       
-
-        let content = '';
-        const split = (100 * (1 / (cellContent.length - 1))).toFixed(0); 
-        content += '<table class="w-100 border-0"><tr class="border-0">';
-        let cnt = 0;
-        cellContent.forEach(c => {
-          if (cnt != 0)
-            content += '<td class="border-0" style="width: '+ split +'%">' + escapeHtml(c) + '</td>';
-          cnt += 1;
-        })
-        content += '</tr></table>';
-        return content;
-
-      }
-      else
-        return '';
-    }
-    // Cell is no String and no Array
-    return escapeHtml(cellContent)
   }
   private getHTMLStatusText(): string {
     if (this.getNrOfRows() > 0 && this.Rows.length > 0) {
@@ -1166,85 +1125,146 @@ class Table extends RawTable {
     this.selectedIDs = selRows;
     this.renderHTML()
   }
-  /*
-  public renderRow(row) {
-    let t = this
-    let data_string: string = '';
-    
-    // Order Headers by col_order
-    function compare(a,b) {
-      a = parseInt(t.Columns[a].col_order);
-      b = parseInt(t.Columns[b].col_order);
-      return a < b ? -1 : (a > b ? 1 : 0);
+  private renderStateButton(ID: number, name: string, withDropdown: boolean = false) {
+    const cssClass = 'state' + (ID % 12);
+
+    if (withDropdown) {
+      // With Dropdown
+      return `<div class="dropdown showNextStates">
+            <button class="btn dropdown-toggle btnGridState btn-sm label-state ` + cssClass + `" data-toggle="dropdown">` + name + `</button>
+            <div class="dropdown-menu p-0">
+              <p class="m-0 p-3 text-muted"><i class="fa fa-spinner fa-pulse"></i> Loading...</p>
+            </div>
+          </div>`;
+    } else {
+      // Without Dropdown
+      return `<button onclick="return false;" class="btn btnGridState btn-sm label-state ` + cssClass + `">` + name + `</button>`;
+    }
+  }
+
+  private formatCell(cellContent: any, isHTML: boolean = false) {
+    if (isHTML) return cellContent;
+    let t = this;
+
+    // string -> escaped string
+    function escapeHtml(string) {
+      let entityMap = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '/': '&#x2F;', '`': '&#x60;', '=': '&#x3D;'};
+      return String(string).replace(/[&<>"'`=\/]/g, function (s) {
+        return entityMap[s];
+      });
     }
 
-    let sortedColumnNames = Object.keys(t.Columns).sort(compare);
-    // Generate HTML for Headers sorted
-    sortedColumnNames.forEach(function(col) {
-      var value = row[col]
-      // Check if it is displayed
-      if (t.Columns[col].is_in_menu) {
-        // check Cell-Value
-        if (value) {            
-          // Truncate Cell if Content is too long
-          if (t.Columns[col].DATA_TYPE == 'date') {
-            var tmp = new Date(value)
-            if(!isNaN(tmp.getTime()))
-              value = tmp.toLocaleDateString('de-DE')
+    // check cell type
+    if (typeof cellContent == 'string') {
+      // String, and longer than X chars
+      if (cellContent.length > this.GUIOptions.maxCellLength)
+        return escapeHtml(cellContent.substr(0, this.GUIOptions.maxCellLength) + "\u2026");      
+    }
+    else if ((typeof cellContent === "object") && (cellContent !== null)) {
+      //-----------------------
+      // Foreign Key
+      //-----------------------
+      let content = '';
+      const split = (100 * (1 / (Object.keys(cellContent).length))).toFixed(0);
+      content += '<table class="w-100 border-0"><tr class="border-0">';
+      //let cnt = 0;
+      Object.keys(cellContent).forEach(c => {
+        //if (cnt != 0) {
+          let val = cellContent[c];
+          if ((typeof val === "object") && (val !== null)) {
+            if (c === 'state_id')
+              content += '<td class="border-0" style="width: '+ split +'%">' + t.renderStateButton(val['state_id'], val['name'], false) + '</td>';
             else
-              value = ''
-          }
-          else if(t.Columns[col].DATA_TYPE == 'time') {
-            // Remove seconds from TimeString
-            if (t.GUIOptions.smallestTimeUnitMins) {
-              var timeArr = value.split(':');
-              timeArr.pop();
-              value = timeArr.join(':')
-            }
-          }
-          else if (t.Columns[col].DATA_TYPE == 'datetime') {
-            var tmp = new Date(value)
-            if(!isNaN(tmp.getTime())) {
-              value = tmp.toLocaleString('de-DE')
-              // Remove seconds from TimeString
-              if (t.GUIOptions.smallestTimeUnitMins) {
-                var timeArr = value.split(':');
-                timeArr.pop();
-                value = timeArr.join(':')
-              }             
-            } else
-              value = ''
-          }
-          else if (t.Columns[col].DATA_TYPE == 'tinyint') {
-            value = parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
-          }
-          else {
-            let isHTML = t.Columns[col].is_virtual;
-            value = t.formatCell(value, isHTML);
-          }
-
-          // Check for statemachine
-          if (col == 'state_id' && t.tablename != 'state') {
-            // Modulo 12 --> see in css file (12 colors)
-            let cssClass = 'state' + (row['state_id'][0] % 12);
-            data_string += '<td class="align-middle">\
-                <div class="showNextStates">\
-                  <button class="btn btnGridState btn-sm label-state '+cssClass+'">'+value+'</button>\
-                </div>\
-            </td>';
-          }
-          else
-            data_string += '<td class="align-middle">'+value+'</td>'
-        } else {
-          // Add empty cell (null)
-          data_string += '<td>&nbsp;</td>'
+              content += '<td class="border-0" style="width: '+ split +'%">' + JSON.stringify(val) + '</td>';
+          } else
+            content += '<td class="border-0" style="width: '+ split +'%">' + escapeHtml(val) + '</td>';
         }
-      }
-    })
-    // Edit via click
-    return data_string;
+        //cnt += 1;
+      )
+      content += '</tr></table>';
+      return content;
+    }
+    // Cell is no String and no Object   
+    return escapeHtml(cellContent);
   }
-  */
+  private renderCell(row: any, col: string) {
+    let t = this;
+    let value: any = row[col];
+
+    // Return if null
+    if (!value) return '&nbsp;';
+
+    // Check data type
+    if (t.Columns[col].DATA_TYPE == 'date') {
+      //--- DATE
+      let tmp = new Date(value)
+      if(!isNaN(tmp.getTime()))
+        value = tmp.toLocaleDateString('de-DE')
+      else
+        value = '';
+      return value;
+    }
+    else if(t.Columns[col].DATA_TYPE == 'time') {
+      //--- TIME
+      if (t.GUIOptions.smallestTimeUnitMins) {
+        // Remove seconds from TimeString
+        let timeArr = value.split(':');
+        timeArr.pop();
+        value = timeArr.join(':');
+        return value;
+      }
+    }
+    else if (t.Columns[col].DATA_TYPE == 'datetime') {
+      //--- DATETIME
+      let tmp = new Date(value)
+      if(!isNaN(tmp.getTime())) {
+        value = tmp.toLocaleString('de-DE')
+        // Remove seconds from TimeString
+        if (t.GUIOptions.smallestTimeUnitMins) {
+          let timeArr = value.split(':');
+          timeArr.pop();
+          value = timeArr.join(':')
+        }             
+      } else {
+        value = '';
+      }
+      return value;
+    }
+    else if (t.Columns[col].DATA_TYPE == 'tinyint') {
+      //--- BOOLEAN
+      value = parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
+      return value;
+    }
+    else if (col == 'state_id' && t.tablename != 'state') {
+      //--- STATE
+      return t.renderStateButton(value['state_id'], value['name'], true);
+    }
+    else if (
+      (t.tablename == 'state' && col == 'name') || (t.tablename == 'state_rules' && (col == 'state_id_FROM' || col == 'state_id_TO'))
+    ) {
+      //------------- Render [State] as button
+      let stateID = 0;
+      let text = '';
+
+      if((typeof value === "object") && (value !== null)) {
+        stateID = parseInt(value['state_id']);
+        text = value['name'];
+      } else {
+        // Table: state -> then the state is a string
+        stateID = parseInt(row['state_id']);
+        text = value;
+      }
+      return t.renderStateButton(stateID, text);
+    }
+    else {
+      //--- OTHER
+      let isHTML = t.Columns[col].is_virtual;
+      value = t.formatCell(value, isHTML);
+      return value;
+    }
+  }
+  
+  
   public renderHTML(): void {
     let t = this
     $(t.jQSelector).empty() // GUI: Clear entries
@@ -1401,94 +1421,9 @@ class Table extends RawTable {
 
       // Generate HTML for Table-Data Cells sorted
       sortedColumnNames.forEach(function(col) {
-        var value = row[col]
         // Check if it is displayed
-        if (t.Columns[col].is_in_menu) {
-          // check Cell-Value
-          if (value) {
-            // Check data type
-            if (t.Columns[col].DATA_TYPE == 'date') {
-              var tmp = new Date(value)
-              if(!isNaN(tmp.getTime()))
-                value = tmp.toLocaleDateString('de-DE')
-              else
-                value = '';
-              data_string += '<td class="align-middle p-0">'+value+'</td>';
-            }
-            else if(t.Columns[col].DATA_TYPE == 'time') {
-              // Remove seconds from TimeString
-              if (t.GUIOptions.smallestTimeUnitMins) {
-                var timeArr = value.split(':');
-                timeArr.pop();
-                value = timeArr.join(':');
-                data_string += '<td class="align-middle p-0">'+value+'</td>';
-              }
-            }
-            else if (t.Columns[col].DATA_TYPE == 'datetime') {
-              var tmp = new Date(value)
-              if(!isNaN(tmp.getTime())) {
-                value = tmp.toLocaleString('de-DE')
-                // Remove seconds from TimeString
-                if (t.GUIOptions.smallestTimeUnitMins) {
-                  var timeArr = value.split(':');
-                  timeArr.pop();
-                  value = timeArr.join(':')
-                }             
-              } else {
-                value = '';
-              }
-              data_string += '<td class="align-middle p-0">'+value+'</td>';
-            }
-            else if (t.Columns[col].DATA_TYPE == 'tinyint') {
-              value = parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
-              data_string += '<td class="align-middle p-0">'+value+'</td>';
-            }
-            else if (col == 'state_id' && t.tablename != 'state') {
-              value = value[1];
-              // Check for statemachine
-              // Modulo 12 --> see in css file (12 colors)
-              let cssClass = 'state' + (row['state_id'][0] % 12);
-              data_string += '<td class="align-middle">\
-                  <div class="dropdown showNextStates">\
-                    <button class="btn dropdown-toggle btnGridState btn-sm label-state '+cssClass+'" data-toggle="dropdown">'+value+'</button>\
-                    <div class="dropdown-menu p-0">\
-                      <p class="m-0 p-3 text-muted"><i class="fa fa-spinner fa-pulse"></i> Loading...</p>\
-                    </div>\
-                  </div>\
-              </td>';
-            }
-            else if (
-              (t.tablename == 'state' && col == 'name')
-              || (t.tablename == 'state_rules' && (col == 'state_id_FROM' || col == 'state_id_TO'))
-            ) {
-              // Render States as buttons
-              // console.log(' lel ', row[col] , row['state_id']);
-              let stateID = 0;
-              let text = '';
-              if (Array.isArray(row[col])) {
-                stateID = row[col][0];
-                text = value[1];
-              } else {
-                stateID = row['state_id'];
-                text = value;
-              }
-              //let stateID  = (row['state_id'] ? row['state_id'][0] : row[col][0]);              
-              let cssClass = 'state' + (stateID % 12);
-              //let text = (Array.isArray(value) ? value[1] : value);
-              value = '<button class="btn btnGridState btn-sm label-state '+cssClass+'">' + text + '</button>';
-              data_string += '<td class="align-middle p-0">'+value+'</td>';
-            }
-            else {
-              let isHTML = t.Columns[col].is_virtual;
-              value = t.formatCell(value, isHTML);
-              data_string += '<td class="align-middle p-0">'+value+'</td>';
-            }
-
-          } else {
-            // Add empty cell (null)
-            data_string += '<td>&nbsp;</td>'
-          }
-        }
+        if (t.Columns[col].is_in_menu) 
+          data_string += '<td class="align-middle p-0">' + t.renderCell(row, col) + '</td>';
       })
 
       // Add row to table

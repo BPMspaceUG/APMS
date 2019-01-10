@@ -96,13 +96,13 @@
           $fk = array("table" => "", "col_id" => "", "col_subst" => "");
 
           if ($table == 'state' && $column_name == "statemachine_id") {
-            $fk = array("table" => "state_machines", "col_id" => "id", "col_subst" => "CONCAT(tablename, ' (', id ,')')");
+            $fk = array("table" => "state_machines", "col_id" => "id", "col_subst" => "{\"tablename\": 1}");
           }
           else if ($table == 'state_rules' && $column_name == "state_id_FROM") {
-            $fk = array("table" => "state", "col_id" => "state_id", "col_subst" => "CONCAT(t0.name, ' (', t0.state_id, ')')");
+            $fk = array("table" => "state", "col_id" => "state_id", "col_subst" => "{\"name\": 1}");
           }
           else if ($table == 'state_rules' && $column_name == "state_id_TO") {
-            $fk = array("table" => "state", "col_id" => "state_id", "col_subst" => "CONCAT(t1.name, ' (', t1.state_id, ')')");
+            $fk = array("table" => "state", "col_id" => "state_id", "col_subst" => "{\"name\": 1}");
           }
           else if ($column_name == "state_id" && $table != 'state'){            
             // every other state column            
@@ -120,8 +120,8 @@
           $additional_info = array(
             "column_alias" => ucfirst($column_name),
             "is_in_menu" => true,
-            "read_only" => false,
-            //"is_ckeditor" => false, // obsolete
+            //"read_only" => false,
+            "rel_caption" => '',
             "foreignKey" => $fk,
             "col_order" => (int)$column_counter,
             "is_virtual" => false,
@@ -143,6 +143,7 @@
         }
 
         // ------- ADD a custom virtual column for Table state_rules (SM)
+        /*
         if ($table == 'state_rules') {
           // Add a virtual column
           $columns['virtualColx'] = array(
@@ -154,7 +155,6 @@
             'column_alias' => "SM",
             'is_in_menu' => true,
             'read_only' => false,
-            //'is_ckeditor' => false, // obsolete in future
             'foreignKey' => array(
               'table' => "",
               'col_id' => "",
@@ -162,9 +162,10 @@
             ),
             'col_order' => 5,
             'is_virtual' => true,
-            'virtual_select' => "CONCAT(t0.statemachine_id)"
+            'virtual_select' => "CONCAT(a)"
           );
         }
+        */
 
 
         //------------------------------------------------ Auto Foreign Keys
@@ -208,9 +209,8 @@
 
       // Generate a nice TableAlias
       $table_alias = str_replace("_", "", ucfirst($table));
-
       /*------------------------------
-              T A B L E S
+        T A B L E S
       ------------------------------*/
       $res[$table] = array(
         "table_name" => $table,
@@ -218,7 +218,6 @@
         "table_type" => 'obj',
         "is_in_menu" => true,
         "is_read_only" => false,
-        //"is_nm_table" => false, // obsolete
         "se_active" => $TableHasStateMachine,
         "columns" => $columns
       );

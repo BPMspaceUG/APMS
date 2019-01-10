@@ -305,6 +305,8 @@
       $config = json_decode($config, true);
       
       if (!$withoutReverseFKs) {
+        // Here, all foreign keys are looped and saved in reverse order [FK -> Table] for later (see below)
+
         // check for N:M Tables
         // REVERSE FOREIGN KEYS
         $reverseFKs = array();
@@ -314,14 +316,18 @@
             $cols = $config[$tbl]['columns'];
             foreach ($cols as $colname => $col) {
               $src = $col['foreignKey']['table'];
+              $srcCol = $col['foreignKey']['col_id'];
+
               $dest = $tbl;
               $destCol = $colname;
+
+              
               // Add to map
-              if (strlen($src) > 0 && strlen($dest) > 0 && strlen($destCol) > 0) {
-                //echo $src . ' -> ' . $dest.'<br>';
+              if (strlen($src) > 0 && strlen($srcCol) > 0 && strlen($dest) > 0 && strlen($destCol) > 0) {                
+                // echo "$src.$srcCol -> $dest.$destCol\n"; // for Debug
                 // Check if already exists in array -> No Double Foreign Keys
-                if (!in_array(array($src, $dest, $destCol), $reverseFKs))
-                  $reverseFKs[] = array($src, $dest, $destCol);
+                if (!in_array(array($src, $srcCol, $dest, $destCol), $reverseFKs))
+                  $reverseFKs[] = array($src, $srcCol, $dest, $destCol);
               }
             }
           }
@@ -345,23 +351,29 @@
       }
 
       if (!$withoutReverseFKs) {
-        foreach ($reverseFKs as $link) {
+        foreach ($reverseFKs as $link) {          
           $src = $link[0];
-          $dest = $link[1];
-          $destCol = $link[2];
+          $srcCol = $link[1];
+          $dest = $link[2];
+          $destCol = $link[3];
+
           //echo $src . ' -> ' . $dest.'<br>';
 
           // Add extra column for reverse N:M
           if ($tablename == $src) {
             $nm_table = $dest;
-            $nm_table_alias = 'links from ' . $config[$nm_table]['table_alias'];
 
             // TODO: optimize, get primary column
-            $array = $config[$tablename]['columns'];
-            $this_primary = array_keys($array)[0];
-            $foreignPrimaryColname = $destCol; // TODO: Change
+            //$array = $config[$tablename]['columns'];
 
-            $content .= $this->getFormElement(true, $dest, $nm_table_alias, $nm_table, 'table', null, null);
+            $this_primary = $srcCol; //  array_keys($array)[0];
+            $foreignPrimaryColname = $destCol;
+
+            // Generate Alias
+            $nm_table_alias = $config[$dest]['columns'][$destCol]['rel_caption'];    //$config[$nm_table]['rel_caption_forward'];
+            $unique_table_name = $src.$srcCol.$dest.$destCol;
+
+            $content .= $this->getFormElement(true, $unique_table_name, $nm_table_alias, $nm_table, 'table', null, null);
             $content .= '
   <script>
     // Wait for element to exist.
@@ -370,7 +382,7 @@
     (function(){
       elLoaded(\'input[name='.$this_primary.']\', function(el) {
         let PrimID = $(\'input[name='.$this_primary.']\').val();
-        let x = new Table(\''.$nm_table.'\', \'.extern_table'.$dest.'\', 0, function(){
+        let x = new Table(\''.$nm_table.'\', \'.extern_table'.$unique_table_name.'\', 0, function(){
           x.Columns[\''.$foreignPrimaryColname.'\'].is_in_menu = false;
           x.loadRows(function(){
             x.renderHTML();
