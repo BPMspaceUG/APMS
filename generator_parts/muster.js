@@ -268,12 +268,12 @@ class StateMachine {
 // Class: RawTable
 //==============================================================
 class RawTable {
+    //protected selRowIDs: number[] = [];
     constructor(tablename) {
         this.AscDesc = SortOrder.DESC;
         this.PageIndex = 0;
         this.Where = '';
         this.TableType = TableType.obj;
-        this.selRowIDs = [];
         this.tablename = tablename;
         this.actRowCount = 0;
     }
@@ -354,26 +354,8 @@ class RawTable {
         // HTTP Request
         DB.request('read', data, function (r) {
             let response = JSON.parse(r);
-            // Check if n_1 or n_m // TODO:
-            /*
-            if (me.Where != '' && (me.TableType == TableType.tn_1 || me.TableType == TableType.tn_m || true)) {
-              
-              // Mark the selected
-              response.forEach(row => {
-                me.selRowIDs.push(row[me.PrimaryColumn]);
-              });
-      
-              data.where = ' NOT ' + data.where;
-              DB.request('read', data, function(r2) {
-                let response2 = JSON.parse(r2);
-                me.Rows = response.concat(response2);
-                callback(response); // For the selection
-              })
-            } else {
-              */
             me.Rows = response;
             callback(response);
-            //}
         });
     }
     getNrOfRows() {
@@ -424,7 +406,6 @@ class Table extends RawTable {
         this.selectedIDs = []; // empty array
         this.tablename = tablename;
         this.Filter = '';
-        //this.Select = '*';
         this.OrderBy = '';
         DB.request('init', { table: tablename, where: whereFilter }, function (resp) {
             if (resp.length > 0) {
@@ -605,33 +586,13 @@ class Table extends RawTable {
             let value = data[col];
             // isFK?
             if (value) {
-                if (Array.isArray(value)) {
-                    //console.log(value)
+                if ((typeof value === "object") && (value !== null)) {
                     //--- ForeignKey
-                    if (col == 'state_id') {
-                        // Special case if name = 'state_id'
-                        /*
-                        var label = e.parent().find('.label');
-                        label.addClass('state'+value[0])
-                        label.text(value[1]);
-                        */
-                    }
-                    else {
-                        // GUI Foreign Key
-                        /*
-                        let x = e.parent().find('.filterText');
-            
-                        console.log('xxx', e, x);
-                        console.log(value[1]);
-                        console.log(x);
-                        x.attr('value', value[1]);
-            
-                        x.val(value[1]);
-                        */
-                        //me.defaultFilterValue = value[1];
-                    }
-                    // Save in hidden input
-                    e.val(value[0]);
+                    // -> Save in hidden input
+                    //console.log('wD2F', value)
+                    const primCol = Object.keys(value)[0];
+                    const val = value[primCol];
+                    e.val(val);
                 }
                 else {
                     //--- Normal
@@ -695,14 +656,15 @@ class Table extends RawTable {
         }
         let btns = '';
         let saveBtn = '';
-        let actStateID = TheRow.state_id[0]; // ID
-        let cssClass = ' state' + (TheRow.state_id[0] % 12);
+        let actStateID = TheRow.state_id['state_id']; // ID
+        let actStateName = TheRow.state_id['name']; // ID
+        let cssClass = ' state' + (actStateID % 12);
         // Check States -> generate Footer HTML
         if (nextStates.length > 0) {
             let cnt_states = 0;
             // Header
             btns = '<div class="btn-group dropup ml-0 mr-auto">';
-            btns += '<button type="button" class="btn ' + cssClass + ' text-white dropdown-toggle" data-toggle="dropdown">' + TheRow.state_id[1] + '</button>';
+            btns += '<button type="button" class="btn ' + cssClass + ' text-white dropdown-toggle" data-toggle="dropdown">' + actStateName + '</button>';
             btns += '<div class="dropdown-menu p-0">';
             // Loop States
             nextStates.forEach(function (state) {
@@ -727,11 +689,11 @@ class Table extends RawTable {
             btns += '</div></div>';
             // Save buttons
             if (cnt_states == 0)
-                btns = '<button type="button" class="btn ' + cssClass + ' text-white" tabindex="-1" disabled>' + TheRow.state_id[1] + '</button>'; // Reset html if only Save button exists      
+                btns = '<button type="button" class="btn ' + cssClass + ' text-white" tabindex="-1" disabled>' + actStateName + '</button>'; // Reset html if only Save button exists      
         }
         else {
             // No Next States
-            btns = '<button type="button" class="btn ' + cssClass + ' text-white" tabindex="-1" disabled>' + TheRow.state_id[1] + '</button>';
+            btns = '<button type="button" class="btn ' + cssClass + ' text-white" tabindex="-1" disabled>' + actStateName + '</button>';
         }
         btns += saveBtn;
         // TODO: Rewrite to MID
@@ -1117,23 +1079,32 @@ class Table extends RawTable {
             // Foreign Key
             //-----------------------
             let content = '';
-            const split = (100 * (1 / (Object.keys(cellContent).length))).toFixed(0);
+            const split = (100 * (1 / (Object.keys(cellContent).length - 1))).toFixed(0);
             content += '<table class="w-100 border-0"><tr class="border-0">';
-            //let cnt = 0;
+            let cnt = 0;
             Object.keys(cellContent).forEach(c => {
-                //if (cnt != 0) {
-                let val = cellContent[c];
-                if ((typeof val === "object") && (val !== null)) {
-                    if (c === 'state_id')
-                        content += '<td class="border-0" style="width: ' + split + '%">' + t.renderStateButton(val['state_id'], val['name'], false) + '</td>';
-                    else
-                        content += '<td class="border-0" style="width: ' + split + '%">' + JSON.stringify(val) + '</td>';
+                if (cnt != 0) {
+                    let val = cellContent[c];
+                    if ((typeof val === "object") && (val !== null)) {
+                        if (c === 'state_id') {
+                            if (val['state_id'])
+                                content += '<td class="border-0" style="width: ' + split + '%">' + t.renderStateButton(val['state_id'], val['name'], false) + '</td>';
+                            else
+                                content += '<td class="border-0">&nbsp;</td>';
+                        }
+                        else
+                            content += '<td class="border-0" style="width: ' + split + '%">' + JSON.stringify(val) + '</td>';
+                    }
+                    else {
+                        //console.log('-', val);
+                        if (val)
+                            content += '<td class="border-0" style="width: ' + split + '%">' + escapeHtml(val) + '</td>';
+                        else
+                            content += '<td class="border-0">&nbsp;</td>';
+                    }
                 }
-                else
-                    content += '<td class="border-0" style="width: ' + split + '%">' + escapeHtml(val) + '</td>';
-            }
-            //cnt += 1;
-            );
+                cnt += 1;
+            });
             content += '</tr></table>';
             return content;
         }
@@ -1178,15 +1149,13 @@ class Table extends RawTable {
                     value = timeArr.join(':');
                 }
             }
-            else {
+            else
                 value = '';
-            }
             return value;
         }
         else if (t.Columns[col].DATA_TYPE == 'tinyint') {
             //--- BOOLEAN
-            value = parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
-            return value;
+            return parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
         }
         else if (col == 'state_id' && t.tablename != 'state') {
             //--- STATE
@@ -1238,8 +1207,7 @@ class Table extends RawTable {
                     // Sorting
                     '<div class="float-right pr-3">' + (col == ordercol ? '&nbsp;' + (t.AscDesc == SortOrder.ASC ? '<i class="fa fa-sort-asc">' : (t.AscDesc == SortOrder.DESC ? '<i class="fa fa-sort-desc">' : '')) + '' : '')
                     + '</div>';
-                // TODO: if this col is a FK, then include complete row
-                //console.log(t.Columns[col])
+                // Foreign Key Column
                 if (t.Columns[col].foreignKey.table != '') {
                     ths += '<table class="w-100 border-0"><tr>';
                     let cols = {};
@@ -1251,7 +1219,6 @@ class Table extends RawTable {
                     }
                     const split = (100 * (1 / Object.keys(cols).length)).toFixed(0);
                     Object.keys(cols).forEach(c => {
-                        //console.log('col', c);
                         ths += '<td class="border-0 align-middle" style="width: ' + split + '%">' + c + '</td>';
                     });
                     ths += '</tr></table>';
@@ -1277,6 +1244,7 @@ class Table extends RawTable {
         let GUID = GUI.ID();
         // Filter
         if (t.GUIOptions.showFilter) {
+            // Pre-Selected Row
             if (t.selectedIDs.length > 0) {
                 if (t.selectedIDs[0] != null)
                     t.FilterText = '' + t.selectedIDs[0];
@@ -1307,9 +1275,6 @@ class Table extends RawTable {
             header += '</div>';
         }
         header += '</div></div>';
-        // Check If it is a n_1 or n_m Table and mark the selected
-        if (t.selRowIDs.length > 0)
-            t.selectedIDs = t.selRowIDs;
         //------ Table Header
         if (t.Rows.length > 0) {
             header += '<div class="card-body ' + GUID + ' p-0' + (t.selType == SelectType.Single ? ' collapse' : '') + '">';
@@ -1354,7 +1319,7 @@ class Table extends RawTable {
             sortedColumnNames.forEach(function (col) {
                 // Check if it is displayed
                 if (t.Columns[col].is_in_menu)
-                    data_string += '<td class="align-middle p-0">' + t.renderCell(row, col) + '</td>';
+                    data_string += '<td class="align-middle p-0 border-0">' + t.renderCell(row, col) + '</td>';
             });
             // Add row to table
             if (t.GUIOptions.showControlColumn) {

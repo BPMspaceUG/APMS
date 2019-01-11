@@ -297,7 +297,7 @@ class RawTable {
   protected Rows: any;
   protected actRowCount: number; // Count total
   protected TableType: TableType = TableType.obj;
-  protected selRowIDs: number[] = [];
+  //protected selRowIDs: number[] = [];
 
   constructor (tablename: string) {
     this.tablename = tablename;
@@ -379,27 +379,8 @@ class RawTable {
     // HTTP Request
     DB.request('read', data, function(r){
       let response = JSON.parse(r);
-
-      // Check if n_1 or n_m // TODO:
-      /*
-      if (me.Where != '' && (me.TableType == TableType.tn_1 || me.TableType == TableType.tn_m || true)) {
-        
-        // Mark the selected
-        response.forEach(row => {
-          me.selRowIDs.push(row[me.PrimaryColumn]);
-        });
-
-        data.where = ' NOT ' + data.where;
-        DB.request('read', data, function(r2) {
-          let response2 = JSON.parse(r2);
-          me.Rows = response.concat(response2);
-          callback(response); // For the selection
-        })
-      } else {
-        */
-        me.Rows = response;
-        callback(response);
-      //}
+      me.Rows = response;
+      callback(response);
     })
   }
   public getNrOfRows(): number {
@@ -459,7 +440,6 @@ class Table extends RawTable {
     this.selectedIDs = []; // empty array
     this.tablename = tablename
     this.Filter = '';
-    //this.Select = '*';
     this.OrderBy = '';
 
     DB.request('init', {table: tablename, where: whereFilter}, function(resp) {
@@ -634,38 +614,16 @@ class Table extends RawTable {
     inputs.each(function(){
       let e = $(this);
       let col = e.attr('name')
-      let value = data[col]
-  
+      let value = data[col]  
       // isFK?
       if (value) {
-
-        if (Array.isArray(value)) {
-          //console.log(value)
+        if ((typeof value === "object") && (value !== null)) {
           //--- ForeignKey
-          if (col == 'state_id') {
-            // Special case if name = 'state_id'
-            /*
-            var label = e.parent().find('.label');
-            label.addClass('state'+value[0])
-            label.text(value[1]);
-            */
-          } else {
-            // GUI Foreign Key
-            /*
-            let x = e.parent().find('.filterText');
-
-            console.log('xxx', e, x);
-            console.log(value[1]);
-            console.log(x);
-            x.attr('value', value[1]);
-
-            x.val(value[1]);
-            */
-
-            //me.defaultFilterValue = value[1];
-          }
-          // Save in hidden input
-          e.val(value[0])
+          // -> Save in hidden input
+          //console.log('wD2F', value)
+          const primCol = Object.keys(value)[0];
+          const val = value[primCol];
+          e.val(val)
         }
         else {
           //--- Normal
@@ -730,15 +688,16 @@ class Table extends RawTable {
 
     let btns = '';
     let saveBtn = '';
-    let actStateID = TheRow.state_id[0] // ID
-    let cssClass = ' state' + (TheRow.state_id[0] % 12);
+    let actStateID = TheRow.state_id['state_id'] // ID
+    let actStateName = TheRow.state_id['name'] // ID
+    let cssClass = ' state' + (actStateID % 12);
 
     // Check States -> generate Footer HTML
     if (nextStates.length > 0) {
       let cnt_states = 0;
       // Header
       btns = '<div class="btn-group dropup ml-0 mr-auto">'
-      btns += '<button type="button" class="btn '+cssClass+' text-white dropdown-toggle" data-toggle="dropdown">' + TheRow.state_id[1] + '</button>';
+      btns += '<button type="button" class="btn ' + cssClass + ' text-white dropdown-toggle" data-toggle="dropdown">' + actStateName + '</button>';
       btns += '<div class="dropdown-menu p-0">';
 
       // Loop States
@@ -763,10 +722,10 @@ class Table extends RawTable {
       btns += '</div></div>';      
       // Save buttons
       if (cnt_states == 0)
-        btns = '<button type="button" class="btn '+cssClass+' text-white" tabindex="-1" disabled>' + TheRow.state_id[1] + '</button>'; // Reset html if only Save button exists      
+        btns = '<button type="button" class="btn '+cssClass+' text-white" tabindex="-1" disabled>' + actStateName + '</button>'; // Reset html if only Save button exists      
     } else {
       // No Next States
-      btns = '<button type="button" class="btn '+cssClass+' text-white" tabindex="-1" disabled>' + TheRow.state_id[1] + '</button>';
+      btns = '<button type="button" class="btn '+cssClass+' text-white" tabindex="-1" disabled>' + actStateName + '</button>';
     }
     btns += saveBtn;
     // TODO: Rewrite to MID
@@ -1145,7 +1104,6 @@ class Table extends RawTable {
   private formatCell(cellContent: any, isHTML: boolean = false) {
     if (isHTML) return cellContent;
     let t = this;
-
     // string -> escaped string
     function escapeHtml(string) {
       let entityMap = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '/': '&#x2F;', '`': '&#x60;', '=': '&#x3D;'};
@@ -1153,7 +1111,6 @@ class Table extends RawTable {
         return entityMap[s];
       });
     }
-
     // check cell type
     if (typeof cellContent == 'string') {
       // String, and longer than X chars
@@ -1165,22 +1122,30 @@ class Table extends RawTable {
       // Foreign Key
       //-----------------------
       let content = '';
-      const split = (100 * (1 / (Object.keys(cellContent).length))).toFixed(0);
+      const split = (100 * (1 / (Object.keys(cellContent).length - 1))).toFixed(0);
       content += '<table class="w-100 border-0"><tr class="border-0">';
-      //let cnt = 0;
+      let cnt = 0;
       Object.keys(cellContent).forEach(c => {
-        //if (cnt != 0) {
+        if (cnt != 0) {
           let val = cellContent[c];
           if ((typeof val === "object") && (val !== null)) {
-            if (c === 'state_id')
-              content += '<td class="border-0" style="width: '+ split +'%">' + t.renderStateButton(val['state_id'], val['name'], false) + '</td>';
-            else
+            if (c === 'state_id') {
+              if (val['state_id'])
+                content += '<td class="border-0" style="width: '+ split +'%">' + t.renderStateButton(val['state_id'], val['name'], false) + '</td>';
+              else 
+                content += '<td class="border-0">&nbsp;</td>';
+            } else
               content += '<td class="border-0" style="width: '+ split +'%">' + JSON.stringify(val) + '</td>';
-          } else
-            content += '<td class="border-0" style="width: '+ split +'%">' + escapeHtml(val) + '</td>';
+          } else {
+            //console.log('-', val);
+            if (val)
+              content += '<td class="border-0" style="width: '+ split +'%">' + escapeHtml(val) + '</td>';
+            else
+              content += '<td class="border-0">&nbsp;</td>';
+          }
         }
-        //cnt += 1;
-      )
+        cnt += 1;
+      })
       content += '</tr></table>';
       return content;
     }
@@ -1223,17 +1188,15 @@ class Table extends RawTable {
         if (t.GUIOptions.smallestTimeUnitMins) {
           let timeArr = value.split(':');
           timeArr.pop();
-          value = timeArr.join(':')
-        }             
-      } else {
+          value = timeArr.join(':');
+        }
+      } else
         value = '';
-      }
       return value;
     }
     else if (t.Columns[col].DATA_TYPE == 'tinyint') {
       //--- BOOLEAN
-      value = parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
-      return value;
+      return parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
     }
     else if (col == 'state_id' && t.tablename != 'state') {
       //--- STATE
@@ -1275,7 +1238,7 @@ class Table extends RawTable {
       ths = '<th class="border-0" scope="col"></th>'; // Pre fill with 1 because of selector
 
     // Order Headers by col_order
-    function compare(a,b) {
+    function compare(a, b) {
       a = parseInt(t.Columns[a].col_order);
       b = parseInt(t.Columns[b].col_order);
       return a < b ? -1 : (a > b ? 1 : 0);
@@ -1295,9 +1258,7 @@ class Table extends RawTable {
           ) + '' : '')
           + '</div>';
 
-        // TODO: if this col is a FK, then include complete row
-        //console.log(t.Columns[col])
-
+        // Foreign Key Column
         if (t.Columns[col].foreignKey.table != '') {
           ths += '<table class="w-100 border-0"><tr>'
           let cols = {};
@@ -1308,7 +1269,6 @@ class Table extends RawTable {
           }
           const split = (100 * (1 / Object.keys(cols).length)).toFixed(0);
           Object.keys(cols).forEach(c => {
-            //console.log('col', c);
             ths += '<td class="border-0 align-middle" style="width: '+ split +'%">' + c + '</td>';
           });
           ths += '</tr></table>';
@@ -1341,6 +1301,7 @@ class Table extends RawTable {
     // Filter
     if (t.GUIOptions.showFilter) {
 
+      // Pre-Selected Row
       if (t.selectedIDs.length > 0) {
         if (t.selectedIDs[0] != null)
           t.FilterText = '' + t.selectedIDs[0];
@@ -1372,10 +1333,6 @@ class Table extends RawTable {
       header += '</div>'
     }
     header += '</div></div>';
-
-    // Check If it is a n_1 or n_m Table and mark the selected
-    if (t.selRowIDs.length > 0)
-      t.selectedIDs = t.selRowIDs;
 
     //------ Table Header
     
@@ -1423,7 +1380,7 @@ class Table extends RawTable {
       sortedColumnNames.forEach(function(col) {
         // Check if it is displayed
         if (t.Columns[col].is_in_menu) 
-          data_string += '<td class="align-middle p-0">' + t.renderCell(row, col) + '</td>';
+          data_string += '<td class="align-middle p-0 border-0">' + t.renderCell(row, col) + '</td>';
       })
 
       // Add row to table
@@ -1574,8 +1531,6 @@ class Table extends RawTable {
     return this.onEntriesModified.expose();
   }
 }
-
-
 
 //-------------------------------------------
 // Bootstrap-Helper-Method: Overlay of many Modal windows (newest on top)

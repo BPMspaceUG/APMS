@@ -29,6 +29,7 @@
 .btnStateChange:hover{color: black !important;}
 
 /* TODO: Autogenerate */
+.state0 {background-color: darkslategray;}
 .state1 {background-color: darkgreen;}
 .state2 {background-color: steelblue;}
 .state3 {background-color: DarkRed ;}
@@ -40,4 +41,3 @@
 .state9 {background-color: mediumorchid;}
 .state10 {background-color: FireBrick ;}
 .state11 {background-color: DarkGoldenRod ;}
-.state12 {background-color: darksalmon;}

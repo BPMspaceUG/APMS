@@ -130,18 +130,17 @@
         // Template: ' LEFT JOIN [fktable] AS a___[0] ON a.[stdkey] = a____[0].[fkey] '
         $jointexts[] = ' LEFT JOIN '.$ft.' AS a'.$seperator.$colname.' ON a.'.$colname.' = a'.$seperator.$colname.'.'.$fkey;
         $joincolsubst[] = 'a'.$seperator.$colname.'.'.$fkey;
-
+        $allcolnames[] = 'a'.$seperator.$colname.'.'.$fkey;
 
         // Check if contains more than one
         if (strpos($fsub, "{") !== FALSE) {
           $multifkcols = json_decode($fsub, true);
-          var_dump($multifkcols);
-
+          //var_dump($multifkcols);
 
           foreach ($multifkcols as $c => $val) {
             // Nested FKs         FK(FK)
             if (is_array($val)) {
-              echo "LOOOOL\n\n";
+              //echo "LOOOOL\n\n";
               $layer1 = 'a'.$seperator.$colname;
               $joincolsubst[] = $layer1.'.'.$c; // The nested FK
               
@@ -159,11 +158,11 @@
               $joincolsubst[] = 'a'.$seperator.$colname.'.'.$c;
             }
           }
-          $allcolnames[] = 'a'.$seperator.$colname.'.'.$colname;
+          $allcolnames[] = 'a'.$seperator.$colname.'.'.$c;
         }
         else {
           $joincolsubst[] = 'a'.$seperator.$colname.'.'.$fsub;
-          $allcolnames[] = 'a'.$seperator.$colname.'.'.$fsub;
+          //$allcolnames[] = 'a'.$seperator.$colname.'.'.$fsub;
         }
       }
 
@@ -194,8 +193,8 @@
 
     // Filter
     // Template: ' WHERE ([col1] LIKE '%[searchtext]%' OR [col2] LIKE '%[searchtext]%')
-    //$filtertext = "(" . implode(" LIKE \'%', filter ,'%\' OR ", $allcolnames) . " LIKE \'%', filter ,'%\')";
-    $filtertext = '1=1';
+    $filtertext = "(" . implode(" LIKE \'%', filter ,'%\' OR ", $allcolnames) . " LIKE \'%', filter ,'%\')";
+    //$filtertext = '1=1';
 
     // STORED PROECEDURE START
     $sp = "CREATE PROCEDURE $sp_name(IN token_uid INT, IN filter VARCHAR(256), IN whereParam VARCHAR(256), IN orderCol VARCHAR(100), IN ascDesc VARCHAR(4), IN LimitStart INT, IN LimitSize INT)

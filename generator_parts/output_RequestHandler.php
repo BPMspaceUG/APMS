@@ -266,12 +266,13 @@
       // TODO: Make a special count function maybe inside of SP
       global $token;
       $tablename = $param["table"];
+      $where = $param["where"] != '' ? $param["where"] : '';
       $token_uid = $token->uid;
       $params = array(
         'table' => $tablename,
         'token' => $token_uid,
         'filter' => '',
-        'where' => '',
+        'where' => $where,
         'orderby' => 'NULL',
         'ascdesc' => 'ASC',
         'limitstart' => 0,
