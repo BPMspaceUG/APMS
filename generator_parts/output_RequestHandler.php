@@ -130,14 +130,15 @@
       return $res;
     }
     // -------------------------------------------------- Database Access Methods
+    // TODO: Use the stored procedure
     private function readRowByPrimaryID($tablename, $ElementID) {
       $primColName = Config::getPrimaryColNameByTablename($tablename);
 
       $result = NULL;
       $pdo = DB::getInstance()->getConnection();
       $stmt = $pdo->prepare("SELECT * FROM $tablename WHERE $primColName = ?");
-      $stmt->execute(array($ElementID));   
-      while($row = $stmt->fetch()) {
+      $stmt->execute(array($ElementID));
+      while($row = $stmt->fetch(PDO::FETCH_NAMED)) {
         $result = $row;
       }
       return $result;

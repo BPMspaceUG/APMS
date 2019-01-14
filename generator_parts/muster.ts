@@ -405,7 +405,7 @@ class Table extends RawTable {
   public GUIOptions = {
     maxCellLength: 30,
     showControlColumn: true,
-    showWorkflowButton: true,
+    showWorkflowButton: false,
     showFilter: true,
     smallestTimeUnitMins: true,
     modalHeaderTextCreate: 'Create Entry',
@@ -416,14 +416,13 @@ class Table extends RawTable {
     modalButtonTextModifySaveAndClose: 'Save &amp; Close',
     modalButtonTextModifyClose: 'Close',
     modalButtonTextSelect: 'Select',
-    filterPlaceholderText: 'Enter searchword',
+    filterPlaceholderText: 'Search...',
     statusBarTextNoEntries: 'No Entries',
     statusBarTextEntries: 'Showing Entries {lim_from} - {lim_to} of {count} Entries'
   }
   // Events
   private readonly onSelectionChanged = new LiteEvent<void>();
   private readonly onEntriesModified = new LiteEvent<void>(); // Created, Deleted, Updated
-
 
   constructor(tablename: string, DOMSelector: string, SelType: SelectType = SelectType.NoSelect, callback: any = function(){}, whereFilter: string = '', defaultObj = {}) {
     // Call parent constructor
@@ -795,18 +794,25 @@ class Table extends RawTable {
   }
   private setState(MID: string, RowID: number, targetStateID: number): void {
     let t = this
-
-    // Remove all Error Messages
     let data = {}
+    let actState = undefined
+    let newState = undefined
+
+    // Get Actual State
+    for (const row of t.Rows) {
+      if (row[t.PrimaryColumn] == RowID)
+        actState = row['state_id'];
+    }
+    // Set a loading icon or indicator when transition is running
     if (MID != '') {
-      $('#' + MID + ' .modal-body .alert').remove();
+      // Remove all Error Messages
+      $('#'+MID+' .modal-body .alert').remove();
       // Read out all input fields with {key:value}
       data = t.readDataFromForm('#'+MID);
-    }
-    // Set a loading icon or indicator
-    if (MID != '') {
-      $('#'+MID+' .modal-body').prepend('<div class="text-center text-primary mb-3 loadingtext">'+
-        '<h2><i class="fa fa-spinner fa-pulse"></i> Loading...</h2></div>');
+      $('#'+MID+' .modal-body').prepend(`
+        <div class="text-center text-primary mb-3 loadingtext">
+          <h2><i class="fa fa-spinner fa-pulse"></i> Loading...</h2>
+        </div>`);
       $('#'+MID+' :input').prop("disabled", true);
     }
 
@@ -814,71 +820,86 @@ class Table extends RawTable {
     t.transitRow(RowID, targetStateID, data, function(r) {
       // When a response came back
       if (MID != '') {
-        $('#' + MID + ' .loadingtext').remove();
+        $('#'+MID+' .loadingtext').remove();
         $('#'+MID+' :input').prop("disabled", false);
       }
-
       // Try to parse result messages
+      let parsedData = undefined;
       try {
-        var msgs = JSON.parse(r)
+        parsedData = JSON.parse(r);
       }
       catch(err) {
-        console.log(r);
-        if (MID != '')
-          $('#' + MID + ' .modal-body').prepend('<div class="alert alert-danger" role="alert">'+
-          '<b>Script Error!</b>&nbsp;'+ r +
-          '</div>')
+        let resM = new Modal('<b class="text-danger">Script Error!</b>', r);
+        resM.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose
+        resM.show();
         return
-      }  
+      }
+
+      // Remove all Error Messages
+      if (MID != '')
+        $('#'+MID+' .modal-body .alert').remove();
+
       // Handle Transition Feedback
       let counter = 0;
-      msgs.forEach(msg => {
-        // Remove all Error Messages
-        if (MID != '')
-          $('#' + MID + ' .modal-body .alert').remove();
+      let messages = [];
+      parsedData.forEach(msg => {
         // Show Messages
-        if (msg.show_message) {
-          let info = ""
-          if (counter == 0) info = 'OUT-Script'
-          if (counter == 1) info = 'Transition-Script'
-          if (counter == 2) info = 'IN-Script'
-          // Show Result Messages
-          let resM = new Modal('Feedback <small>'+ info +'</small>', msg.message)
-          resM.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose
-          resM.show()
-        }
-        // Check if Transition was successful
-        if (counter >= 2) {
-          // do not hide Modal-Window
-          //$('#'+MID).modal('hide') // Hide only if reached IN-Script
-
-          // Refresh Form-Data
-          if (MID != '') {
-            t.getFormModify(data, function(r){
-              if (r.length > 0) {
-                let htmlForm = r;
-                // Refresh Modal Buttons
-                t.getNextStates(data, function(re){
-                  if (re.length > 0) {
-                    let nextstates = JSON.parse(re);
-                    // Set Form-Content
-                    //$('#' + MID + ' .modal-body').html(htmlForm);
-                    t.renderEditForm(RowID, htmlForm, nextstates, MID);
-                  }
-                })
-              }
-            })
-          }
-
-          if (RowID != 0) t.lastModifiedRowID = RowID
-          t.loadRows(function(){
-            t.renderHTML()
-            t.onEntriesModified.trigger();
-          })
-        }
+        if (msg.show_message)
+          messages.push({type: counter, text: msg.message});
         // Increase Counter for Modals
         counter++;
       });
+      // Resort the messages
+      messages.reverse(); // like the process => [Out, Transit, In]
+
+      // Check if Transition was successful
+      if (counter >= 2) {
+        // Refresh Form-Data
+        if (MID != '') {
+          t.getFormModify(data, function(r){
+            if (r.length > 0) {
+              let htmlForm = r;
+              // Refresh Modal Buttons
+              t.getNextStates(data, function(re){
+                if (re.length > 0) {
+                  let nextstates = JSON.parse(re);
+                  // Set Form-Content
+                  t.renderEditForm(RowID, htmlForm, nextstates, MID);
+                }
+              })
+            }
+          })
+        }
+
+        // Mark rows
+        if (RowID != 0)
+          t.lastModifiedRowID = RowID;
+
+        t.loadRows(function(rows){
+          // Get Actual State
+          for (const row of rows) {
+            if (row[t.PrimaryColumn] == RowID)
+              newState = row['state_id'];
+          }
+          // Show Result Messages
+          for (const msg of messages) {
+            const stateFrom = t.renderStateButton(actState['state_id'], actState['name']);
+            const stateTo = t.renderStateButton(newState['state_id'], newState['name']);
+
+            let tmplTitle = '';
+            if (msg.type == 0) tmplTitle = `OUT <span class="text-muted ml-2">${stateFrom} &rarr;</span>`;
+            if (msg.type == 1) tmplTitle = `Transition <span class="text-muted ml-2">${stateFrom} &rarr; ${stateTo}</span>`;
+            if (msg.type == 2) tmplTitle = `IN <span class="text-muted ml-2">&rarr; ${stateTo}</span>`;
+
+            let resM = new Modal(tmplTitle, msg.text)
+            resM.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose
+            resM.show();
+          }
+          t.renderHTML();
+          t.onEntriesModified.trigger();
+        })
+      }
+
     })
   }
   //-------------------------------------------------- PUBLIC METHODS
@@ -1498,7 +1519,7 @@ class Table extends RawTable {
     //-------------------------------
 
     // Autofocus Filter
-    $(t.jQSelector+' .filterText').focus();
+    //$(t.jQSelector+' .filterText').focus();
 
     // Mark last modified Row
     if (t.lastModifiedRowID) {

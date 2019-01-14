@@ -132,9 +132,10 @@
                     <th width="30%">ICON</th>
                   </tr>
                 </thead>
+
                 <tbody ng-repeat="(name, tbl) in tables">
                   <!-- Table START -->
-                  <tr>
+                  <tr ng-class="{'table-primary' : tbl.table_type == 'obj', 'table-info' : tbl.table_type != 'obj'}">
 
                     <!-- Order Tabs -->
                     <td>
@@ -164,15 +165,8 @@
                     </td>
 
                     <!-- Tablename -->
-                    <td>
-                      <p><b>{{name}}</b>
-                        <!--
-                        <div class="row mt-2" ng-if="tbl.table_type != 'obj'">
-                          <input class="form-control form-control-sm col-6" ng-model="tbl.rel_caption_forward"/>
-                          <input class="form-control form-control-sm col-6" ng-model="tbl.rel_caption_backward"/>
-                        </div>
-                        -->
-                      </p>
+                    <td class="align-middle">
+                      <b>{{name}}</b>
                     </td>
 
                     <td>
@@ -215,26 +209,24 @@
                       </div>
                     </td>
                     <!-- Column Name and Type -->
-                    <td class="align-middle" colspan="2">
-                      <div class="row">
-                        <div class="col-8">
+                    <td class="align-middle">
+                      <div>
                           <b>{{col.COLUMN_NAME}}</b><br>
-                          <small>{{col.COLUMN_TYPE}}</small><br>
-                          <small>{{col.EXTRA}}</small>
-                        </div>
-                        <div class="col-4">                          
-                          <select class="custom-select custom-select-sm">
-                            <option value="1">Input</option>
-                            <option value="2">Textarea</option>
-                            <option value="3">Number</option>
-                            <option value="4">Date</option>
-                            <option value="5">Time</option>
-                            <option value="6">Date & Time</option>
-                            <option value="7">Passwordfield</option>
-                            <option value="8">HTML-Editor</option>
-                          </select>
-                        </div>
+                          <small class="float-left">{{col.COLUMN_TYPE}} {{col.EXTRA}}</small>
                       </div>
+                    </td>
+
+                    <td>
+                      <select class="custom-select custom-select-sm" ng-if="(col.EXTRA != 'auto_increment' && col.COLUMN_NAME != 'state_id')">
+                        <option value="1">Input</option>
+                        <option value="2">Textarea</option>
+                        <option value="3">Number</option>
+                        <option value="4">Date</option>
+                        <option value="5">Time</option>
+                        <option value="6">DateTime</option>
+                        <option value="7">Passwordfield</option>
+                        <option value="8">HTML-Editor</option>
+                      </select>
                     </td>
 
                     <td>
@@ -242,22 +234,32 @@
                       <input type="text" class="form-control form-control-sm float-left w-50" ng-if="(tbl.table_type != 'obj' && col.foreignKey.table != '')" ng-model="col.rel_caption">    
                     </td>
 
-                    <td colspan="4" ng-if="!col.is_virtual">
-                      <input type="checkbox" class="mr-2" ng-model="col.is_in_menu">Vis
-                      <!-- Show FK Menu if it is no Primary column -->
-                      <span ng-if="(col.EXTRA != 'auto_increment')">
-                        &nbsp;-<b>FK:</b>
-                        <input type="text" style="width: 80px" ng-model="col.foreignKey.table" placeholder="Table">
-                        <input type="text" style="width: 80px" ng-model="col.foreignKey.col_id" placeholder="JoinID">
-                        <input type="text" style="width: 120px" ng-model="col.foreignKey.col_subst" placeholder="ReplacedCloumn">
+                    <td ng-if="!col.is_virtual">
+                      <input type="checkbox" class="mr-2" ng-model="col.is_in_menu">
+                    </td>
+
+                    <!-- Show FK Menu if it is no Primary column -->
+                    <td colspan="3" ng-if="(col.EXTRA != 'auto_increment')">
+                      <b>ForeignKey:</b>
+                      <select class="custom-select custom-select-sm" style="width: 120px; display: inline !important;" ng-model="col.foreignKey.table">
+                        <option value="" selected></option>
+                        <option ng-repeat="tbl in tables" value="{{tbl.table_name}}">{{tbl.table_name}}</option>
+                      </select>
+                      <input ng-if="(col.foreignKey.table != '')" type="text" class="form-control form-control-sm" style="width: 100px; display: inline !important;" ng-model="col.foreignKey.col_id" placeholder="JoinID">
+                      <span>
+                        <input ng-if="(col.foreignKey.table != '')" type="text" class="form-control form-control-sm w-100" ng-model="col.foreignKey.col_subst" placeholder="ReplacedCloumn">
                       </span>
                     </td>
+                    
+
+
 
                     <td colspan="4" ng-if="col.is_virtual">
                       <span>SELECT ( i.e. CONCAT(a, b) ): </span>
                       <input type="text" ng-model="col.virtual_select" style="width: 300px" placeholder="CONCAT(id, col1, col2)">
                       <button class="btn btn-sm btn-danger" ng-click="del_virtCol(tbl, col)">delete</button>
                     </td>
+
                   </tr>
                   <!-- Columns END -->
                 </tbody>

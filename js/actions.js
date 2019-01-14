@@ -275,7 +275,10 @@ APMS.controller('APMScontrol', function ($scope, $http) {
     delete tbl.columns[col.COLUMN_NAME]
   }
   $scope.changeSortOrder = function(col, inc) {
-    col.col_order = parseInt(col.col_order) + inc
+    const oldIndex = parseInt(col.col_order); // can be overwritten
+    const newIndex = parseInt(col.col_order) + inc;
+    console.log('change Col Order', col, inc)
+    col.col_order = newIndex
   }
 
   $scope.openProject = function(e){ // Build new URL and execute in new Tab

@@ -86,7 +86,10 @@
 
       // Init a JS-Object
       $tableVarName = "tbl_$tablename";
-      $content_jsObjects .= "      let $tableVarName = new Table('$tablename', '.table_$tablename', 0, function(){ $tableVarName.loadRows(function(){ $tableVarName.renderHTML(); }); });\n";
+      $content_jsObjects .= "      let $tableVarName = new Table('$tablename', '.table_$tablename', 0, function(){
+        $tableVarName.GUIOptions.showWorkflowButton = true;
+        $tableVarName.loadRows(function(){ $tableVarName.renderHTML(); });
+      });\n";
     }
     $tabCount += 1;
     //---/Create HTML Content
@@ -140,7 +143,6 @@
           foreach ($multifkcols as $c => $val) {
             // Nested FKs         FK(FK)
             if (is_array($val)) {
-              //echo "LOOOOL\n\n";
               $layer1 = 'a'.$seperator.$colname;
               $joincolsubst[] = $layer1.'.'.$c; // The nested FK
               
