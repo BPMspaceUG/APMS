@@ -382,10 +382,12 @@ END";
     //---- Put Files
     // JavaScript
     createFile($project_dir."/js/main.js", $output_JS);
-    createFile($project_dir."/js/custom.js", "// Custom JS\n");
+    if (!file_exists($project_dir."/js/custom.js"))
+      createFile($project_dir."/js/custom.js", "// Custom JS\n");
     // Styles
     createFile($project_dir."/css/main.css", $output_css);
-    createFile($project_dir."/css/custom.css", "/* Custom Styles */\n");
+    if (!file_exists($project_dir."/css/custom.css"))
+      createFile($project_dir."/css/custom.css", "/* Custom Styles */\n");
     // Serverside-Scripts
     createFile($project_dir."/src/RequestHandler.inc.php", $output_RequestHandler);
     createFile($project_dir."/src/StateMachine.inc.php", $class_StateEngine);
