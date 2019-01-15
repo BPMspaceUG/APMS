@@ -364,23 +364,29 @@ END";
     chmod($filename, 0660);
   }
 
-  // ----> Write Project to Filesystem
+  //----------------------------------------------
+  // ===> Write Project to FileSystem
+  //----------------------------------------------
   $Path_APMS_test = __DIR__ . "/../../APMS_test";
-
-	// check if IPMS test exists
+	// check if APMS test exists
   if (is_dir($Path_APMS_test)) {
-
   	// Path for Project
     $project_dir = $Path_APMS_test.'/'.$db_name;
+
     // Create Project directory
     createSubDirIfNotExists($project_dir);
     createSubDirIfNotExists($project_dir."/css");
     createSubDirIfNotExists($project_dir."/js");
     createSubDirIfNotExists($project_dir."/src");
 
-    // Put Files
-    createFile($project_dir."/js/muster.js", $output_JS);    
-    createFile($project_dir."/css/muster.css", $output_css);
+    //---- Put Files
+    // JavaScript
+    createFile($project_dir."/js/main.js", $output_JS);
+    createFile($project_dir."/js/custom.js", "// Custom JS\n");
+    // Styles
+    createFile($project_dir."/css/main.css", $output_css);
+    createFile($project_dir."/css/custom.css", "/* Custom Styles */\n");
+    // Serverside-Scripts
     createFile($project_dir."/src/RequestHandler.inc.php", $output_RequestHandler);
     createFile($project_dir."/src/StateMachine.inc.php", $class_StateEngine);
     createFile($project_dir."/src/DatabaseHandler.inc.php", $output_DBHandler);
@@ -388,6 +394,7 @@ END";
     // Main Directory
     createFile($project_dir."/api.php", $output_API);
     createFile($project_dir."/login.php", $output_LoginPage);
+
     // Create a dashboard, which gets included
     if (!file_exists($project_dir."/dashboard.html"))
       createFile($project_dir."/dashboard.html", "<section>\n\t<h1>Dashboard</h1>\n</section>");
