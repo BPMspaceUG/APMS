@@ -1,4 +1,5 @@
 <?php
+/*
   // Includes
   require_once(__DIR__.'/src/DatabaseHandler.inc.php'); // For AuthKey from Config
   require_once(__DIR__.'/src/AuthHandler.inc.php');
@@ -22,14 +23,7 @@
       exit();
     }
   }
-
-  //---------------> Token vaild    
-  /*
-  if (property_exists($token, "exp"))
-    echo "Your Token will expire in ".number_format((($token->exp - time()) / 60), 2, ',', '.')."min. To log out, clear the cookies.";
-  else
-    echo "Your Token will never be expiring.";
-  */
+*/
 ?>
 <!DOCTYPE html>
 <html>

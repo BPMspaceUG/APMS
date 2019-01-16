@@ -6,6 +6,28 @@
   if (file_exists($file_SM)) include_once($file_SM);
 
 
+  
+  // Global function for StateMachine
+  function api($data) {
+    $url = API_URL;
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+    curl_setopt($ch, CURLOPT_URL, $url);
+    $headers = array();
+    //JWT token for Authentication
+    $headers[] = 'Cookie: token='.MACHINE_TOKEN;
+    if ($data) {
+      $json = json_encode($data);
+      curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+      $headers[] = 'Content-Type: application/json';
+      $headers[] = 'Content-Length: ' . strlen($json);
+    }
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    return curl_exec($ch);
+  }
+
+
   class Config {
     // In this class the configuration should be loaded in the constructor once
     // there should be a method for getting easy the primary column by tablename
@@ -205,7 +227,7 @@
         $param["row"]["state_id"] = (int)$EP;
         // Execute Transition Script
         $script = $SM->getTransitionScriptCreate();
-        $script_result[] = $SM->executeScript($script, $param);
+        $script_result[] = $SM->executeScript($script, $param, $tablename);
         $row = $param["row"];
       }
       else {
@@ -246,7 +268,7 @@
           $param['row'] = $row;
           $param['row'][$pcol] = (string)$newElementID;
           // IN-Script          
-          $tmp_script_res = $SM->executeScript($script, $param);
+          $tmp_script_res = $SM->executeScript($script, $param, $tablename);
           // Append the ID from new Element
           $tmp_script_res["element_id"] = $newElementID;
           $script_result[] = $tmp_script_res;
@@ -274,10 +296,10 @@
         'token' => $token_uid,
         'filter' => '',
         'where' => $where,
-        'orderby' => 'NULL',
-        'ascdesc' => 'ASC',
-        'limitstart' => 0,
-        'limitsize' => 1000000
+        'orderby' => '',
+        'ascdesc' => null,
+        'limitstart' => null,
+        'limitsize' => null
       );
       $data = json_decode($this->call($params), true);
       return json_encode(array(array('cnt' => count($data))));
@@ -359,35 +381,33 @@
     }
     //================================== READ
     public function read($param) {
-
       // Parameters and default values
       try {
         @$tablename = $param["table"];
-        @$ascdesc = isset($param["ascdesc"]) ? $param["ascdesc"] : "";      
+        // Limit
         @$limitStart = isset($param["limitStart"]) ? $param["limitStart"] : null;
         @$limitSize = isset($param["limitSize"]) ? $param["limitSize"] : null;
         @$limit = isset($param["limit"]) ? $param["limit"] : null;
-        @$orderby = isset($param["orderby"]) ? $param["orderby"] : "NULL"; // has to be a column name
+        // OrderBy
+        @$ascdesc = isset($param["ascdesc"]) ? $param["ascdesc"] : null; 
+        @$orderby = isset($param["orderby"]) ? $param["orderby"] : null; // has to be a column name
+        // Where / Filter
         @$filter = isset($param["filter"]) ? $param["filter"] : "";
-        //@$select = isset($param["select"]) ? $param["select"] : "*";
         @$where = isset($param["where"]) ? $param["where"] : "";
       } catch (Exception $e) {
         die("Invalid Parameter-Data!");
       }
-
       // Give all params to SP like (filter, orderBY, ASCDESC, LIMIT-start, LIMIT-size, [spare1, spare2, spare3, spare4, spare5])
 
       //--- Token
       global $token;
       $token_uid = $token->uid;
-
       //--- ASC/DESC
       $ascdesc = strtolower(trim($ascdesc));
-      if ($ascdesc == "") $ascdesc == "";
+      if ($ascdesc == "") $ascdesc == "ASC";
       elseif ($ascdesc == "asc") $ascdesc == "ASC";
       elseif ($ascdesc == "desc") $ascdesc == "DESC";
       else die("AscDesc has no valid value (value has to be empty, ASC or DESC)!");
-
       $params = array(
         'table' => $tablename,
         'token' => $token_uid,
@@ -578,7 +598,7 @@
         $feedbackMsgs = array(); // prepare empty array
         //---[1]- Execute [OUT] Script
         $out_script = $SE->getOUTScript($actstateID); // from source state
-        $res = $SE->executeScript($out_script, $param);
+        $res = $SE->executeScript($out_script, $param, $tablename);
         if (!$res['allow_transition']) {
           $feedbackMsgs[] = $res;
           return json_encode($feedbackMsgs);
@@ -587,7 +607,7 @@
         }
         //---[2]- Execute [Transition] Script
         $tr_script = $SE->getTransitionScript($actstateID, $nextStateID);
-        $res = $SE->executeScript($tr_script, $param);
+        $res = $SE->executeScript($tr_script, $param, $tablename);
         if (!$res["allow_transition"]) {
           $feedbackMsgs[] = $res;
           return json_encode($feedbackMsgs);
@@ -600,7 +620,7 @@
 
         //---[3]- Execute IN Script
         $in_script = $SE->getINScript($nextStateID); // from target state
-        $res = $SE->executeScript($in_script, $param);
+        $res = $SE->executeScript($in_script, $param, $tablename);
         $res["allow_transition"] = true;
         $feedbackMsgs[] = $res;
         

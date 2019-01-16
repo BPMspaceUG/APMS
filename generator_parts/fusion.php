@@ -203,9 +203,9 @@
 BEGIN
   SET @select = '$select';
   SET @joins =  '$joinTables';
-  SET @where = CONCAT(' WHERE $filtertext ', COALESCE(CONCAT('AND ', NULLIF(whereParam, '')),''));
-  SET @order = CONCAT(' ORDER BY ', orderCol, ' ', ascDesc);
-  SET @limit = CONCAT(' LIMIT ', LimitStart, ', ', LimitSize);
+  SET @where = CONCAT(' WHERE $filtertext ', COALESCE(CONCAT('AND ', NULLIF(whereParam, '')), ''));
+  SET @order = IFNULL(CONCAT(' ORDER BY ', orderCol, ' ', ascDesc), '');
+  SET @limit = IFNULL(CONCAT(' LIMIT ', LimitStart, CONCAT(', ', LimitSize)), '');
 
   SET @s = CONCAT('SELECT ', @select, ' FROM $tablename AS a', @joins, @where, @order, @limit);
   PREPARE stmt FROM @s;
@@ -324,6 +324,12 @@ END";
   $token = JWT::encode($token_data, $secretKey);
   $machine_token = $token;
 
+  $actual_link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+  $url_host = explode('APMS', $actual_link)[0];
+  $url_apiscript = '/APMS_test/'.$db_name.'/api.php';
+  $API_url = $url_host.$url_apiscript;
+
+
   // ---> ENCODE Data as JSON
   $json = json_encode($data, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE);
   // ----------------------- Config File generator
@@ -340,9 +346,10 @@ END";
   define("DB_HOST", "'.$db_server.'");
   define("DB_NAME", "'.$db_name.'");
 
+  // API-URL
+  define("API_URL", "'.$API_url.'");
   // AuthKey
   define("AUTH_KEY", "'.$secretKey.'");
-
   // Machine-Token for internal API Calls
   define("MACHINE_TOKEN", "'.$machine_token.'");
 

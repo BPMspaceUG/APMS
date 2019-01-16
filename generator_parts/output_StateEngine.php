@@ -431,7 +431,6 @@
     }
     public function getStates() {
       $result = array();
-      //$stmt = $this->db->prepare("SELECT s.state_id AS 'id', s.name, s.name AS 'label', s.entrypoint, (SELECT COUNT(*) FROM ? AS x WHERE x.state_id = s.state_id) as 'NrOfTokens' FROM state AS s WHERE s.statemachine_id = ?");
       $stmt = $this->db->prepare("SELECT state_id AS 'id', name AS 'name', name AS 'label', entrypoint FROM state WHERE statemachine_id = ?");
       $stmt->execute(array($this->ID));
       while($row = $stmt->fetch()) {
@@ -469,7 +468,7 @@
       }
       return $result;
     }
-    public function executeScript($script, &$param = null) {
+    public function executeScript($script, &$param = null, $tablename = null) {
       $standardResult = array("allow_transition" => true, "show_message" => false, "message" => "");
       // Check if script is not empty
       if (!empty($script)) {
