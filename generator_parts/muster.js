@@ -1,3 +1,11 @@
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 // Enums
 var SortOrder;
 (function (SortOrder) {
@@ -652,7 +660,7 @@ class Table extends RawTable {
         let saveBtn = '';
         let actStateID = TheRow.state_id['state_id']; // ID
         let actStateName = TheRow.state_id['name']; // ID
-        let cssClass = ' state' + (actStateID % 12);
+        let cssClass = ' state' + actStateID;
         // Check States -> generate Footer HTML
         if (nextStates.length > 0) {
             let cnt_states = 0;
@@ -675,7 +683,7 @@ class Table extends RawTable {
                 }
                 else {
                     cnt_states++;
-                    btn = '<a class="dropdown-item btnState btnStateChange state' + (state.id % 12) + '" data-rowid="' + RowID + '" data-targetstate="' + state.id + '">' + btn_text + '</a>';
+                    btn = '<a class="dropdown-item btnState btnStateChange state' + state.id + '" data-rowid="' + RowID + '" data-targetstate="' + state.id + '">' + btn_text + '</a>';
                 }
                 btns += btn;
             });
@@ -703,7 +711,7 @@ class Table extends RawTable {
             if ($(this).hasClass("btnSaveAndClose"))
                 $('#' + EditMID).modal('hide');
         });
-        $('#' + EditMID + ' .label-state').addClass('state' + (actStateID % 12)).text(TheRow.state_id[1]);
+        $('#' + EditMID + ' .label-state').addClass('state' + actStateID).text(TheRow.state_id[1]);
         // Update all Labels
         this.updateLabels(EditMID);
         // Save origin Table in all FKeys
@@ -1052,7 +1060,7 @@ class Table extends RawTable {
         this.renderHTML();
     }
     renderStateButton(ID, name, withDropdown = false) {
-        const cssClass = 'state' + (ID % 12);
+        const cssClass = 'state' + ID;
         if (withDropdown) {
             // With Dropdown
             return `<div class="dropdown showNextStates">
@@ -1193,276 +1201,304 @@ class Table extends RawTable {
             return value;
         }
     }
+    htmlHeaders(colnames) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let t = this;
+            let th = '';
+            // Pre fill with 1 because of selector
+            if (t.GUIOptions.showControlColumn)
+                th = '<th class="border-0" scope="col"></th>';
+            // Loop Columns
+            for (const colname of colnames) {
+                if (t.Columns[colname].is_in_menu) {
+                    //--- Alias (+Sorting)
+                    const ordercol = t.OrderBy.replace('a.', '');
+                    th += '<th scope="col" data-colname="' + colname + '" class="border-0 p-0 align-middle datatbl_header' + (colname == ordercol ? ' sorted' : '') + '">' +
+                        // Title
+                        '<div class="float-left pl-1 pb-1">' + t.Columns[colname].column_alias + '</div>' +
+                        // Sorting
+                        '<div class="float-right pr-3">' + (colname == ordercol ? '&nbsp;' + (t.AscDesc == SortOrder.ASC ? '<i class="fa fa-sort-asc">' : (t.AscDesc == SortOrder.DESC ? '<i class="fa fa-sort-desc">' : '')) + '' : '') + '</div>';
+                    //---- Foreign Key Column
+                    if (t.Columns[colname].foreignKey.table != '') {
+                        let cols = {};
+                        try {
+                            cols = JSON.parse(t.Columns[colname].foreignKey.col_subst);
+                        }
+                        catch (error) {
+                            cols[t.Columns[colname].foreignKey.col_subst] = 1; // only one FK => TODO: No subheader
+                        }
+                        //-------------------
+                        const colsnames = Object.keys(cols);
+                        if (colsnames.length > 1) {
+                            // Get the config from the remote table
+                            let getSubHeaders = new Promise((resolve, reject) => {
+                                let subheaders = '';
+                                let tmpTable = new Table(t.Columns[colname].foreignKey.table, '', 0, function () {
+                                    const split = (100 * (1 / colsnames.length)).toFixed(0);
+                                    for (const c of colsnames) {
+                                        const tmpAlias = tmpTable.Columns[c].column_alias;
+                                        subheaders += '<td class="border-0 align-middle" style="width: ' + split + '%">' + tmpAlias + '</td>';
+                                    }
+                                    ;
+                                    resolve(subheaders);
+                                });
+                            });
+                            const res = yield getSubHeaders;
+                            console.log(res);
+                            th += `<table class="w-100 border-0"><tr>${res}</tr></table>`;
+                        }
+                        //-------------------
+                    }
+                    // Clearfix
+                    th += '<div class="clearfix"></div>';
+                    th += '</th>';
+                }
+            }
+            return th;
+        });
+    }
     renderHTML() {
-        let t = this;
-        $(t.jQSelector).empty(); // GUI: Clear entries
-        //---------------------------- Table Headers
-        let ths = '';
-        if (t.GUIOptions.showControlColumn)
-            ths = '<th class="border-0" scope="col"></th>'; // Pre fill with 1 because of selector
-        // Order Headers by col_order
-        function compare(a, b) {
-            a = parseInt(t.Columns[a].col_order);
-            b = parseInt(t.Columns[b].col_order);
-            return a < b ? -1 : (a > b ? 1 : 0);
-        }
-        let sortedColumnNames = Object.keys(t.Columns).sort(compare);
-        // Generate HTML for Headers sorted
-        sortedColumnNames.forEach(function (col) {
-            if (t.Columns[col].is_in_menu) {
-                const ordercol = t.OrderBy.replace('a.', '');
-                ths += '<th scope="col" data-colname="' + col + '" class="border-0 p-0 align-middle datatbl_header' + (col == ordercol ? ' sorted' : '') + '">' +
-                    // Title
-                    '<div class="float-left pl-1 pb-1">' + t.Columns[col].column_alias + '</div>' +
-                    // Sorting
-                    '<div class="float-right pr-3">' + (col == ordercol ? '&nbsp;' + (t.AscDesc == SortOrder.ASC ? '<i class="fa fa-sort-asc">' : (t.AscDesc == SortOrder.DESC ? '<i class="fa fa-sort-desc">' : '')) + '' : '')
-                    + '</div>';
-                // Foreign Key Column
-                if (t.Columns[col].foreignKey.table != '') {
-                    ths += '<table class="w-100 border-0"><tr>';
-                    let cols = {};
-                    try {
-                        cols = JSON.parse(t.Columns[col].foreignKey.col_subst);
-                    }
-                    catch (error) {
-                        cols[t.Columns[col].foreignKey.col_subst] = 1;
-                    }
-                    const split = (100 * (1 / Object.keys(cols).length)).toFixed(0);
-                    Object.keys(cols).forEach(c => {
-                        ths += '<td class="border-0 align-middle" style="width: ' + split + '%">' + c + '</td>';
-                    });
-                    ths += '</tr></table>';
-                }
-                ths += '<div class="clearfix"></div>';
-                ths += '</th>';
+        return __awaiter(this, void 0, void 0, function* () {
+            let t = this;
+            // Order Headers by col_order
+            function compare(a, b) {
+                a = parseInt(t.Columns[a].col_order);
+                b = parseInt(t.Columns[b].col_order);
+                return a < b ? -1 : (a > b ? 1 : 0);
             }
-        });
-        // Pagination
-        let pgntn = '';
-        let PaginationButtons = t.getPaginationButtons();
-        // Only Display Buttons, when more than one Button exists
-        if (PaginationButtons.length > 1)
-            PaginationButtons.forEach(btnIndex => {
-                pgntn += '<li class="page-item' + (t.PageIndex == t.PageIndex + btnIndex ? ' active' : '') + '">' +
-                    '<a class="page-link" data-pageindex="' + (t.PageIndex + btnIndex) + '">' + (t.PageIndex + 1 + btnIndex) + '</a></li>';
+            let sortedColumnNames = Object.keys(t.Columns).sort(compare);
+            let p1 = new Promise((resolve, reject) => {
+                resolve(t.htmlHeaders(sortedColumnNames));
             });
-        else
-            pgntn += '';
-        // ---- Header
-        let header = '<div class="element"><div><div class="row">'; // TODO: improve html -> remove divs
-        let footer = '';
-        let GUID = GUI.ID();
-        // Filter
-        if (t.GUIOptions.showFilter) {
-            // Pre-Selected Row
-            if (t.selectedIDs.length > 0) {
-                if (t.selectedIDs[0] != null)
-                    t.FilterText = '' + t.selectedIDs[0];
-                else
-                    t.FilterText = '';
-            }
-            header += '<div class="col-12 mb-1">';
-            header += '<div class="input-group">';
-            header += '  <input type="text" class="form-control filterText text-muted bg-light" ' + (t.FilterText != '' ? 'value="' + t.FilterText + '"' : '') + ' placeholder="' + t.GUIOptions.filterPlaceholderText + '">';
-            header += '  <div class="input-group-append">';
-            if (!t.ReadOnly) {
-                const TableAlias = t.TableConfig.table_alias;
-                // Create Button
-                header += '<button class="btn btn-success btnCreateEntry">';
-                header += '<i class="fa fa-plus"></i>&nbsp;' + t.GUIOptions.modalButtonTextCreate + ' ' + TableAlias;
-                header += '</button>';
-            }
-            if (t.SM && t.GUIOptions.showWorkflowButton && t.selType == SelectType.NoSelect) {
-                // Workflow Button
-                header += '    <button class="btn btn-secondary text-muted bg-light border-left-0 btnShowWorkflow"><i class="fa fa-random"></i>&nbsp; Workflow</button>';
-            }
-            if (t.selType == SelectType.Single) {
-                header += '    <button class="btn btn-secondary text-muted bg-light resetSelection" type="button"><i class="fa fa-times"></i></button>';
-                header += '    <button class="btn btn-secondary text-muted bg-light border-left-0" type="button" data-toggle="collapse" data-target=".' + GUID + '"><i class="fa fa-angle-down"></i></button>';
-            }
-            header += '  </div>';
-            header += '</div>';
-            header += '</div>';
-        }
-        header += '</div></div>';
-        //------ Table Header
-        if (t.Rows.length > 0) {
-            header += '<div class="card-body ' + GUID + ' p-0' + (t.selType == SelectType.Single ? ' collapse' : '') + '">';
-            header += '<div class="tablewrapper border border-top-0"><table class="table table-striped table-hover m-0 table-sm datatbl">';
-            header += '<thead><tr>' + ths + '</tr></thead><tbody>';
-            footer = '</tbody></table></div>';
-        }
-        // TODO:
-        if (t.selType == SelectType.NoSelect) {
-            footer += '<div class="card-footer text-muted p-0 px-2">' +
-                '<p class="float-left m-0 mb-1"><small>' + t.getHTMLStatusText() + '</small></p>' +
-                '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">' + pgntn + '</ul></nav>' +
-                '<div class="clearfix"></div>' +
-                '</div>';
-        }
-        footer += '</div>';
-        //============================== data
-        let tds = '';
-        // Loop Rows
-        if (!t.Rows)
-            return;
-        t.Rows.forEach(function (row) {
-            let data_string = '';
-            // If a Control Column is set then Add one before each row
-            if (t.GUIOptions.showControlColumn) {
-                data_string = '<td scope="row" class="controllcoulm modRow align-middle" data-rowid="' + row[t.PrimaryColumn] + '">';
-                // Entries are selectable?
+            let ths = yield p1;
+            // Pagination
+            let pgntn = '';
+            let PaginationButtons = t.getPaginationButtons();
+            // Only Display Buttons, when more than one Button exists
+            if (PaginationButtons.length > 1)
+                PaginationButtons.forEach(btnIndex => {
+                    pgntn += '<li class="page-item' + (t.PageIndex == t.PageIndex + btnIndex ? ' active' : '') + '">' +
+                        '<a class="page-link" data-pageindex="' + (t.PageIndex + btnIndex) + '">' + (t.PageIndex + 1 + btnIndex) + '</a></li>';
+                });
+            else
+                pgntn += '';
+            // ---- Header
+            let header = '<div class="element"><div><div class="row">'; // TODO: improve html -> remove divs
+            let footer = '';
+            let GUID = GUI.ID();
+            // Filter
+            if (t.GUIOptions.showFilter) {
+                // Pre-Selected Row
+                if (t.selectedIDs.length > 0) {
+                    if (t.selectedIDs[0] != null)
+                        t.FilterText = '' + t.selectedIDs[0];
+                    else
+                        t.FilterText = '';
+                }
+                header += '<div class="col-12 mb-1">';
+                header += '<div class="input-group">';
+                header += '  <input type="text" class="form-control filterText text-muted bg-light" ' + (t.FilterText != '' ? 'value="' + t.FilterText + '"' : '') + ' placeholder="' + t.GUIOptions.filterPlaceholderText + '">';
+                header += '  <div class="input-group-append">';
+                if (!t.ReadOnly) {
+                    const TableAlias = t.TableConfig.table_alias;
+                    // Create Button
+                    header += '<button class="btn btn-outline-success text-success bg-light btnCreateEntry">';
+                    header += '<i class="fa fa-plus"></i>&nbsp;' + t.GUIOptions.modalButtonTextCreate + ' ' + TableAlias;
+                    header += '</button>';
+                }
+                if (t.SM && t.GUIOptions.showWorkflowButton && t.selType == SelectType.NoSelect) {
+                    // Workflow Button
+                    header += '    <button class="btn btn-secondary text-muted bg-light border-left-0 btnShowWorkflow"><i class="fa fa-random"></i>&nbsp; Workflow</button>';
+                }
                 if (t.selType == SelectType.Single) {
-                    data_string += '<i class="fa fa-circle-o"></i>';
+                    header += '    <button class="btn btn-secondary text-muted bg-light resetSelection" type="button"><i class="fa fa-times"></i></button>';
+                    header += '    <button class="btn btn-secondary text-muted bg-light border-left-0" type="button" data-toggle="collapse" data-target=".' + GUID + '"><i class="fa fa-angle-down"></i></button>';
                 }
-                else if (t.selType == SelectType.Multi) {
-                    data_string += '<i class="fa fa-square-o"></i>';
+                header += '  </div>';
+                header += '</div>';
+                header += '</div>';
+            }
+            header += '</div></div>';
+            //------ Table Header
+            if (t.Rows.length > 0) {
+                header += '<div class="card-body ' + GUID + ' p-0' + (t.selType == SelectType.Single ? ' collapse' : '') + '">';
+                header += '<div class="tablewrapper border border-top-0"><table class="table table-striped table-hover m-0 table-sm datatbl">';
+                header += '<thead><tr>' + ths + '</tr></thead><tbody>';
+                footer = '</tbody></table></div>';
+            }
+            // TODO:
+            if (t.selType == SelectType.NoSelect) {
+                footer += '<div class="card-footer text-muted p-0 px-2">' +
+                    '<p class="float-left m-0 mb-1"><small>' + t.getHTMLStatusText() + '</small></p>' +
+                    '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">' + pgntn + '</ul></nav>' +
+                    '<div class="clearfix"></div>' +
+                    '</div>';
+            }
+            footer += '</div>';
+            //============================== data
+            let tds = '';
+            // Loop Rows
+            if (!t.Rows)
+                return;
+            t.Rows.forEach(function (row) {
+                let data_string = '';
+                // If a Control Column is set then Add one before each row
+                if (t.GUIOptions.showControlColumn) {
+                    data_string = '<td scope="row" class="controllcoulm modRow align-middle" data-rowid="' + row[t.PrimaryColumn] + '">';
+                    // Entries are selectable?
+                    if (t.selType == SelectType.Single) {
+                        data_string += '<i class="fa fa-circle-o"></i>';
+                    }
+                    else if (t.selType == SelectType.Multi) {
+                        data_string += '<i class="fa fa-square-o"></i>';
+                    }
+                    else {
+                        // Entries are editable
+                        if (!t.ReadOnly)
+                            data_string += '<i class="fa fa-pencil"></i>';
+                    }
+                    data_string += '</td>';
+                }
+                // Generate HTML for Table-Data Cells sorted
+                sortedColumnNames.forEach(function (col) {
+                    // Check if it is displayed
+                    if (t.Columns[col].is_in_menu)
+                        data_string += '<td class="align-middle p-0 border-0">' + t.renderCell(row, col) + '</td>';
+                });
+                // Add row to table
+                if (t.GUIOptions.showControlColumn) {
+                    // Edit via first column
+                    tds += '<tr class="datarow row-' + row[t.PrimaryColumn] + '">' + data_string + '</tr>';
                 }
                 else {
-                    // Entries are editable
-                    if (!t.ReadOnly)
-                        data_string += '<i class="fa fa-pencil"></i>';
-                }
-                data_string += '</td>';
-            }
-            // Generate HTML for Table-Data Cells sorted
-            sortedColumnNames.forEach(function (col) {
-                // Check if it is displayed
-                if (t.Columns[col].is_in_menu)
-                    data_string += '<td class="align-middle p-0 border-0">' + t.renderCell(row, col) + '</td>';
-            });
-            // Add row to table
-            if (t.GUIOptions.showControlColumn) {
-                // Edit via first column
-                tds += '<tr class="datarow row-' + row[t.PrimaryColumn] + '">' + data_string + '</tr>';
-            }
-            else {
-                if (t.ReadOnly) {
-                    // Edit via click
-                    tds += '<tr class="datarow row-' + row[t.PrimaryColumn] + '" data-rowid="' + row[t.PrimaryColumn] + '">' + data_string + '</tr>';
-                }
-                else {
-                    // Edit via click on full Row
-                    tds += '<tr class="datarow row-' + row[t.PrimaryColumn] + ' editFullRow modRow" data-rowid="' + row[t.PrimaryColumn] + '">' + data_string + '</tr>';
-                }
-            }
-        });
-        // GUI
-        const content = header + tds + footer;
-        $(t.jQSelector).append(content);
-        //---------------- Bind Events
-        function filterEvent(t) {
-            t.PageIndex = 0; // jump to first page
-            t.Filter = $(t.jQSelector + ' .filterText').val();
-            t.countRows(function () {
-                if (t.getNrOfRows() > 0)
-                    t.loadRows(function () { t.renderHTML(); });
-                else {
-                    t.Rows = [];
-                    t.renderHTML();
-                }
-            });
-        }
-        // Filter-Button clicked
-        $(t.jQSelector + ' .btnFilter').off('click').on('click', function (e) {
-            e.preventDefault();
-            filterEvent(t);
-        });
-        // hitting Return on searchbar at Filter
-        $(t.jQSelector + ' .filterText').off('keydown').on('keydown', function (e) {
-            if (e.keyCode == 13) {
-                e.preventDefault();
-                filterEvent(t);
-            }
-        });
-        // Show Workflow Button clicked
-        $(t.jQSelector + ' .btnShowWorkflow').off('click').on('click', function (e) {
-            e.preventDefault();
-            t.SM.openSEPopup();
-        });
-        // Reset Selection Button clicked
-        $(t.jQSelector + ' .resetSelection').off('click').on('click', function (e) {
-            e.preventDefault();
-            //console.log('Reset selection', t);
-            t.modifyRow(null);
-        });
-        // Show Workflow Button clicked
-        $(t.jQSelector + ' .btnCreateEntry').off('click').on('click', function (e) {
-            e.preventDefault();
-            t.createEntry();
-        });
-        // Edit Row
-        $(t.jQSelector + ' .modRow').off('click').on('click', function (e) {
-            e.preventDefault();
-            let RowID = $(this).data('rowid');
-            t.modifyRow(RowID);
-        });
-        // PopUp Menu
-        $(t.jQSelector + ' .showNextStates').off('show.bs.dropdown').on('show.bs.dropdown', function (e) {
-            let jQRow = $(this).parent().parent();
-            let RowID = jQRow.find('td:first').data('rowid');
-            let PrimaryColumn = t.PrimaryColumn;
-            let data = {};
-            data[PrimaryColumn] = RowID;
-            t.getNextStates(data, function (re) {
-                if (re.length > 0) {
-                    jQRow.find('.dropdown-menu').html('<p class="m-0 p-3 text-muted"><i class="fa fa-times"></i> No transition possible</p>');
-                    let nextstates = JSON.parse(re);
-                    // Any Target States?
-                    if (nextstates.length > 0) {
-                        jQRow.find('.dropdown-menu').empty();
-                        let btns = '';
-                        nextstates.map(state => {
-                            btns += '<a class="dropdown-item btnState btnStateChange state' + (state.id % 12) + '" data-rowid="' + RowID + '" data-targetstate="' + state.id + '">' + state.name + '</a>';
-                        });
-                        jQRow.find('.dropdown-menu').html(btns);
-                        // Bind function to StateButtons
-                        $('.btnState').click(function (e) {
-                            e.preventDefault();
-                            let RowID = $(this).data('rowid');
-                            let TargetStateID = $(this).data('targetstate');
-                            t.setState('', RowID, TargetStateID);
-                        });
+                    if (t.ReadOnly) {
+                        // Edit via click
+                        tds += '<tr class="datarow row-' + row[t.PrimaryColumn] + '" data-rowid="' + row[t.PrimaryColumn] + '">' + data_string + '</tr>';
+                    }
+                    else {
+                        // Edit via click on full Row
+                        tds += '<tr class="datarow row-' + row[t.PrimaryColumn] + ' editFullRow modRow" data-rowid="' + row[t.PrimaryColumn] + '">' + data_string + '</tr>';
                     }
                 }
             });
-        });
-        // Table-Header - Sort
-        $(t.jQSelector + ' .datatbl_header').off('click').on('click', function (e) {
-            e.preventDefault();
-            let colname = $(this).data('colname');
-            t.toggleSort(colname);
-        });
-        // Pagination Button
-        $(t.jQSelector + ' .page-link').off('click').on('click', function (e) {
-            e.preventDefault();
-            let newPageIndex = $(this).data('pageindex');
-            t.setPageIndex(newPageIndex);
-        });
-        //-------------------------------
-        // Autofocus Filter
-        //$(t.jQSelector+' .filterText').focus();
-        // Mark last modified Row
-        if (t.lastModifiedRowID) {
-            if (t.lastModifiedRowID != 0) {
-                t.addClassToDataRow(t.lastModifiedRowID, 'table-info');
-                t.lastModifiedRowID = 0;
-            }
-        }
-        // Mark Elements which are in Array of SelectedIDs
-        if (t.selectedIDs) {
-            if (t.selectedIDs.length > 0) {
-                t.selectedIDs.forEach(selRowID => {
-                    if (t.GUIOptions.showControlColumn) {
-                        if (t.selType == SelectType.Single)
-                            $(t.jQSelector + ' .row-' + selRowID + ' td:first').html('<i class="fa fa-dot-circle-o"></i>');
-                        else
-                            $(t.jQSelector + ' .row-' + selRowID + ' td:first').html('<i class="fa fa-check-square-o"></i>');
+            // GUI
+            const content = header + tds + footer;
+            $(t.jQSelector).empty();
+            $(t.jQSelector).append(content);
+            //---------------- Bind Events
+            function filterEvent(t) {
+                t.PageIndex = 0; // jump to first page
+                t.Filter = $(t.jQSelector + ' .filterText').val();
+                t.countRows(function () {
+                    if (t.getNrOfRows() > 0)
+                        t.loadRows(function () { t.renderHTML(); });
+                    else {
+                        t.Rows = [];
+                        t.renderHTML();
                     }
-                    $(t.jQSelector + ' .row-' + selRowID).addClass('table-success');
                 });
             }
-        }
+            // Filter-Button clicked
+            $(t.jQSelector + ' .btnFilter').off('click').on('click', function (e) {
+                e.preventDefault();
+                filterEvent(t);
+            });
+            // hitting Return on searchbar at Filter
+            $(t.jQSelector + ' .filterText').off('keydown').on('keydown', function (e) {
+                if (e.keyCode == 13) {
+                    e.preventDefault();
+                    filterEvent(t);
+                }
+            });
+            // Show Workflow Button clicked
+            $(t.jQSelector + ' .btnShowWorkflow').off('click').on('click', function (e) {
+                e.preventDefault();
+                t.SM.openSEPopup();
+            });
+            // Reset Selection Button clicked
+            $(t.jQSelector + ' .resetSelection').off('click').on('click', function (e) {
+                e.preventDefault();
+                //console.log('Reset selection', t);
+                t.modifyRow(null);
+            });
+            // Show Workflow Button clicked
+            $(t.jQSelector + ' .btnCreateEntry').off('click').on('click', function (e) {
+                e.preventDefault();
+                t.createEntry();
+            });
+            // Edit Row
+            $(t.jQSelector + ' .modRow').off('click').on('click', function (e) {
+                e.preventDefault();
+                let RowID = $(this).data('rowid');
+                t.modifyRow(RowID);
+            });
+            // PopUp Menu
+            $(t.jQSelector + ' .showNextStates').off('show.bs.dropdown').on('show.bs.dropdown', function (e) {
+                let jQRow = $(this).parent().parent();
+                let RowID = jQRow.find('td:first').data('rowid');
+                let PrimaryColumn = t.PrimaryColumn;
+                let data = {};
+                data[PrimaryColumn] = RowID;
+                t.getNextStates(data, function (re) {
+                    if (re.length > 0) {
+                        jQRow.find('.dropdown-menu').html('<p class="m-0 p-3 text-muted"><i class="fa fa-times"></i> No transition possible</p>');
+                        let nextstates = JSON.parse(re);
+                        // Any Target States?
+                        if (nextstates.length > 0) {
+                            jQRow.find('.dropdown-menu').empty();
+                            let btns = '';
+                            nextstates.map(state => {
+                                btns += '<a class="dropdown-item btnState btnStateChange state' + state.id + '" data-rowid="' + RowID + '" data-targetstate="' + state.id + '">' + state.name + '</a>';
+                            });
+                            jQRow.find('.dropdown-menu').html(btns);
+                            // Bind function to StateButtons
+                            $('.btnState').click(function (e) {
+                                e.preventDefault();
+                                let RowID = $(this).data('rowid');
+                                let TargetStateID = $(this).data('targetstate');
+                                t.setState('', RowID, TargetStateID);
+                            });
+                        }
+                    }
+                });
+            });
+            // Table-Header - Sort
+            $(t.jQSelector + ' .datatbl_header').off('click').on('click', function (e) {
+                e.preventDefault();
+                let colname = $(this).data('colname');
+                t.toggleSort(colname);
+            });
+            // Pagination Button
+            $(t.jQSelector + ' .page-link').off('click').on('click', function (e) {
+                e.preventDefault();
+                let newPageIndex = $(this).data('pageindex');
+                t.setPageIndex(newPageIndex);
+            });
+            //-------------------------------
+            // Autofocus Filter
+            //$(t.jQSelector+' .filterText').focus();
+            // Mark last modified Row
+            if (t.lastModifiedRowID) {
+                if (t.lastModifiedRowID != 0) {
+                    t.addClassToDataRow(t.lastModifiedRowID, 'table-info');
+                    t.lastModifiedRowID = 0;
+                }
+            }
+            // Mark Elements which are in Array of SelectedIDs
+            if (t.selectedIDs) {
+                if (t.selectedIDs.length > 0) {
+                    t.selectedIDs.forEach(selRowID => {
+                        if (t.GUIOptions.showControlColumn) {
+                            if (t.selType == SelectType.Single)
+                                $(t.jQSelector + ' .row-' + selRowID + ' td:first').html('<i class="fa fa-dot-circle-o"></i>');
+                            else
+                                $(t.jQSelector + ' .row-' + selRowID + ' td:first').html('<i class="fa fa-check-square-o"></i>');
+                        }
+                        $(t.jQSelector + ' .row-' + selRowID).addClass('table-success');
+                    });
+                }
+            }
+        });
     }
     //-------------------------------------------------- EVENTS
     get SelectionHasChanged() {

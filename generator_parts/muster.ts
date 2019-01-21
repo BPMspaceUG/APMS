@@ -689,7 +689,7 @@ class Table extends RawTable {
     let saveBtn = '';
     let actStateID = TheRow.state_id['state_id'] // ID
     let actStateName = TheRow.state_id['name'] // ID
-    let cssClass = ' state' + (actStateID % 12);
+    let cssClass = ' state' + actStateID;
 
     // Check States -> generate Footer HTML
     if (nextStates.length > 0) {
@@ -713,7 +713,7 @@ class Table extends RawTable {
           saveBtn += '</div>';
         } else {
           cnt_states++;
-          btn = '<a class="dropdown-item btnState btnStateChange state'+(state.id % 12)+'" data-rowid="'+RowID+'" data-targetstate="'+state.id+'">' + btn_text + '</a>';
+          btn = '<a class="dropdown-item btnState btnStateChange state' + state.id + '" data-rowid="'+RowID+'" data-targetstate="'+state.id+'">' + btn_text + '</a>';
         }
         btns += btn;
       })
@@ -742,7 +742,7 @@ class Table extends RawTable {
         $('#'+EditMID).modal('hide');
     })
 
-    $('#'+EditMID+' .label-state').addClass('state'+(actStateID % 12)).text(TheRow.state_id[1]);  
+    $('#'+EditMID+' .label-state').addClass('state' + actStateID).text(TheRow.state_id[1]);  
     // Update all Labels
     this.updateLabels(EditMID)
     // Save origin Table in all FKeys
@@ -1106,7 +1106,7 @@ class Table extends RawTable {
     this.renderHTML()
   }
   private renderStateButton(ID: number, name: string, withDropdown: boolean = false) {
-    const cssClass = 'state' + (ID % 12);
+    const cssClass = 'state' + ID;
 
     if (withDropdown) {
       // With Dropdown
@@ -1248,15 +1248,69 @@ class Table extends RawTable {
     }
   }
   
-  
-  public renderHTML(): void {
-    let t = this
-    $(t.jQSelector).empty() // GUI: Clear entries
+  private async htmlHeaders(colnames) {
+    let t = this;
+    let th = '';
 
-    //---------------------------- Table Headers
-    let ths: string = '';
+    // Pre fill with 1 because of selector
     if (t.GUIOptions.showControlColumn)
-      ths = '<th class="border-0" scope="col"></th>'; // Pre fill with 1 because of selector
+      th = '<th class="border-0" scope="col"></th>';
+    // Loop Columns
+    for (const colname of colnames) {
+      if (t.Columns[colname].is_in_menu) {
+        //--- Alias (+Sorting)
+        const ordercol = t.OrderBy.replace('a.', '');
+        th += '<th scope="col" data-colname="'+colname+'" class="border-0 p-0 align-middle datatbl_header'+(colname == ordercol ? ' sorted' : '')+'">'+
+        // Title
+        '<div class="float-left pl-1 pb-1">' + t.Columns[colname].column_alias + '</div>' +
+        // Sorting
+        '<div class="float-right pr-3">' + (colname == ordercol ? '&nbsp;' + (
+          t.AscDesc == SortOrder.ASC ? '<i class="fa fa-sort-asc">' : (t.AscDesc == SortOrder.DESC ? '<i class="fa fa-sort-desc">' : '')
+        ) + '' : '') + '</div>';
+
+        //---- Foreign Key Column
+        if (t.Columns[colname].foreignKey.table != '') {
+          let cols = {};
+          try {
+            cols = JSON.parse(t.Columns[colname].foreignKey.col_subst);
+          } catch (error) {
+            cols[t.Columns[colname].foreignKey.col_subst] = 1; // only one FK => TODO: No subheader
+          }
+          //-------------------
+          const colsnames = Object.keys(cols);
+          if (colsnames.length > 1) {
+
+            // Get the config from the remote table
+            let getSubHeaders = new Promise((resolve, reject) => {
+              let subheaders = '';
+              let tmpTable = new Table(t.Columns[colname].foreignKey.table, '', 0, function(){
+                const split = (100 * (1 / colsnames.length)).toFixed(0);
+                for (const c of colsnames) {
+                  const tmpAlias = tmpTable.Columns[c].column_alias;
+                  subheaders += '<td class="border-0 align-middle" style="width: '+ split +'%">' + tmpAlias + '</td>';
+                };
+                resolve(subheaders);
+              });
+            });
+
+            const res = await getSubHeaders;
+            console.log(res);
+            th += `<table class="w-100 border-0"><tr>${res}</tr></table>`;
+          }
+          //-------------------
+        }
+
+        // Clearfix
+        th += '<div class="clearfix"></div>';
+        th += '</th>';
+      }
+    }
+    return th;
+  }
+
+
+  public async renderHTML() {
+    let t = this
 
     // Order Headers by col_order
     function compare(a, b) {
@@ -1266,40 +1320,13 @@ class Table extends RawTable {
     }
     let sortedColumnNames = Object.keys(t.Columns).sort(compare);
 
-    // Generate HTML for Headers sorted
-    sortedColumnNames.forEach(function(col) {
-      if (t.Columns[col].is_in_menu) {
-        const ordercol = t.OrderBy.replace('a.', '');
-        ths += '<th scope="col" data-colname="'+col+'" class="border-0 p-0 align-middle datatbl_header'+(col == ordercol ? ' sorted' : '')+'">'+
-          // Title
-          '<div class="float-left pl-1 pb-1">' + t.Columns[col].column_alias + '</div>' +
-          // Sorting
-          '<div class="float-right pr-3">' + (col == ordercol ? '&nbsp;' + (
-            t.AscDesc == SortOrder.ASC ? '<i class="fa fa-sort-asc">' : (t.AscDesc == SortOrder.DESC ? '<i class="fa fa-sort-desc">' : '')
-          ) + '' : '')
-          + '</div>';
 
-        // Foreign Key Column
-        if (t.Columns[col].foreignKey.table != '') {
-          ths += '<table class="w-100 border-0"><tr>'
-          let cols = {};
-          try {
-            cols = JSON.parse(t.Columns[col].foreignKey.col_subst);
-          } catch (error) {
-            cols[t.Columns[col].foreignKey.col_subst] = 1;
-          }
-          const split = (100 * (1 / Object.keys(cols).length)).toFixed(0);
-          Object.keys(cols).forEach(c => {
-            ths += '<td class="border-0 align-middle" style="width: '+ split +'%">' + c + '</td>';
-          });
-          ths += '</tr></table>';
-        }
+    let p1 = new Promise((resolve, reject) => {
+      resolve(t.htmlHeaders(sortedColumnNames));
+    });
+    let ths = await p1;
 
-        ths += '<div class="clearfix"></div>';
-        ths += '</th>';
-      }
-    })
-
+    
     // Pagination
     let pgntn = ''
     let PaginationButtons = t.getPaginationButtons()
@@ -1337,7 +1364,7 @@ class Table extends RawTable {
       if (!t.ReadOnly) {
         const TableAlias = t.TableConfig.table_alias;
         // Create Button
-        header += '<button class="btn btn-success btnCreateEntry">';
+        header += '<button class="btn btn-outline-success text-success bg-light btnCreateEntry">';
         header += '<i class="fa fa-plus"></i>&nbsp;'+t.GUIOptions.modalButtonTextCreate + ' ' + TableAlias;
         header += '</button>';
       }
@@ -1420,9 +1447,12 @@ class Table extends RawTable {
 
     })
 
+    
     // GUI
     const content = header + tds + footer;
+    $(t.jQSelector).empty()
     $(t.jQSelector).append(content);
+
     
     //---------------- Bind Events
 
@@ -1489,7 +1519,7 @@ class Table extends RawTable {
             jQRow.find('.dropdown-menu').empty();
             let btns = '';
             nextstates.map(state => {
-              btns += '<a class="dropdown-item btnState btnStateChange state'+(state.id % 12)+'" data-rowid="'+RowID+'" data-targetstate="'+state.id+'">' + state.name + '</a>';
+              btns += '<a class="dropdown-item btnState btnStateChange state' + state.id + '" data-rowid="'+RowID+'" data-targetstate="'+state.id+'">' + state.name + '</a>';
             });
             jQRow.find('.dropdown-menu').html(btns);
             // Bind function to StateButtons

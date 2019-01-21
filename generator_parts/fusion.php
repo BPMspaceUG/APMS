@@ -41,9 +41,11 @@
 
   // -------------------- FormData --------------------
 
+  $tabCount = 0;
   $content_tabs = '';
   $content_tabpanels = '';  
   $content_jsObjects = '';
+  $content_css_statecolors = '';
   
   // Add Pseudo Element for Dashboard
   $content_tabs .= "            ".
@@ -57,9 +59,8 @@
   $content_tabpanels .= "            ".
     "<div role=\"tabpanel\" class=\"tab-pane\" id=\"dashboard\">".
     "<?php include_once(__DIR__.'/dashboard.html'); ?>".
-    "</div>\n";
+    "</div>\n";  
 
-  $tabCount = 0;
   foreach ($data as $table) {
     // Get Data
     $tablename = $table["table_name"];
@@ -241,7 +242,7 @@ END";
       $form_data_default = $SM->getBasicFormDataByColumns($tablename, json_encode($data), $colData, $excludeKeys);
 
       // Default Form
-      $query = "UPDATE state_machines SET form_data_default = ? WHERE tablename = ? AND NULLIF(form_data_default, '') IS NULL";
+      $query = "UPDATE state_machines SET form_adta_default = ? WHERE tablename = ? AND NULLIF(form_data_default, '') IS NULL";
       $stmt = $con->prepare($query);
       $stmt->execute(array($form_data_default, $tablename));
 
@@ -257,6 +258,25 @@ END";
       $EP_ID = $SM->getEntryPoint();
       $q_se = "ALTER TABLE `".$db_name."`.`".$tablename."` ADD COLUMN `state_id` BIGINT(20) DEFAULT $EP_ID;";
       $con->query($q_se);
+
+      // Read all states
+      $allstates = $SM->getStates();
+      $initColorHue = rand(0, 360); // le color
+      $v = 8;
+      foreach ($allstates as $state) {
+        $v += 12;
+        $tmpStateID = $state['id'];
+
+        if ($table_type == 'obj') {
+          // Generate color
+          $state_css = ".state$tmpStateID {background-color: hsl($initColorHue, 50%, $v%);}\n";
+        } else {
+          // NM Table
+          if ($v == 20) $state_css = ".state$tmpStateID {background-color: hsl(120, 50%, 40%);}\n";
+          else $state_css = ".state$tmpStateID {background-color: hsl(0, 50%, 40%);}\n";
+        }
+        $content_css_statecolors .= $state_css;
+      }
 
       // Add UNIQUE named foreign Key
       $uid = substr(md5($tablename), 0, 8);
@@ -293,6 +313,10 @@ END";
   $output_header = str_replace('replaceDBName', $db_name, $output_header); // For Title
   $output_footer = str_replace('replaceDBName', $db_name, $output_footer); // For Footer
   
+  echo "---------------------------------- Jebo\n";
+  echo $content_css_statecolors;
+  echo "---------------------------------- Te\n";
+
   // --- Content
   // Modify HTML for later adaptions
   // Insert Tabs in HTML (Remove last \n)
@@ -303,6 +327,8 @@ END";
   $output_content = str_replace('replaceDBName', $db_name, $output_content);
   // Write the init functions for the JS-Table Objects
   $output_footer = str_replace('###JS_TABLE_OBJECTS###', $content_jsObjects, $output_footer);
+  // CSS
+  $output_css = str_replace('###CSS_STATES###', $content_css_statecolors, $output_css);
 
   // ------------------------------------ Generate Core File
   $output_all = $output_header.$output_content.$output_footer;
