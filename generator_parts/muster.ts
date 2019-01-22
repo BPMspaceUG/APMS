@@ -95,27 +95,30 @@ class Modal {
     // Render and add to DOM-Tree
     let sizeType = ''
     if (this.isBig)
-      sizeType = ' modal-lg'
+      sizeType = ' modal-xl'
     // Result
-    let html =  '<div id="'+this.DOM_ID+'" class="modal fade" tabindex="-1" role="dialog">';
-    html += '<div class="modal-dialog'+sizeType+'" role="document">';
-    html += '<div class="modal-content">';
-    html += '<div class="modal-header">';
-    html += '  <h5 class="modal-title">'+this.heading+'</h5>';
-    html += '  <button type="button" class="close" data-dismiss="modal" aria-label="Close">';
-    html += '    <span aria-hidden="true">&times;</span>';
-    html += '  </button>';
-    html += '</div>';
-    html += '<div class="modal-body" style="max-height: 600px; overflow:auto;">';
-    html += this.content;
-    html += '</div>';
-    html += '<div class="modal-footer">';
-    html += '  <span class="customfooter d-flex">'+this.footer+'</span>';
-    html += '  <span class="btn btn-secondary" data-dismiss="modal"><i class="fa fa-times"></i> '+this.options.btnTextClose+'</span>';
-    html += '</div>';  // content
-    html += '</div>';  // dialog
-    html += '</div>';  // footer
-    html += '</div>';  // modalWindow
+
+    let html = `<div id="${this.DOM_ID}" class="modal fade" tabindex="-1" role="dialog">
+      <div class="modal-dialog${sizeType}" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">${this.heading}</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            ${this.content}
+          </div>
+          <div class="modal-footer">
+            <span class="customfooter d-flex">${this.footer}</span>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">
+              ${this.options.btnTextClose}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>`;
     
     // Add generated HTML to DOM
     $('body').append(html);
@@ -809,10 +812,10 @@ class Table extends RawTable {
       $('#'+MID+' .modal-body .alert').remove();
       // Read out all input fields with {key:value}
       data = t.readDataFromForm('#'+MID);
-      $('#'+MID+' .modal-body').prepend(`
-        <div class="text-center text-primary mb-3 loadingtext">
-          <h2><i class="fa fa-spinner fa-pulse"></i> Loading...</h2>
-        </div>`);
+      $('#'+MID+' .modal-title').prepend(`
+        <span class="loadingtext">
+          <div class="spinner-border" role="status"></div>
+        </span>`);
       $('#'+MID+' :input').prop("disabled", true);
     }
 
@@ -1294,7 +1297,7 @@ class Table extends RawTable {
             });
 
             const res = await getSubHeaders;
-            console.log(res);
+            //console.log(res);
             th += `<table class="w-100 border-0"><tr>${res}</tr></table>`;
           }
           //-------------------
@@ -1334,8 +1337,14 @@ class Table extends RawTable {
     if (PaginationButtons.length > 1)
       PaginationButtons.forEach(
         btnIndex => {
-          pgntn += '<li class="page-item'+(t.PageIndex == t.PageIndex+btnIndex ? ' active' : '')+'">'+
-                    '<a class="page-link" data-pageindex="'+(t.PageIndex + btnIndex)+'">'+(t.PageIndex + 1 + btnIndex)+'</a></li>';
+          if (t.PageIndex == t.PageIndex + btnIndex) {
+            // Active
+            pgntn += `<li class="page-item active">
+              <span class="page-link">${t.PageIndex + 1 + btnIndex}</span></li>`;
+          } else {
+            pgntn += `<li class="page-item">
+              <a class="page-link" data-pageindex="${t.PageIndex + btnIndex}">${t.PageIndex + 1 + btnIndex}</a></li>`;
+          }
         })
     else
       pgntn += '';
@@ -1355,7 +1364,10 @@ class Table extends RawTable {
           t.FilterText = '' + t.selectedIDs[0];
         else
           t.FilterText = '';
-      }
+      } else {
+        // Filter was set
+        t.FilterText = t.Filter;
+      }      
 
       header += '<div class="col-12 mb-1">'
       header += '<div class="input-group">'
@@ -1411,7 +1423,7 @@ class Table extends RawTable {
       
       // If a Control Column is set then Add one before each row
       if (t.GUIOptions.showControlColumn) {
-        data_string = '<td scope="row" class="controllcoulm modRow align-middle" data-rowid="'+row[t.PrimaryColumn]+'">';
+        data_string = '<td scope="row" class="controllcoulm modRow align-middle border-0" data-rowid="'+row[t.PrimaryColumn]+'">';
         // Entries are selectable?
         if (t.selType == SelectType.Single) {
           data_string += '<i class="fa fa-circle-o"></i>';
@@ -1540,7 +1552,7 @@ class Table extends RawTable {
       t.toggleSort(colname)
     })
     // Pagination Button
-    $(t.jQSelector+' .page-link').off('click').on('click', function(e){
+    $(t.jQSelector+' a.page-link').off('click').on('click', function(e){
       e.preventDefault();
       let newPageIndex = $(this).data('pageindex');
       t.setPageIndex(newPageIndex)
@@ -1549,7 +1561,11 @@ class Table extends RawTable {
     //-------------------------------
 
     // Autofocus Filter
-    //$(t.jQSelector+' .filterText').focus();
+    if (t.Filter.length > 0) {
+      let el = $(t.jQSelector+' .filterText');
+      el.focus();
+      el.val('').val(t.Filter);
+    }
 
     // Mark last modified Row
     if (t.lastModifiedRowID) {

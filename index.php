@@ -120,15 +120,13 @@
               <table class="table table-sm table-striped" id="loadedtables" ng-model="tbl" id="row{{$index}}">
                 <thead>
                   <tr>
-                    <th width="200px">
-                    </th>
+                    <th width="200px"></th>
                     <th width="250px"><span class="text-muted">Order</span></th>
                     <th width="20%">TABLENAME</th>
                     <th width="25%">ALIAS</th>
                     <th width="5%"><a href="" ng-click="tbl_toggle_sel_all()">IN MENU</a></th>
                     <th width="5%">STATE-ENGINE</th>
                     <th width="5%">RO (View)</th>
-                    <!--<th width="5%">N:M or N:1</th>-->
                     <th width="30%">ICON</th>
                   </tr>
                 </thead>
@@ -229,13 +227,17 @@
                       </select>
                     </td>
 
+                    <!-- Alias(es) -->
                     <td>
-                      <input type="text" class="form-control form-control-sm float-left w-50" ng-model="col.column_alias">
-                      <input type="text" class="form-control form-control-sm float-left w-50" ng-if="(tbl.table_type != 'obj' && col.foreignKey.table != '')" ng-model="col.rel_caption">    
+                      <input type="text" class="form-control form-control-sm" ng-model="col.column_alias">
+                      <input type="text" class="form-control form-control-sm" ng-if="(tbl.table_type != 'obj' && col.foreignKey.table != '')" ng-model="col.rel_caption">    
                     </td>
 
+                    <!-- Visibility -->
                     <td ng-if="!col.is_virtual">
-                      <input type="checkbox" class="mr-2" ng-model="col.is_in_menu">
+                      <label class="m-0"><input type="checkbox" class="mr-2" ng-model="col.is_in_menu">G+F</label>
+                      <!--<br>
+                      <label class="m-0"><input type="checkbox" class="mr-2" ng-model="col.is_in_menu">F</label>-->
                     </td>
 
                     <!-- Show FK Menu if it is no Primary column -->

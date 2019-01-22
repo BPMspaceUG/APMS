@@ -155,17 +155,21 @@
               $jointexts[] = ' LEFT JOIN '.$_table.' AS '.$layer1.$seperator.$c.' ON '.$layer1.'.'.$c.' = '.$layer1.$seperator.$c.'.'.$_fkey;
               $joincolsubst[] = 'a'.$seperator.$colname.$seperator.$c.'.'.$_fkey;
               $joincolsubst[] = 'a'.$seperator.$colname.$seperator.$c.'.'.$_fsub;
+              
+              $allcolnames[] = 'a'.$seperator.$colname.$seperator.$c.'.'.$_fsub;
+
             }
             else {
               // Normal FK
               $joincolsubst[] = 'a'.$seperator.$colname.'.'.$c;
+              $allcolnames[] = 'a'.$seperator.$colname.'.'.$c;
             }
           }
           $allcolnames[] = 'a'.$seperator.$colname.'.'.$c;
         }
         else {
           $joincolsubst[] = 'a'.$seperator.$colname.'.'.$fsub;
-          //$allcolnames[] = 'a'.$seperator.$colname.'.'.$fsub;
+          $allcolnames[] = 'a'.$seperator.$colname.'.'.$fsub;
         }
       }
 
@@ -195,9 +199,10 @@
     }
 
     // Filter
+    echo "---> Filter:\n";
+    var_dump($allcolnames);
     // Template: ' WHERE ([col1] LIKE '%[searchtext]%' OR [col2] LIKE '%[searchtext]%')
     $filtertext = "(" . implode(" LIKE \'%', filter ,'%\' OR ", $allcolnames) . " LIKE \'%', filter ,'%\')";
-    //$filtertext = '1=1';
 
     // STORED PROECEDURE START
     $sp = "CREATE PROCEDURE $sp_name(IN token_uid INT, IN filter VARCHAR(256), IN whereParam VARCHAR(256), IN orderCol VARCHAR(100), IN ascDesc VARCHAR(4), IN LimitStart INT, IN LimitSize INT)
