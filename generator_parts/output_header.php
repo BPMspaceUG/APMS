@@ -1,30 +1,3 @@
-<?php
-/*
-  // Includes
-  require_once(__DIR__.'/src/DatabaseHandler.inc.php'); // For AuthKey from Config
-  require_once(__DIR__.'/src/AuthHandler.inc.php');
-
-  // Check if authenticated via Token
-  $rawtoken = JWT::getBearerToken();
-  try {
-    $token = JWT::decode($rawtoken, AUTH_KEY);
-  }
-  catch (Exception $e) {
-    // Invalid Token!
-    http_response_code(401);
-    header("Location: login.php");
-    exit();
-  }
-  // Token vaild but expired
-  if (property_exists($token, "exp")) {
-    if (($token->exp - time()) <= 0) {
-      http_response_code(401);
-      header("Location: login.php");
-      exit();
-    }
-  }
-*/
-?>
 <!DOCTYPE html>
 <html>
 <head>

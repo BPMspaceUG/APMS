@@ -246,7 +246,11 @@ class StateMachine {
                     physics: {
                         enabled: false
                     },
-                    interaction: {}
+                    interaction: {
+                    /*zoomView:false,*/
+                    //dragNodes:false
+                    /*dragView: false*/
+                    }
                 };
                 let network = new vis.Network(container, data, options);
                 M.show();
@@ -501,10 +505,12 @@ class Table extends RawTable {
             if (this.PageIndex < Math.floor(pages.length / 2))
                 for (var i = 0; i < pages.length; i++)
                     pages[i] = i - this.PageIndex;
+            // Display middle
             else if ((this.PageIndex >= Math.floor(pages.length / 2))
                 && (this.PageIndex < (NrOfPages - Math.floor(pages.length / 2))))
                 for (var i = 0; i < pages.length; i++)
                     pages[i] = -Math.floor(pages.length / 2) + i;
+            // Display end edge
             else if (this.PageIndex >= NrOfPages - Math.floor(pages.length / 2)) {
                 for (var i = 0; i < pages.length; i++)
                     pages[i] = NrOfPages - this.PageIndex + i - pages.length;
@@ -896,7 +902,7 @@ class Table extends RawTable {
                     msgs = JSON.parse(r);
                 }
                 catch (err) {
-                    // Show Error        
+                    // Show Error
                     $('#' + ModalID + ' .modal-body').prepend('<div class="alert alert-danger" role="alert">' +
                         '<b>Script Error!</b>&nbsp;' + r +
                         '</div>');
@@ -936,6 +942,19 @@ class Table extends RawTable {
                                 '<b>Database Error!</b>&nbsp;' + msg.errormsg +
                                 '</div>');
                         }
+                    }
+                    // Special Case for Relations (reactivate them)
+                    if (counter == 0 && !msg.show_message && msg.message == 'RelationActivationCompleteCloseTheModal') {
+                        // Reload Data from Table
+                        me.lastModifiedRowID = msg.element_id;
+                        // load rows and render Table
+                        me.countRows(function () {
+                            me.loadRows(function () {
+                                me.renderHTML();
+                                me.onEntriesModified.trigger();
+                                $('#' + ModalID).modal('hide');
+                            });
+                        });
                     }
                     counter++;
                 });
@@ -1292,7 +1311,7 @@ class Table extends RawTable {
             else
                 pgntn += '';
             // ---- Header
-            let header = '<div class="element"><div><div class="row">'; // TODO: improve html -> remove divs
+            let header = '<div class="element shadow-sm">'; // TODO: improve html -> remove divs
             let footer = '';
             let GUID = GUI.ID();
             // Filter
@@ -1308,15 +1327,19 @@ class Table extends RawTable {
                     // Filter was set
                     t.FilterText = t.Filter;
                 }
-                header += '<div class="col-12 mb-1">';
+                //header += '<div class="col-12">'
                 header += '<div class="input-group">';
-                header += '  <input type="text" class="form-control filterText text-muted bg-light" ' + (t.FilterText != '' ? 'value="' + t.FilterText + '"' : '') + ' placeholder="' + t.GUIOptions.filterPlaceholderText + '">';
+                header += '  <input type="text"class="form-control filterText text-muted bg-light" ' +
+                    (t.FilterText != '' ? 'value="' + t.FilterText + '"' : '') +
+                    ' placeholder="' + t.GUIOptions.filterPlaceholderText + '">';
                 header += '  <div class="input-group-append">';
                 if (!t.ReadOnly) {
                     const TableAlias = t.TableConfig.table_alias;
                     // Create Button
-                    header += '<button class="btn btn-outline-success text-success bg-light btnCreateEntry">';
-                    header += '<i class="fa fa-plus"></i>&nbsp;' + t.GUIOptions.modalButtonTextCreate + ' ' + TableAlias;
+                    header += '<button class="btn btn-success btnCreateEntry">';
+                    header += '<i class="fa fa-plus"></i>';
+                    if (t.TableType == 'obj')
+                        header += '&nbsp;' + t.GUIOptions.modalButtonTextCreate + ' ' + TableAlias;
                     header += '</button>';
                 }
                 if (t.SM && t.GUIOptions.showWorkflowButton && t.selType == SelectType.NoSelect) {
@@ -1329,9 +1352,9 @@ class Table extends RawTable {
                 }
                 header += '  </div>';
                 header += '</div>';
-                header += '</div>';
+                //     header += '</div>'
             }
-            header += '</div></div>';
+            header += '</div>'; //</div>';
             //------ Table Header
             if (t.Rows.length > 0) {
                 header += '<div class="card-body ' + GUID + ' p-0' + (t.selType == SelectType.Single ? ' collapse' : '') + '">';
@@ -1340,12 +1363,17 @@ class Table extends RawTable {
                 footer = '</tbody></table></div>';
             }
             // TODO:
-            if (t.selType == SelectType.NoSelect) {
-                footer += '<div class="card-footer text-muted p-0 px-2">' +
-                    '<p class="float-left m-0 mb-1"><small>' + t.getHTMLStatusText() + '</small></p>' +
-                    '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">' + pgntn + '</ul></nav>' +
-                    '<div class="clearfix"></div>' +
-                    '</div>';
+            if (t.selType == SelectType.NoSelect && t.TableType == 'obj') {
+                footer +=
+                    '<div class="card-footer text-muted p-0 px-2">' +
+                        '<p class="float-left m-0 mb-1"><small>' + t.getHTMLStatusText() + '</small></p>' +
+                        '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">' + pgntn + '</ul></nav>' +
+                        '<div class="clearfix"></div>' +
+                        '</div>';
+            }
+            else {
+                if (t.Rows.length >= t.PageLimit)
+                    footer += '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">' + pgntn + '</ul></nav>';
             }
             footer += '</div>';
             //============================== data

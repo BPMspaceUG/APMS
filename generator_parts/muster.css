@@ -14,7 +14,7 @@ body {margin-bottom: 60px;}
 .datatbl th, tr td {white-space: nowrap; }
 .datatbl td {color: #333;}
 .datatbl .datatbl_header:hover {background-color: #ddd; color: steelblue;}
-.datatbl .sorted {background-color: #eee; color: steelblue;}
+.datatbl .sorted {color: steelblue;}
 .datatbl .datarow:hover {cursor: auto;}
 .datatbl .editFullRow:hover {cursor: pointer;}
 

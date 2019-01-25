@@ -1,4 +1,12 @@
 <?php
+
+  function loadFile($fname) {
+    $fh = fopen($fname, "r");
+    $content = stream_get_contents($fh);
+    fclose($fh);
+    return $content;
+  }
+
 	// Load data from Angular
   if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($_POST)) {
     $_REQUEST = json_decode(file_get_contents('php://input'), true);
@@ -58,7 +66,7 @@
   // Add Pseudo Element for Dashboard
   $content_tabpanels .= "            ".
     "<div role=\"tabpanel\" class=\"tab-pane\" id=\"dashboard\">".
-    "<?php include_once(__DIR__.'/dashboard.html'); ?>".
+    "  <div id=\"dashboardcontent\"></div>".
     "</div>\n";  
 
   foreach ($data as $table) {
@@ -95,16 +103,11 @@
     $tabCount += 1;
     //---/Create HTML Content
 
-
     // TODO: Check if the "table" is no view
-
 
     //--- Create a stored procedure for each Table
     $sp_name = 'sp_'.$tablename;
     $con->exec('DROP PROCEDURE IF EXISTS `'.$sp_name.'`'); // TODO: Ask user if it should be overwritten
-
-    // TODO: Count
-    // TODO: Where
 
     //-- All standard columns
     $colnames = array_keys($table["columns"]);    
@@ -139,7 +142,6 @@
         // Check if contains more than one
         if (strpos($fsub, "{") !== FALSE) {
           $multifkcols = json_decode($fsub, true);
-          //var_dump($multifkcols);
 
           foreach ($multifkcols as $c => $val) {
             // Nested FKs         FK(FK)
@@ -199,12 +201,14 @@
     }
 
     // Filter
-    echo "---> Filter:\n";
-    var_dump($allcolnames);
+    //echo "---> Filter:\n";
+    //var_dump($allcolnames);
     // Template: ' WHERE ([col1] LIKE '%[searchtext]%' OR [col2] LIKE '%[searchtext]%')
     $filtertext = "(" . implode(" LIKE \'%', filter ,'%\' OR ", $allcolnames) . " LIKE \'%', filter ,'%\')";
 
+    //===========================================================
     // STORED PROECEDURE START
+
     $sp = "CREATE PROCEDURE $sp_name(IN token_uid INT, IN filter VARCHAR(256), IN whereParam VARCHAR(256), IN orderCol VARCHAR(100), IN ascDesc VARCHAR(4), IN LimitStart INT, IN LimitSize INT)
 BEGIN
   SET @select = '$select';
@@ -218,12 +222,16 @@ BEGIN
   EXECUTE stmt;
   DEALLOCATE PREPARE stmt;
 END";
-    // STORED PROECEDURE END
 
+    echo "----------------------------- Create Stored Procedure for Reading\n";
     echo $sp."\n";
     $res = $con->exec($sp);
-    var_dump($res);
+    echo "-----------------------------";
+    echo ($res == 0 ? 'OK' : 'Fail');
     echo "\n\n";
+
+    // STORED PROECEDURE END
+    //===========================================================
 
     //--- Create StateMachine
     if ($se_active) {
@@ -232,6 +240,20 @@ END";
       $SM = new StateMachine($con);
       $SM->createDatabaseStructure();
       $SM_ID = $SM->createBasicStateMachine($tablename, $table_type);
+
+      if ($table_type != 'obj') {
+        echo "Create Relation Scripts ($table_type)\n";
+
+        // Load Template
+        $templateScript = loadFile("./../template_scripts/".$table_type.".php");
+        $templateScript = str_replace("<?php", '', $templateScript); // Remove first chars ('<?php')
+        $templateScript = substr($templateScript, 2); // Remove newline char
+
+        $res = $SM->createRelationScripts($templateScript);
+        echo "-----------------------------";
+        echo ($res == 0 ? 'OK' : 'Fail');
+        echo "\n\n";
+      }
 
       // Create a default form for statemachine
       $colData = $table["columns"];
@@ -244,10 +266,9 @@ END";
         $excludeKeys[] = $vc;
       }
       
+      // Default Form Data
       $form_data_default = $SM->getBasicFormDataByColumns($tablename, json_encode($data), $colData, $excludeKeys);
-
-      // Default Form
-      $query = "UPDATE state_machines SET form_adta_default = ? WHERE tablename = ? AND NULLIF(form_data_default, '') IS NULL";
+      $query = "UPDATE state_machines SET form_data_default = ? WHERE tablename = ? AND NULLIF(form_data_default, '') IS NULL";
       $stmt = $con->prepare($query);
       $stmt->execute(array($form_data_default, $tablename));
 
@@ -264,14 +285,13 @@ END";
       $q_se = "ALTER TABLE `".$db_name."`.`".$tablename."` ADD COLUMN `state_id` BIGINT(20) DEFAULT $EP_ID;";
       $con->query($q_se);
 
-      // Read all states
+      // Generate CSS-Colors for states
       $allstates = $SM->getStates();
       $initColorHue = rand(0, 360); // le color
       $v = 8;
       foreach ($allstates as $state) {
         $v += 12;
         $tmpStateID = $state['id'];
-
         if ($table_type == 'obj') {
           // Generate color
           $state_css = ".state$tmpStateID {background-color: hsl($initColorHue, 50%, $v%);}\n";
@@ -289,15 +309,6 @@ END";
         "REFERENCES `".$db_name."`.`state` (`state_id`) ON DELETE NO ACTION ON UPDATE NO ACTION;";
       $con->query($q_se);
     }
-  }
-
-  //-------------------------------------------------------
-
-  function loadFile($fname) {
-  	$fh = fopen($fname, "r");
-  	$content = stream_get_contents($fh);
-  	fclose($fh);
-  	return $content;
   }
 
   // ------------------- Load complete Project
@@ -318,9 +329,10 @@ END";
   $output_header = str_replace('replaceDBName', $db_name, $output_header); // For Title
   $output_footer = str_replace('replaceDBName', $db_name, $output_footer); // For Footer
   
-  echo "---------------------------------- Jebo\n";
+  echo "Generated CSS State-Colors\n";
+  echo "----------------------------------\n";
   echo $content_css_statecolors;
-  echo "---------------------------------- Te\n";
+  echo "----------------------------------\n\n";
 
   // --- Content
   // Modify HTML for later adaptions
@@ -379,6 +391,7 @@ END";
 
   // API-URL
   define("API_URL", "'.$API_url.'");
+  define("API_URL_LIAM", ""); // for Login
   // AuthKey
   define("AUTH_KEY", "'.$secretKey.'");
   // Machine-Token for internal API Calls
@@ -421,7 +434,10 @@ END";
     // JavaScript
     createFile($project_dir."/js/main.js", $output_JS);
     if (!file_exists($project_dir."/js/custom.js"))
-      createFile($project_dir."/js/custom.js", "// Custom JS\n");
+      createFile(
+        $project_dir."/js/custom.js",
+        "// Custom JS\ndocument.getElementById('dashboardcontent').innerHTML = '<h1>Dashboard</h1>';"
+      );
     // Styles
     createFile($project_dir."/css/main.css", $output_css);
     if (!file_exists($project_dir."/css/custom.css"))
@@ -434,12 +450,8 @@ END";
     // Main Directory
     createFile($project_dir."/api.php", $output_API);
     createFile($project_dir."/login.php", $output_LoginPage);
-
-    // Create a dashboard, which gets included
-    if (!file_exists($project_dir."/dashboard.html"))
-      createFile($project_dir."/dashboard.html", "<section>\n\t<h1>Dashboard</h1>\n</section>");
-    createFile($project_dir."/".$db_name.".php", $output_all);
+    createFile($project_dir."/".$db_name.".html", $output_all);
     createFile($project_dir."/".$db_name."-config.inc.php", $output_config);
-    createFile($project_dir."/index.php", "<?php\n\tHeader(\"Location: ".$db_name.".php\");\n\texit();\n?>");
+    createFile($project_dir."/index.php", "<?php\n\tHeader(\"Location: ".$db_name.".html\");\n\texit();\n?>");
   }
 ?>

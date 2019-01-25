@@ -169,9 +169,35 @@
       $this->log($query);
       return $result;
     }
+    public function createRelationScripts($script) {
+      $ID = $this->ID;
+      if ($ID <= 0) return -1; // SM already exists => exit
+      $StateID_selected = -1;
+      $StateID_unselected = -1;      
+      $allstates = $this->getStates();
+      foreach ($allstates as $state) {
+        // TODO: Better find some other indicators too
+        if ($state['name'] == 'selected') $StateID_selected = $state['id'];
+        if ($state['name'] == 'unselected') $StateID_unselected = $state['id'];
+      }
+      // Replace IDs in Script
+      $script = str_replace("STATE_SELECTED", $StateID_selected, $script);
+      $script = str_replace("STATE_UNSELECTED", $StateID_unselected, $script);
+      // OutScript [unselected]
+      $query = "UPDATE state SET script_OUT = ? WHERE state_id = ? AND NULLIF(script_OUT, '') IS NULL";
+      $stmt = $this->db->prepare($query);
+      $stmt->execute(array($script, $StateID_unselected));
+      // TransitionScript of Statemachine
+      $query = "UPDATE state_machines SET transition_script = ? WHERE id = ? AND NULLIF(transition_script, '') IS NULL";
+      $stmt = $this->db->prepare($query);
+      $stmt->execute(array($script, $ID));
+      // Return
+      return 0;
+    }
     public function createBasicStateMachine($tablename, $table_type) {
       // check if a statemachine already exists for this table
       $ID = $this->getSMIDByTablename($tablename);
+      $this->ID = $ID; // Save as local ID
       if ($ID > 0) return $ID; // SM already exists => exit
 
       $this->log("-- [Start] Creating StateMachine for Table '$tablename'"); 
@@ -184,7 +210,7 @@
       $this->ID = $ID;
       $this->log($query);
 
-      // TODO: Check Table Type
+      // Check Table Type
       if ($table_type == 'obj') {
         /*******************************************
          * OBJECT                                  *
@@ -213,9 +239,7 @@
         $this->createTransition($ID_selected, $ID_unselected);
         $this->createTransition($ID_unselected, $ID_selected);
       }
-
-      $this->log("-- [END] StateMachine created for Table '$tablename'"); 
-
+      $this->log("-- [END] StateMachine created for Table '$tablename'");
       return $ID;
     }
 
@@ -401,8 +425,6 @@
     // [END]   FORM - Elements
 
 
-
-
     public function getFormDataByStateID($StateID) {
       if (!($this->ID > 0)) return "";
       $result = '';
@@ -526,6 +548,5 @@
       }
       return $result;
     }
-
   }
 ?>
