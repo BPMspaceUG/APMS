@@ -15,6 +15,10 @@ APMS.controller('APMScontrol', function ($scope, $http) {
   $scope.configFileWasNotFound = false
   $scope.configFileWasFound = false
   $scope.GUI_generating = false;
+  $scope.meta = {
+    createRoles: false,
+    createHistory: false
+  }
 
   
   $scope.refreshConfig = function(data) {
@@ -178,7 +182,7 @@ APMS.controller('APMScontrol', function ($scope, $http) {
         pwd: $scope.pw
       }
     })
-    .success(function(data, status, headers, config) {
+    .success(function(data) {
       console.log('Table-Data loaded successfully.')
       $scope.tables = data
       // Set Icons
@@ -210,20 +214,25 @@ APMS.controller('APMScontrol', function ($scope, $http) {
   */
   $scope.create_fkt = function(){
     $scope.GUI_generating = true;
+
+    console.log($scope.meta.createRoles, $scope.meta.createHistory);
+
     var data = {
       host: $scope.sqlServer,
       port: $scope.sqlPort,
       user: $scope.username,
       pwd: $('#sqlPass')[0].value,
       db_name: $scope.dbNames.model,
-      data: $scope.tables
+      data: $scope.tables,
+      create_RoleManagement: $scope.meta.createRoles,
+      create_HistoryTable: $scope.meta.createHistory
     }
     $http({
       url: 'generator_parts/fusion.php',
       method: "POST",
       data: data
     })
-    .success(function(data, status, headers, config) {
+    .success(function(data) {
       $scope.GUI_generating = false;
       //console.log('\nScript generated success.'); 
       $('#bpm-code').empty();
@@ -232,7 +241,7 @@ APMS.controller('APMScontrol', function ($scope, $http) {
     })
     .error(function(data, status, headers, config) {
       $scope.status = status;
-      console.log('Error-Status: '+JSON.stringify(status));
+      console.log('Error-Status: ' + JSON.stringify(status));
     });
   }
 
@@ -296,6 +305,9 @@ APMS.controller('APMScontrol', function ($scope, $http) {
     $scope.tables.forEach(function(t){
       t.is_in_menu = !t.is_in_menu;
     })
+  }
+  $scope.cntTables = function() {
+    return Object.keys($scope.tables).length;
   }
 
   $scope.convertObjToArr = function(myObj) {

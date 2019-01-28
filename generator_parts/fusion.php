@@ -16,7 +16,9 @@
   $db_user = $_REQUEST['user'];
   $db_pass = $_REQUEST['pwd'];
   $db_name = $_REQUEST['db_name'];
-  $data = $_REQUEST["data"];
+  $data = $_REQUEST['data'];
+  $createRoleManagement = $_REQUEST['create_RoleManagement'];
+  $createHistoryTable = $_REQUEST['create_HistoryTable'];
 
   // check if LIAM is present and create a Directory if not exists
   $content = "";
@@ -67,15 +69,53 @@
   $content_tabpanels .= "            ".
     "<div role=\"tabpanel\" class=\"tab-pane\" id=\"dashboard\">".
     "  <div id=\"dashboardcontent\"></div>".
-    "</div>\n";  
+    "</div>\n";
+
+
+  $con = DB::getInstance()->getConnection();
+  //$tablePrefix = $db_name;  
+  //--------------------------------- create RoleManagement
+  if ($createRoleManagement) {
+    echo "\nCreating Role Management Tables...\n";
+    // Table: Role
+    $con->exec('CREATE TABLE IF NOT EXISTS `Role` (
+      `Role_id` bigint(20) NOT NULL AUTO_INCREMENT,
+      `Role_name` varchar(45) DEFAULT NULL,
+      PRIMARY KEY (`Role_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;');
+    // Table: Role_LIAMUSER
+    $con->exec('CREATE TABLE IF NOT EXISTS `Role_LIAMUSER` (
+      `Role_User_id` bigint(20) NOT NULL AUTO_INCREMENT,
+      `Role_id` bigint(20) NOT NULL,
+      `User_id` bigint(20) NOT NULL,
+      PRIMARY KEY (`Role_User_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;');
+    // ForeignKeys
+    $con->exec('ALTER TABLE `Role_LIAMUSER` ADD INDEX `Role_id_fk` (`Role_id`)');
+    $con->exec('ALTER TABLE `Role_LIAMUSER` ADD CONSTRAINT `Role_id_fk` FOREIGN KEY (`Role_id`) REFERENCES `Role` (`Role_id`) ON DELETE NO ACTION ON UPDATE NO ACTION');
+
+  } 
+  //--------------------------------- create HistoryTable
+  if ($createHistoryTable) {
+    echo "\nCreating History Table...\n";
+    // Table: History
+    $con->exec('CREATE TABLE IF NOT EXISTS `History` (
+      `History_id` bigint(20) NOT NULL AUTO_INCREMENT,
+      `User_id` bigint(20) NOT NULL,
+      `History_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      `History_table` varchar(128) NOT NULL,
+      `History_valueold` LONGTEXT NOT NULL,
+      `History_valuenew` LONGTEXT NOT NULL,
+      PRIMARY KEY (`History_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;');
+  }
+
 
   foreach ($data as $table) {
     // Get Data
     $tablename = $table["table_name"];
     $se_active = (bool)$table["se_active"];
-    $table_type = $table["table_type"];
-
-    $con = DB::getInstance()->getConnection();
+    $table_type = $table["table_type"];    
 
     //--- Create HTML Content
     if ($table["is_in_menu"]) {

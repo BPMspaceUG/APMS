@@ -68,8 +68,10 @@
 
         <!-- 1. Select Database -->
         <div class="card mb-3">
+          <div class="card-header">
+            <span class="badge badge-success mr-2">1</span> Select a Database
+          </div>
           <div class="card-body">
-            <h5><span class="badge badge-success mr-2">1</span> Select a Database</h5>
             <div class="input-group">
               <select class="custom-select" id="repeatSelect" name="repeatSelect" ng-model="dbNames.model" ng-change="changeSelection()">
                 <option ng-repeat="name in dbNames.names" value="{{name}}">{{name}}</option>
@@ -83,19 +85,21 @@
 
 		    <!-- Load Config -->
 		    <div class="card mb-3">
+          <div class="card-header">
+            <span class="badge badge-warning text-white mr-2">Optional</span> Load Configuration
+          </div>
           <div class="card-body">
-		        <h5><span class="badge badge-warning text-white mr-2">Optional</span> Load Configuration</h5>
             <div class="row mb-0">
               <!-- Automatically load config -->
               <div class="col-6">
                 <p><strong>[1] Automatically load config</strong></p>
-                <button class="btn btn-secondary" ng-click="loadConfigByName()"><i class="fa fa-search"></i> Look for last config</button>
+                <button class="btn btn-outline-secondary" ng-click="loadConfigByName()"><i class="fa fa-search"></i> Look for last config</button>
               </div>
               <!-- Manually load config -->
               <div class="col-6">
                 <p><strong>[2] Manually load config</strong></p>
                 <textarea class="form-control configtxt" ng-model="configtext" placeholder="Paste Content of the Config-File here"></textarea>
-                <button class="btn btn-secondary" ng-click="loadconfig(configtext)">
+                <button class="btn btn-outline-secondary mt-1" ng-click="loadconfig(configtext)">
                   <i class="fa fa-arrow-right"></i> Parse and Load configuration file
                 </button>
               </div>
@@ -112,16 +116,28 @@
 
         <!-- Content of Databases -->        
         <div class="card mb-3">
+          <div class="card-header">
+            <span class="badge badge-success mr-2">2</span>Tables & Configuration
+          </div>
           <div class="card-body">
+
+            <h5 class="mb-3">
+              <span class="text-primary mr-3">{{ dbNames.model }}</span>
+              <span class="text-muted">{{cntTables() + ' Table' + (cntTables() != 1 ? 's' : '')}}</span>
+            </h5>
+
+            <div class="font-weight-bold my-3">
+              <label class="m-0 mr-3"><input type="checkbox" ng-model="meta.createRoles" class="mr-2">Create Role-Management</label>
+              <label class="m-0"><input type="checkbox" ng-model="meta.createHistory" class="mr-2">Create History</label>
+            </div>
+
             <!-- Tables -->
             <div class="row">
-              <h5 class="mr-5"><span class="badge badge-success mr-2">2</span>Tables & Configuration</h5>
-              <i>{{dbNames.model+' ,'}} {{tables.length}} Tabelle{{tables.length > 1 ? 'n' : ''}}</i>
               <table class="table table-sm table-striped" id="loadedtables" ng-model="tbl" id="row{{$index}}">
                 <thead>
                   <tr>
-                    <th width="200px"></th>
-                    <th width="250px"><span class="text-muted">Order</span></th>
+                    <th width="200px"><span class="text-muted">Order</span></th>
+                    <th width="250px">Options</th>
                     <th width="20%">TABLENAME</th>
                     <th width="25%">ALIAS</th>
                     <th width="5%"><a href="" ng-click="tbl_toggle_sel_all()">IN MENU</a></th>
@@ -132,9 +148,10 @@
                 </thead>
 
                 <tbody ng-repeat="(name, tbl) in tables">
-                  <!-- Table START -->
-                  <tr ng-class="{'table-primary' : tbl.table_type == 'obj', 'table-info' : tbl.table_type != 'obj'}">
 
+                  <!-- ===================== Table ======================== -->
+
+                  <tr ng-class="{'table-primary' : tbl.table_type == 'obj', 'table-info' : tbl.table_type != 'obj'}">
                     <!-- Order Tabs -->
                     <td>
                       <div style="white-space:nowrap;overflow:hidden;">
@@ -143,7 +160,6 @@
                         <a ng-click="changeSortOrder(col, -1)"><i class="fa fa-angle-up p-1"></i></a>
                       </div>
                     </td>
-
                     <!-- Expand / Collapse -->
                     <td>
                       <div style="white-space:nowrap; overflow: hidden;">
@@ -161,30 +177,28 @@
                         </select>
                       </div>
                     </td>
-
                     <!-- Tablename -->
                     <td class="align-middle">
                       <b>{{name}}</b>
                     </td>
-
+                    <!--Table-Alias -->
                     <td>
                       <input type="text" class="form-control" ng-model="tbl.table_alias"/>
                     </td>
-
+                    <!-- Visible -->
                     <td>
                       <input type="checkbox" class="form-control" ng-model="tbl.is_in_menu">
                     </td>
-
+                    <!-- Has Statemachine? -->
                     <td>
                       <input type="checkbox" class="form-control" ng-model="tbl.se_active"
                         ng-disabled="tbl.table_name == 'state' || tbl.table_name == 'state_rules'">
                     </td>
-
+                    <!-- ReadOnly? -->
                     <td>
                       <input type="checkbox" class="form-control" ng-model="tbl.is_read_only">
-                    </td>
-                    
-                    <!-- Icon -->
+                    </td>                    
+                    <!-- Table-Icon -->
                     <td class="align-middle">
                       <div class="row">
                         <div class="col-3"><i class="{{tbl.table_icon}}"></i></div>
@@ -192,7 +206,6 @@
                       </div>
                     </td>
                   </tr>
-
 
                   <!-- C O L U M N S -->
                   <!-- Columns START -->
@@ -253,9 +266,6 @@
                       </span>
                     </td>
                     
-
-
-
                     <td colspan="4" ng-if="col.is_virtual">
                       <span>SELECT ( i.e. CONCAT(a, b) ): </span>
                       <input type="text" ng-model="col.virtual_select" style="width: 300px" placeholder="CONCAT(id, col1, col2)">
@@ -271,76 +281,36 @@
         </div>
 
 
-
-
         <!-- Create Button -->
         <div class="card">
+          <div class="card-header">
+            <span class="badge badge-success mr-2">3</span>Generate
+          </div>
           <div class="card-body">
-            <h5><span class="badge badge-success mr-2">3</span>Generate</h5>
-            <div>
-              <!-- Create Button -->
-              <button name="createScript" ng-disabled="GUI_generating" class="btn btn-danger" id="createScript" ng-click="create_fkt()">
-                <i class="fa fa-rocket"></i> Generate!</button>
-              <!-- Open Project -->
-              <button class="btn btn-secondary" href="#" ng-click="openProject(e)" target="_blank"><i class="fa fa-folder-open"></i> Open Project</button>
-              <!-- Open Test Dir Button -->
-              <!--
-              <button class="btn btn-default mr-3" href="../APMS_test/" target="_blank"><i class="fa fa-folder-open"></i> Open Test-Directory</button>
-              -->
-              <!-- Generating -->
-              <div class="d-inline text-center h1 mt-5 text-muted" ng-if="GUI_generating">
-                <i class="fa fa-cog fa-spin fa-fw"></i> Generating Project...
+            <!-- Create Button -->
+            <button name="createScript" ng-disabled="GUI_generating" class="btn btn-danger" id="createScript" ng-click="create_fkt()">
+              <i class="fa fa-rocket"></i> Generate!
+            </button>
+            <!-- Open Project -->
+            <button class="btn btn-secondary" href="#" ng-click="openProject(e)" target="_blank"><i class="fa fa-folder-open"></i> Open Project</button>
+            <!-- Generating -->
+            <div class="d-inline h4 ml-2 text-center mt-5 text-muted" ng-if="GUI_generating">
+              <i class="fa fa-cog fa-spin fa-fw"></i> Generating Project...
+            </div>
+          </div>
+        </div>
+
+        <!-- File String -->
+        <div class="row">
+          <div class="col-md-12" id="code">
+              <div readonly style="width: 100%; min-height: 100px; max-height: 300px; resize: none; padding:50px 0 0; margin:0 0 50px; overflow:auto;" class="bpm-textarea" id="bpm-code">
+                Currently Empty
               </div>
-            </div>
           </div>
         </div>
-
-          <!-- File String -->
-          <div class="row">
-            <div class="col-md-12" id="code">
-                <div readonly style="width: 100%; min-height: 100px; max-height: 300px; resize: none; padding:50px 0 0; margin:0 0 50px; overflow:auto;" class="bpm-textarea" id="bpm-code">
-                  Currently Empty
-                </div>
-            </div>
-          </div>
-        </div>
-
       </div>
-    </div>
 
-    <!-- Load Modal -->
-    <!--
-    <div class="modal fade" id="loadDb">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-              <h3 class="modal-title">Stored Connections</h3>
-            </div>
-            <div class="modal-body">
-              <h5 class="text-center">List of Stored connections in Database</h5>
-              <table class="table table-striped" id="tblGrid">
-                <thead id="tblHead_1">
-                <tr>
-                  <th>Id</th>
-                  <th>Host</th>
-                  <th>Username</th>
-                  <th>Port</th>
-                  <th>Actions</th>
-                </tr>
-                </thead>
-                <tbody class="connection-values">
-                </tbody>
-              </table>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-default " data-dismiss="modal">Close</button>
-            </div>
-          </div>
-        </div>
     </div>
-    -->
-
   </div>
 </div>
 <!-- Footer -->

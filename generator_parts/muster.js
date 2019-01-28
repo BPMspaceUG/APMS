@@ -1311,7 +1311,7 @@ class Table extends RawTable {
             else
                 pgntn += '';
             // ---- Header
-            let header = '<div class="element shadow-sm">'; // TODO: improve html -> remove divs
+            let header = '<div class="element shadow-sm">';
             let footer = '';
             let GUID = GUI.ID();
             // Filter
@@ -1327,7 +1327,6 @@ class Table extends RawTable {
                     // Filter was set
                     t.FilterText = t.Filter;
                 }
-                //header += '<div class="col-12">'
                 header += '<div class="input-group">';
                 header += '  <input type="text"class="form-control filterText text-muted bg-light" ' +
                     (t.FilterText != '' ? 'value="' + t.FilterText + '"' : '') +
@@ -1362,7 +1361,7 @@ class Table extends RawTable {
                 header += '<thead><tr>' + ths + '</tr></thead><tbody>';
                 footer = '</tbody></table></div>';
             }
-            // TODO:
+            //------ Footer
             if (t.selType == SelectType.NoSelect && t.TableType == 'obj') {
                 footer +=
                     '<div class="card-footer text-muted p-0 px-2">' +
@@ -1372,8 +1371,7 @@ class Table extends RawTable {
                         '</div>';
             }
             else {
-                if (t.Rows.length >= t.PageLimit)
-                    footer += '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">' + pgntn + '</ul></nav>';
+                footer += '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">' + pgntn + '</ul></nav>';
             }
             footer += '</div>';
             //============================== data

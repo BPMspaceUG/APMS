@@ -120,7 +120,6 @@
           $additional_info = array(
             "column_alias" => ucfirst($column_name),
             "is_in_menu" => true,
-            //"read_only" => false,
             "rel_caption" => '',
             "foreignKey" => $fk,
             "col_order" => (int)$column_counter,
