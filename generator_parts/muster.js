@@ -683,15 +683,15 @@ class Table extends RawTable {
                 // Override the state-name if it is a Loop (Save)
                 if (actStateID == state.id) {
                     saveBtn = '<div class="btn-group ml-auto mr-0" role="group">';
-                    saveBtn += '<button class="btn btn-primary btnState btnStateSave" data-rowid="' + RowID + '" data-targetstate="' + state.id + '" type="button">' +
+                    saveBtn += '<button class="btn btn-primary btnState btnStateSave" data-rowid="' + RowID + '" data-targetstate="' + state.id + '" data-targetname="' + state.name + '" type="button">' +
                         '<i class="fa fa-floppy-o"></i> ' + t.GUIOptions.modalButtonTextModifySave + '</button>';
-                    saveBtn += '<button class="btn btn-primary btnState btnSaveAndClose" data-rowid="' + RowID + '" data-targetstate="' + state.id + '" type="button">' +
+                    saveBtn += '<button class="btn btn-primary btnState btnSaveAndClose" data-rowid="' + RowID + '" data-targetstate="' + state.id + '" data-targetname="' + state.name + '" type="button">' +
                         t.GUIOptions.modalButtonTextModifySaveAndClose + '</button>';
                     saveBtn += '</div>';
                 }
                 else {
                     cnt_states++;
-                    btn = '<a class="dropdown-item btnState btnStateChange state' + state.id + '" data-rowid="' + RowID + '" data-targetstate="' + state.id + '">' + btn_text + '</a>';
+                    btn = '<a class="dropdown-item btnState btnStateChange state' + state.id + '" data-rowid="' + RowID + '" data-targetstate="' + state.id + '" data-targetname="' + state.name + '">' + btn_text + '</a>';
                 }
                 btns += btn;
             });
@@ -712,12 +712,12 @@ class Table extends RawTable {
         // Bind function to StateButtons
         $('#' + EditMID + ' .btnState').click(function (e) {
             e.preventDefault();
-            let RowID = $(this).data('rowid');
-            let TargetStateID = $(this).data('targetstate');
-            t.setState(EditMID, RowID, TargetStateID);
-            // Check Class and Close window
-            if ($(this).hasClass("btnSaveAndClose"))
-                $('#' + EditMID).modal('hide');
+            const RowID = $(this).data('rowid');
+            const TargetStateID = $(this).data('targetstate');
+            const TargetStateName = $(this).data('targetname');
+            const closeModal = $(this).hasClass("btnSaveAndClose");
+            // Set new State
+            t.setState(EditMID, RowID, { state_id: TargetStateID, name: TargetStateName }, closeModal);
         });
         $('#' + EditMID + ' .label-state').addClass('state' + actStateID).text(TheRow.state_id[1]);
         // Update all Labels
@@ -770,11 +770,11 @@ class Table extends RawTable {
             }
         });
     }
-    setState(MID, RowID, targetStateID) {
+    setState(MID, RowID, targetState, closeModal = false) {
         let t = this;
         let data = {};
+        let parsedData = [];
         let actState = undefined;
-        let newState = undefined;
         // Get Actual State
         for (const row of t.Rows) {
             if (row[t.PrimaryColumn] == RowID)
@@ -786,21 +786,17 @@ class Table extends RawTable {
             $('#' + MID + ' .modal-body .alert').remove();
             // Read out all input fields with {key:value}
             data = t.readDataFromForm('#' + MID);
-            $('#' + MID + ' .modal-title').prepend(`
-        <span class="loadingtext">
-          <div class="spinner-border" role="status"></div>
-        </span>`);
+            $('#' + MID + ' .modal-title').prepend(`<span class="loadingtext"><div class="spinner-border" role="status"></div></span>`);
             $('#' + MID + ' :input').prop("disabled", true);
         }
         // REQUEST
-        t.transitRow(RowID, targetStateID, data, function (r) {
+        t.transitRow(RowID, targetState.state_id, data, function (r) {
             // When a response came back
             if (MID != '') {
                 $('#' + MID + ' .loadingtext').remove();
                 $('#' + MID + ' :input').prop("disabled", false);
             }
             // Try to parse result messages
-            let parsedData = undefined;
             try {
                 parsedData = JSON.parse(r);
             }
@@ -810,7 +806,7 @@ class Table extends RawTable {
                 resM.show();
                 return;
             }
-            // Remove all Error Messages
+            // Remove all Error Messages from Modal
             if (MID != '')
                 $('#' + MID + ' .modal-body .alert').remove();
             // Handle Transition Feedback
@@ -823,11 +819,11 @@ class Table extends RawTable {
                 // Increase Counter for Modals
                 counter++;
             });
-            // Resort the messages
+            // Re-Sort the messages
             messages.reverse(); // like the process => [Out, Transit, In]
             // Check if Transition was successful
-            if (counter >= 2) {
-                // Refresh Form-Data
+            if (counter == 3) {
+                // Refresh Form-Data if Modal exists
                 if (MID != '') {
                     t.getFormModify(data, function (r) {
                         if (r.length > 0) {
@@ -846,30 +842,29 @@ class Table extends RawTable {
                 // Mark rows
                 if (RowID != 0)
                     t.lastModifiedRowID = RowID;
-                t.loadRows(function (rows) {
-                    // Get Actual State
-                    for (const row of rows) {
-                        if (row[t.PrimaryColumn] == RowID)
-                            newState = row['state_id'];
-                    }
-                    // Show Result Messages
-                    for (const msg of messages) {
-                        const stateFrom = t.renderStateButton(actState['state_id'], actState['name']);
-                        const stateTo = t.renderStateButton(newState['state_id'], newState['name']);
-                        let tmplTitle = '';
-                        if (msg.type == 0)
-                            tmplTitle = `OUT <span class="text-muted ml-2">${stateFrom} &rarr;</span>`;
-                        if (msg.type == 1)
-                            tmplTitle = `Transition <span class="text-muted ml-2">${stateFrom} &rarr; ${stateTo}</span>`;
-                        if (msg.type == 2)
-                            tmplTitle = `IN <span class="text-muted ml-2">&rarr; ${stateTo}</span>`;
-                        let resM = new Modal(tmplTitle, msg.text);
-                        resM.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose;
-                        resM.show();
-                    }
+                // Reload all rows
+                t.loadRows(function () {
                     t.renderHTML();
                     t.onEntriesModified.trigger();
+                    // close Modal if it was save and close
+                    if (MID != '' && closeModal)
+                        $('#' + MID).modal('hide');
                 });
+            }
+            // Show Result Messages
+            for (const msg of messages) {
+                const stateFrom = t.renderStateButton(actState.state_id, actState.name);
+                const stateTo = t.renderStateButton(targetState.state_id, targetState.name);
+                let tmplTitle = '';
+                if (msg.type == 0)
+                    tmplTitle = `OUT <span class="text-muted ml-2">${stateFrom} &rarr;</span>`;
+                if (msg.type == 1)
+                    tmplTitle = `Transition <span class="text-muted ml-2">${stateFrom} &rarr; ${stateTo}</span>`;
+                if (msg.type == 2)
+                    tmplTitle = `IN <span class="text-muted ml-2">&rarr; ${stateTo}</span>`;
+                let resM = new Modal(tmplTitle, msg.text);
+                resM.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose;
+                resM.show();
             }
         });
     }
@@ -938,9 +933,7 @@ class Table extends RawTable {
                         }
                         // ElementID has to be 0! otherwise the transscript aborted
                         if (msg.element_id == 0) {
-                            $('#' + ModalID + ' .modal-body').prepend('<div class="alert alert-danger" role="alert">' +
-                                '<b>Database Error!</b>&nbsp;' + msg.errormsg +
-                                '</div>');
+                            $('#' + ModalID + ' .modal-body').prepend(`<div class="alert alert-danger" role="alert"><b>Database Error!</b>&nbsp;${msg.errormsg}</div>`);
                         }
                     }
                     // Special Case for Relations (reactivate them)
@@ -1013,10 +1006,10 @@ class Table extends RawTable {
                 // Get Forms
                 me.getFormModify(data, function (r) {
                     if (r.length > 0) {
-                        var htmlForm = r;
+                        let htmlForm = r;
                         me.getNextStates(data, function (re) {
                             if (re.length > 0) {
-                                var nextstates = JSON.parse(re);
+                                let nextstates = JSON.parse(re);
                                 me.renderEditForm(id, htmlForm, nextstates, ExistingModalID);
                             }
                         });
@@ -1040,12 +1033,14 @@ class Table extends RawTable {
                 // Save origin Table in all FKeys
                 $('#' + ModalID + ' .inputFK').data('origintable', this.tablename);
                 // Save buttons
-                let btn = '<div class="btn-group ml-auto mr-0" role="group">';
-                btn += '<button class="btn btn-primary btnSave" type="button">' +
-                    '<i class="fa fa-floppy-o"></i> ' + this.GUIOptions.modalButtonTextModifySave + '</button>';
-                btn += '<button class="btn btn-primary btnSaveAndClose" type="button">' +
-                    this.GUIOptions.modalButtonTextModifySaveAndClose + '</button>';
-                btn += '</div>';
+                let btn = `<div class="btn-group ml-auto mr-0" role="group">
+          <button class="btn btn-primary btnSave" type="button">
+            <i class="fa fa-floppy-o"></i> ${this.GUIOptions.modalButtonTextModifySave}
+          </button>
+          <button class="btn btn-primary btnSaveAndClose" type="button">
+            ${this.GUIOptions.modalButtonTextModifySaveAndClose}
+          </button>
+        </div>`;
                 // TODO: Set Footer
                 //M.setFooter(btn);
                 $('#' + ModalID + ' .customfooter').html(btn);
@@ -1085,7 +1080,7 @@ class Table extends RawTable {
         if (withDropdown) {
             // With Dropdown
             return `<div class="dropdown showNextStates">
-            <button class="btn dropdown-toggle btnGridState btn-sm label-state ` + cssClass + `" data-toggle="dropdown">` + name + `</button>
+            <button title="State-ID: ${ID}" class="btn dropdown-toggle btnGridState btn-sm label-state ${cssClass}" data-toggle="dropdown">${name}</button>
             <div class="dropdown-menu p-0">
               <p class="m-0 p-3 text-muted"><i class="fa fa-spinner fa-pulse"></i> Loading...</p>
             </div>
@@ -1093,7 +1088,7 @@ class Table extends RawTable {
         }
         else {
             // Without Dropdown
-            return `<button onclick="return false;" class="btn btnGridState btn-sm label-state ` + cssClass + `">` + name + `</button>`;
+            return `<button title="State-ID: ${ID}" onclick="return false;" class="btn btnGridState btn-sm label-state ${cssClass}">${name}</button>`;
         }
     }
     formatCell(cellContent, isHTML = false) {
@@ -1487,15 +1482,17 @@ class Table extends RawTable {
                             jQRow.find('.dropdown-menu').empty();
                             let btns = '';
                             nextstates.map(state => {
-                                btns += '<a class="dropdown-item btnState btnStateChange state' + state.id + '" data-rowid="' + RowID + '" data-targetstate="' + state.id + '">' + state.name + '</a>';
+                                btns += '<a class="dropdown-item btnState btnStateChange state' + state.id +
+                                    '" data-rowid="' + RowID + '" data-targetstate="' + state.id + '" data-targetname="' + state.name + '">' + state.name + '</a>';
                             });
                             jQRow.find('.dropdown-menu').html(btns);
                             // Bind function to StateButtons
                             $('.btnState').click(function (e) {
                                 e.preventDefault();
-                                let RowID = $(this).data('rowid');
-                                let TargetStateID = $(this).data('targetstate');
-                                t.setState('', RowID, TargetStateID);
+                                const RowID = $(this).data('rowid');
+                                const TargetStateID = $(this).data('targetstate');
+                                const TargetStateName = $(this).data('targetname');
+                                t.setState('', RowID, { state_id: TargetStateID, name: TargetStateName });
                             });
                         }
                     }
