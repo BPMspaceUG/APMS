@@ -121,13 +121,14 @@
             "column_alias" => ucfirst($column_name),
             "is_in_menu" => true,
             "rel_caption" => '',
+            "field_type" => '',
             "foreignKey" => $fk,
             "col_order" => (int)$column_counter,
             "is_virtual" => false,
             "virtual_select" => ""
           );
           // Filter columns array
-          $allowed  = ['COLUMN_NAME', 'DATA_TYPE', 'COLUMN_TYPE', 'COLUMN_KEY', 'EXTRA'];
+          $allowed  = ['COLUMN_NAME', /*'DATA_TYPE',*/ 'COLUMN_TYPE', 'COLUMN_KEY', 'EXTRA'];
           $filtered = array_filter(
             $column_info,
             function ($key) use ($allowed) { return in_array($key, $allowed); },
@@ -147,7 +148,7 @@
           // Add a virtual column
           $columns['virtualColx'] = array(
             'COLUMN_NAME' => 'virtualColx',
-            'DATA_TYPE' => "longtext",
+            'field_type' => "textarea",
             'COLUMN_TYPE' => "longtext",
             'COLUMN_KEY' => "",
             'EXTRA' => "",

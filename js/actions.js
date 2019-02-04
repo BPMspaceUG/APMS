@@ -258,14 +258,13 @@ APMS.controller('APMScontrol', function ($scope, $http) {
         
     $scope.tables[tbl.table_name].columns[new_virt_colname] = {
       COLUMN_NAME: new_virt_colname,
-      DATA_TYPE: "longtext",
+      field_type: 'textarea',
       COLUMN_TYPE: "longtext",
       COLUMN_KEY: "",
       EXTRA: "",
       column_alias: "Virtual Column",
-      is_in_menu: true,
       read_only: false,
-      is_ckeditor: false,
+      is_in_menu: true,
       foreignKey: {
           table: "",
           col_id: "",
@@ -273,7 +272,7 @@ APMS.controller('APMScontrol', function ($scope, $http) {
       },
       col_order: 3,
       is_virtual: true,
-      virtual_select: "CONCAT(arechnung_id, bezeichnung)"
+      virtual_select: "CONCAT('This is a virtual', ' column')"
     }
     return
   }

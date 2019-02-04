@@ -21,7 +21,7 @@ body {margin-bottom: 60px;}
 /* Modal */
 .modal {font-size: .9em;}
 .modal-content .form-group {margin: 0; padding: 0; padding-bottom: 5px;}
-.editor {font-family: 'Courier New', 'Courier', 'Lucida Sans Typewriter', 'Lucida Typewriter', monospace; font-size: .8em;}
+/*.editor {font-family: 'Courier New', 'Courier', 'Lucida Sans Typewriter', 'Lucida Typewriter', monospace; font-size: .8em;}*/
 .customfooter {width: 100%;}
 
 /* StateEngine */

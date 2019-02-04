@@ -222,7 +222,6 @@
         $ID_inactive = $this->createNewState('inactive', 0);
         // Insert rules (new -> active, active -> inactive, ...)
         $this->createTransition($ID_new, $ID_new);
-        $this->createTransition($ID_active, $ID_active);
         $this->createTransition($ID_update, $ID_update);
         $this->createTransition($ID_new, $ID_active);
         $this->createTransition($ID_active, $ID_update);
@@ -287,7 +286,7 @@
   })();
 </script>');
       }
-      else if (strtolower($data_type) == 'int') {
+      else if (strtolower($data_type) == 'number') {
         // Number
         return $this->getFormElementStd($isVisible, $alias, '<input type="number" class="form-control" name="'.$key.'">');
       }
@@ -296,7 +295,7 @@
         return $this->getFormElementStd($isVisible, $alias, '<div class="custom-control custom-checkbox mt-1">'.
           '<input type="checkbox" class="custom-control-input" id="customCheck1" name="'.$key.'"><label class="custom-control-label" for="customCheck1">&nbsp;</label></div>');
       }
-      else if (strtolower($data_type) == 'longtext') {
+      else if (strtolower($data_type) == 'textarea') {
         // TextEditor (Code)
         return $this->getFormElementStd($isVisible, $alias, '<textarea rows="4" class="form-control editor" name="'.$key.'">'.$default.'</textarea>');
       }
@@ -363,7 +362,7 @@
         $key = $colname;
         $visible = $value['is_in_menu'];
         $alias = $value['column_alias'];
-        $data_type = $value['DATA_TYPE'];
+        $data_type = $value['field_type'];
         $FKTable = $value['foreignKey']['table'];
         $substCol = $value['foreignKey']['col_subst'];
         $default = '';
@@ -453,19 +452,23 @@
     }
     public function getStates() {
       $result = array();
-      $stmt = $this->db->prepare("SELECT state_id AS 'id', name AS 'name', name AS 'label', entrypoint FROM state WHERE statemachine_id = ?");
+      $stmt = $this->db->prepare(
+        "SELECT state_id AS 'id', name AS 'name', name AS 'label', entrypoint
+        FROM state WHERE statemachine_id = ? ORDER BY state_id");
       $stmt->execute(array($this->ID));
-      while($row = $stmt->fetch()) {
+      while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $result[] = $row;
       }
       return $result;
     }
     public function getLinks() {
       $result = array();
-      $stmt = $this->db->prepare("SELECT state_id_FROM AS 'from', state_id_TO AS 'to' FROM state_rules ".
-        "WHERE state_id_FROM AND state_id_TO IN (SELECT state_id FROM state WHERE statemachine_id = ?)");
+      $stmt = $this->db->prepare(
+        "SELECT state_id_FROM AS 'from', state_id_TO AS 'to' FROM state_rules WHERE
+        state_id_FROM AND state_id_TO IN (SELECT state_id FROM state WHERE statemachine_id = ?)
+        ORDER BY state_id_TO");
       $stmt->execute(array($this->ID));
-      while($row = $stmt->fetch()) {
+      while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $result[] = $row;
       }
       return $result;
@@ -479,6 +482,14 @@
         $result = $row['id'];
       }
       return $result;
+    }
+    public function getEntryState() {
+    	if (!($this->ID > 0)) return -1;
+      $result = -1;
+      $stmt = $this->db->prepare("SELECT state_id AS 'id', name FROM state WHERE entrypoint = 1 AND statemachine_id = ?");
+      $stmt->execute(array($this->ID));
+      $row = $stmt->fetch(PDO::FETCH_ASSOC);
+      return $row;
     }
     public function getNextStates($actStateID) {
       $result = array();

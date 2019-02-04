@@ -159,24 +159,38 @@ class StateMachine {
                 // Finally, when everything was loaded, show Modal
                 let M = new Modal('StateMachine', '<div class="statediagram" style="width: 100%; height: 300px;"></div>', '<button class="btn btn-secondary fitsm"><i class="fa fa-expand"></i> Fit</button>', true);
                 let container = document.getElementsByClassName('statediagram')[0];
+                const idOffset = 10000;
+                for (let i = 0; i < smNodes.length; i++) {
+                    smNodes[i].id = parseInt(smNodes[i].id) + idOffset;
+                }
+                for (let i = 0; i < smLinks.length; i++) {
+                    smLinks[i].from = parseInt(smLinks[i].from) + idOffset;
+                    smLinks[i].to = parseInt(smLinks[i].to) + idOffset;
+                }
                 let nodes = smNodes;
                 let edges = smLinks;
+                console.log(edges);
                 for (let i = 0; i < nodes.length; i++) {
-                    if (me.isExitNode(nodes[i].id, smLinks)) {
+                    //--- Add EntryPoint Node and Edge
+                    if (nodes[i].entrypoint == 1) {
+                        nodes.push({ id: i + 1, color: '#5c5', shape: 'dot', size: 10 });
+                        edges.push({ from: i + 1, to: nodes[i].id });
+                    }
+                    const isExitNode = me.isExitNode(nodes[i].id, smLinks);
+                    const cssClass = 'state' + (nodes[i].id - idOffset);
+                    const _color = $('<div class="' + cssClass + '"></div>').css("background-color");
+                    if (isExitNode) {
                         // Exit Node
-                        nodes[i]['color'] = '#c55';
+                        nodes[i]['color'] = _color;
                         nodes[i]['shape'] = 'dot';
                         nodes[i]['size'] = 10;
-                    }
-                    if (nodes[i].entrypoint == 1) {
-                        // Add EntryPoint Node
-                        nodes.push({ id: 0, color: '#5c5', shape: 'dot', size: 10 });
-                        edges.push({ from: 0, to: nodes[i].id });
+                        nodes[i]['font'] = { multi: 'html', color: 'black' };
                     }
                     // every node, except 0 node
-                    if (nodes[i].id > 0) {
-                        nodes[i]['label'] = '<i>' + nodes[i].id + '</i>\n' + nodes[i]['label'];
-                        nodes[i]['font'] = { multi: 'html' };
+                    if (nodes[i].id >= idOffset && !isExitNode) {
+                        // Get color
+                        nodes[i]['font'] = { multi: 'html', color: 'white' };
+                        nodes[i]['color'] = _color;
                     }
                 }
                 let data = {
@@ -186,17 +200,17 @@ class StateMachine {
                 let options = {
                     edges: {
                         //smooth: { 'type': 'straightCross', 'forceDirection': 'horizontal'},
-                        color: '#3598DC',
+                        color: { color: '#888888' },
                         shadow: true,
                         length: 100,
                         arrows: 'to',
                         arrowStrikethrough: true,
                         dashes: false,
                         smooth: {
-                            //'enabled': true,
-                            //"type": "cubicBezier",
-                            "forceDirection": "horizontal"
-                            //"roundness": 1// 0.2
+                        //'enabled': true,
+                        //"type": "cubicBezier",
+                        //"forceDirection": "horizontal"
+                        //"roundness": 1// 0.2
                         }
                     },
                     nodes: {
@@ -210,37 +224,30 @@ class StateMachine {
                             minimum: 80,
                             maximum: 200
                         },
-                        borderWidth: 2,
+                        borderWidth: 0,
                         size: 24,
-                        color: {
+                        /*color: {
                             border: '#3598DC',
                             background: '#fff'
-                        },
-                        font: {
-                            color: '#888888',
-                            size: 16,
-                        },
+                        },*/
+                        font: { color: '#888888', size: 16 },
                         shapeProperties: {
                             useBorderWithImage: false
                         },
-                        scaling: {
-                            min: 10,
-                            max: 30
-                        },
-                        fixed: {
-                            x: false,
-                            y: false
-                        }
+                        scaling: { min: 10, max: 30 },
+                        fixed: { x: false, y: false }
                     },
                     layout: {
+                        improvedLayout: true,
                         hierarchical: {
                             enabled: true,
                             direction: 'LR',
                             nodeSpacing: 200,
                             levelSeparation: 225,
-                            blockShifting: true,
-                            edgeMinimization: true,
-                            parentCentralization: true,
+                            blockShifting: false,
+                            edgeMinimization: false,
+                            parentCentralization: false,
+                            sortMethod: 'directed'
                         }
                     },
                     physics: {
@@ -555,7 +562,7 @@ class Table extends RawTable {
                     column = null; // Column doesnt exist in current Table
                 }
                 if (column) {
-                    const DataType = column.DATA_TYPE.toLowerCase();
+                    const DataType = column.field_type;
                     //console.log('[', DataType, ']', key, ' -> ', val );
                     //  if empty then value should be NULL
                     if ((val == '' || val == null) && (DataType.indexOf('text') < 0 || column.foreignKey.table != '')) {
@@ -607,7 +614,7 @@ class Table extends RawTable {
                 else {
                     //--- Normal
                     if (col) {
-                        var DataType = me.Columns[col].DATA_TYPE.toLowerCase();
+                        const DataType = me.Columns[col].field_type;
                         if (DataType == 'datetime') {
                             // DateTime -> combine vals
                             if (e.attr('type') == 'date')
@@ -851,7 +858,7 @@ class Table extends RawTable {
                         $('#' + MID).modal('hide');
                 });
             }
-            // Show Result Messages
+            // Show all Script-Result Messages
             for (const msg of messages) {
                 const stateFrom = t.renderStateButton(actState.state_id, actState.name);
                 const stateTo = t.renderStateButton(targetState.state_id, targetState.name);
@@ -891,16 +898,14 @@ class Table extends RawTable {
             let data = me.readDataFromForm('#' + ModalID);
             me.createRow(data, function (r) {
                 let msgs = [];
-                // Remove all Error Messages
-                $('#' + ModalID + ' .modal-body .alert').remove();
+                $('#' + ModalID + ' .modal-body .alert').remove(); // Remove all Error Messages
+                // Try to parse Result
                 try {
                     msgs = JSON.parse(r);
                 }
                 catch (err) {
                     // Show Error
-                    $('#' + ModalID + ' .modal-body').prepend('<div class="alert alert-danger" role="alert">' +
-                        '<b>Script Error!</b>&nbsp;' + r +
-                        '</div>');
+                    $('#' + ModalID + ' .modal-body').prepend(`<div class="alert alert-danger" role="alert"><b>Script Error!</b>&nbsp;${r}</div>`);
                     return;
                 }
                 // Handle Transition Feedback
@@ -908,9 +913,14 @@ class Table extends RawTable {
                 msgs.forEach(msg => {
                     // Show Message
                     if (msg.show_message) {
-                        const textTransScriptCreate = 'Transition-Script [Create]';
-                        const textINScript = 'IN-Script <button class=""';
-                        let resM = new Modal('Feedback <small>' + (counter == 0 ? textTransScriptCreate : textINScript) + '</small>', msg.message);
+                        const stateEntry = msg['_entry-point-state'];
+                        const stateTo = me.renderStateButton(stateEntry['id'], stateEntry['name']);
+                        let tmplTitle = '';
+                        if (counter == 0)
+                            tmplTitle = `Transition <span class="text-muted ml-2">Create &rarr; ${stateTo}</span>`;
+                        if (counter == 1)
+                            tmplTitle = `IN <span class="text-muted ml-2">&rarr; ${stateTo}</span>`;
+                        let resM = new Modal(tmplTitle, msg.message);
                         resM.options.btnTextClose = me.GUIOptions.modalButtonTextModifyClose;
                         resM.show();
                     }
@@ -1152,7 +1162,7 @@ class Table extends RawTable {
         if (!value)
             return '&nbsp;';
         // Check data type
-        if (t.Columns[col].DATA_TYPE == 'date') {
+        if (t.Columns[col].field_type == 'date') {
             //--- DATE
             let tmp = new Date(value);
             if (!isNaN(tmp.getTime()))
@@ -1161,7 +1171,7 @@ class Table extends RawTable {
                 value = '';
             return value;
         }
-        else if (t.Columns[col].DATA_TYPE == 'time') {
+        else if (t.Columns[col].field_type == 'time') {
             //--- TIME
             if (t.GUIOptions.smallestTimeUnitMins) {
                 // Remove seconds from TimeString
@@ -1171,7 +1181,7 @@ class Table extends RawTable {
                 return value;
             }
         }
-        else if (t.Columns[col].DATA_TYPE == 'datetime') {
+        else if (t.Columns[col].field_type == 'datetime') {
             //--- DATETIME
             let tmp = new Date(value);
             if (!isNaN(tmp.getTime())) {
@@ -1187,7 +1197,7 @@ class Table extends RawTable {
                 value = '';
             return value;
         }
-        else if (t.Columns[col].DATA_TYPE == 'tinyint') {
+        else if (t.Columns[col].field_type == 'tinyint') {
             //--- BOOLEAN
             return parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
         }
@@ -1560,8 +1570,10 @@ $(document).on('show.bs.modal', '.modal', function () {
 });
 // Focus first Input in Modal (Input, Textarea, or Select)
 $(document).on('shown.bs.modal', function () {
+    // Focus first visible Element
     $('.modal').find('input,textarea,select').filter(':visible:first').trigger('focus');
     // On keydown
+    // Restrict input to digits and '.' by using a regular expression filter.
     $("input[type=number]").keydown(function (e) {
         // INTEGER
         // comma 190, period 188, and minus 109, . on keypad
@@ -1584,4 +1596,14 @@ $(document).on('shown.bs.modal', function () {
 // Helper method
 $(document).on('hidden.bs.modal', '.modal', function () {
     $('.modal:visible').length && $(document.body).addClass('modal-open');
+});
+$(function () {
+    var hash = window.location.hash;
+    hash && $('ul.nav a[href="' + hash + '"]').tab('show');
+    $('.nav-tabs a').click(function (e) {
+        $(this).tab('show');
+        var scrollmem = $('body').scrollTop() || $('html').scrollTop();
+        window.location.hash = this.hash;
+        $('html,body').scrollTop(scrollmem);
+    });
 });

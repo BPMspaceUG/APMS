@@ -223,15 +223,16 @@
       //--- Has StateMachine? then execute Scripts
       if ($SM->getID() > 0) {
         // Override/Set EP
-        $EP = $SM->getEntryPoint();
-        $param["row"]["state_id"] = (int)$EP;
+        $EP = $SM->getEntryState();
+        $param["row"]["state_id"] = (int)$EP['id'];
         // Execute Transition Script
         $script = $SM->getTransitionScriptCreate();
         $script_result[] = $SM->executeScript($script, $param, $tablename);
+        $script_result[0]['_entry-point-state'] = $EP;
         $row = $param["row"];
       }
       else {
-        // NO StateMachine => goto next step
+        // NO StateMachine => goto next step (write min data)
         $script_result[] = array("allow_transition" => true);
       }
 
@@ -262,17 +263,21 @@
 
         // Execute IN-Script, but only when Insert was successful and Statemachine exists
         if (($SM->getID() > 0) && ($newElementID > 0)) {
-          $script = $SM->getINScript($SM->getEntryPoint());
+          // IN-Script
+          $script = $SM->getINScript( $EP['id'] );
           // Refresh row (add ID)
           $pcol = Config::getPrimaryColNameByTablename($tablename);
           $param['row'] = $row;
           $param['row'][$pcol] = (string)$newElementID;
           // IN-Script          
           $tmp_script_res = $SM->executeScript($script, $param, $tablename);
-          // Append the ID from new Element
+          // Append Metadata (New ID and stateID)
           $tmp_script_res["element_id"] = $newElementID;
+          $tmp_script_res['_entry-point-state'] = $EP;
+          // Append Script
           $script_result[] = $tmp_script_res;
-        } else {
+        }
+        else {
           // No Statemachine
           $script_result[0]["element_id"] = $newElementID;
           // ErrorHandling
@@ -596,23 +601,33 @@
       if ($transPossible) {
         // Execute Scripts
         $feedbackMsgs = array(); // prepare empty array
+
         //---[1]- Execute [OUT] Script
         $out_script = $SE->getOUTScript($actstateID); // from source state
         $res = $SE->executeScript($out_script, $param, $tablename);
         if (!$res['allow_transition']) {
           $feedbackMsgs[] = $res;
-          return json_encode($feedbackMsgs);
+          //$feedbackMsgs[0]['state'] = $actstateID;
+          return json_encode($feedbackMsgs); // Exit -------->
         } else {
           $feedbackMsgs[] = $res;
+          //$feedbackMsgs[0]['state'] = $actstateID;
+          // Continue
         }
+
         //---[2]- Execute [Transition] Script
         $tr_script = $SE->getTransitionScript($actstateID, $nextStateID);
         $res = $SE->executeScript($tr_script, $param, $tablename);
         if (!$res["allow_transition"]) {
           $feedbackMsgs[] = $res;
-          return json_encode($feedbackMsgs);
+          /*$feedbackMsgs[1]['state'] = $actstateID;
+          $feedbackMsgs[1]['stateTo'] = $nextStateID;*/
+          return json_encode($feedbackMsgs); // Exit -------->
         } else {
           $feedbackMsgs[] = $res;
+          /*$feedbackMsgs[1]['state'] = $actstateID;
+          $feedbackMsgs[1]['stateTo'] = $nextStateID;*/
+          // Continue
         }
 
         // Update all rows
@@ -623,7 +638,9 @@
         $res = $SE->executeScript($in_script, $param, $tablename);
         $res["allow_transition"] = true;
         $feedbackMsgs[] = $res;
-        
+        /*$feedbackMsgs[2]['state'] = $actstateID;
+        $feedbackMsgs[2]['stateTo'] = $nextStateID;
+        */
         echo json_encode($feedbackMsgs);
         exit;
 

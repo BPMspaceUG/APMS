@@ -228,15 +228,20 @@
                     </td>
 
                     <td>
-                      <select class="custom-select custom-select-sm" ng-if="(col.EXTRA != 'auto_increment' && col.COLUMN_NAME != 'state_id')">
-                        <option value="1">Input</option>
-                        <option value="2">Textarea</option>
-                        <option value="3">Number</option>
-                        <option value="4">Date</option>
-                        <option value="5">Time</option>
-                        <option value="6">DateTime</option>
-                        <option value="7">Passwordfield</option>
-                        <option value="8">HTML-Editor</option>
+                      <select
+                        class="custom-select custom-select-sm"
+                        ng-if="(col.EXTRA != 'auto_increment' && col.COLUMN_NAME != 'state_id')"
+                        ng-model="col.field_type"
+                      >
+                        <option value="text">Text</option>
+                        <option value="textarea">Textarea</option>
+                        <option value="number">Number</option>
+                        <option value="tinyint">Boolean (Yes/No)</option>
+                        <option value="date">Date</option>
+                        <option value="time">Time</option>
+                        <option value="datetime">DateTime</option>
+                        <option value="password">Passwordfield</option>
+                        <option value="htmleditor">HTML-Editor</option>
                       </select>
                     </td>
 
