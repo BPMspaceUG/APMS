@@ -385,7 +385,7 @@ END";
   // Write the init functions for the JS-Table Objects
   $output_footer = str_replace('###JS_TABLE_OBJECTS###', $content_jsObjects, $output_footer);
   // CSS
-  $output_css = str_replace('###CSS_STATES###', $content_css_statecolors, $output_css);
+  $output_css = str_replace('/*###CSS_STATES###*/', $content_css_statecolors, $output_css);
 
   // ------------------------------------ Generate Core File
   $output_all = $output_header.$output_content.$output_footer;

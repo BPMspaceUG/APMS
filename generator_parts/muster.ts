@@ -35,7 +35,9 @@ abstract class GUI {
     // Math.random should be unique because of its seeding algorithm.
     // Convert it to base 36 (numbers + letters), and grab the first 9 characters
     // after the decimal.
-    return Math.random().toString(36).substr(2, 9);
+    function chr4(){ return Math.random().toString(16).slice(-4); }
+    return chr4() + chr4() + chr4() + chr4() + chr4() + chr4() + chr4() + chr4();
+    //return Math.random().toString(36).substr(2, 9);
   };
 }
 
@@ -410,6 +412,7 @@ class Table extends RawTable {
   private TableConfig: any;
   private lastModifiedRowID: number;
   private jQSelector: string = '';
+  private GUID: string;
   private SM: StateMachine;
   private ReadOnly: boolean;
   private FilterText: string = '';
@@ -422,7 +425,6 @@ class Table extends RawTable {
     maxCellLength: 30,
     showControlColumn: true,
     showWorkflowButton: false,
-    showFilter: true,
     smallestTimeUnitMins: true,
     modalHeaderTextCreate: 'Create Entry',
     modalHeaderTextModify: 'Modify Entry',
@@ -446,6 +448,7 @@ class Table extends RawTable {
 
     let me = this;
     this.jQSelector = DOMSelector;
+    this.GUID = GUI.ID();
     this.defaultValues = defaultObj;
     this.selType = SelType;
     this.Where = whereFilter;
@@ -509,10 +512,10 @@ class Table extends RawTable {
       this.OrderBy = ColumnName;
     // Refresh
     this.loadRows(function(){
-      me.renderHTML()
+      me.renderContent();
     })
   }
-  private setPageIndex(targetIndex: number): void {
+  private async setPageIndex(targetIndex: number) {
     let me = this
     var newIndex = targetIndex
     var lastPageIndex = this.getNrOfPages() - 1
@@ -522,7 +525,10 @@ class Table extends RawTable {
     // Set new index
     this.PageIndex = newIndex
     // Refresh
-    this.loadRows(function(){me.renderHTML()})
+    this.loadRows(async function(){
+      await me.renderContent();
+      await me.renderFooter();
+    })
   }
   private getNrOfPages(): number {
     return Math.ceil(this.getNrOfRows() / this.PageLimit);
@@ -783,7 +789,7 @@ class Table extends RawTable {
             $('#'+MID).modal('hide')
           t.lastModifiedRowID = data[t.PrimaryColumn]
           t.loadRows(function(){
-            t.renderHTML()
+            t.renderContent();
             t.onEntriesModified.trigger();
           })
         } else {
@@ -885,7 +891,7 @@ class Table extends RawTable {
         if (RowID != 0) t.lastModifiedRowID = RowID;
         // Reload all rows
         t.loadRows(function(){
-          t.renderHTML();
+          t.renderContent();
           t.onEntriesModified.trigger();
           // close Modal if it was save and close
           if (MID != '' && closeModal)
@@ -914,13 +920,17 @@ class Table extends RawTable {
     const TableIcon = '<i class="'+this.TableConfig.table_icon+'"></i>';
     const TableAlias = this.TableConfig.table_alias;
     const ModalTitle = this.GUIOptions.modalHeaderTextCreate + '<span class="text-muted ml-3">in '+TableIcon + ' ' + TableAlias+'</span>';
-    let CreateBtn = '<button class="btn btn-success btnCreateEntry" type="button">'+
-      '<i class="fa fa-plus"></i>&nbsp;'+ this.GUIOptions.modalButtonTextCreate + ' ' + TableAlias + '</button>';
+    const CreateBtn = `<button class="btn btn-success btnCreateEntry" type="button">
+        <i class="fa fa-plus"></i>&nbsp;${this.GUIOptions.modalButtonTextCreate + ' ' + TableAlias}
+      </button>`;
+    const CreateReopenBtn = `<button class="btn btn-success btnCreateEntry andReopen ml-1" type="button">
+    <i class="fa fa-plus"></i>&nbsp;${this.GUIOptions.modalButtonTextCreate + ' and Reopen ' + TableAlias}
+  </button>`;
     
     // Create Modal
-    let M = new Modal(ModalTitle, me.Form_Create, CreateBtn, true);
+    let M = new Modal(ModalTitle, me.Form_Create, CreateBtn + CreateReopenBtn, true);
     M.options.btnTextClose = me.GUIOptions.modalButtonTextModifyClose;
-    let ModalID = M.getDOMID();
+    const ModalID = M.getDOMID();
   
     this.updateLabels(ModalID) // Update all Labels
     this.writeDataToForm('#'+ModalID, me.defaultValues) // Update Default values
@@ -932,7 +942,8 @@ class Table extends RawTable {
     $('#'+ModalID+' .btnCreateEntry').click(function(e){
       e.preventDefault();
       // Read out all input fields with {key:value}
-      let data = me.readDataFromForm('#'+ModalID)
+      let data = me.readDataFromForm('#'+ModalID);
+      const reOpenModal = $(this).hasClass('andReopen');
 
       me.createRow(data, function(r){
         let msgs = [];        
@@ -971,11 +982,14 @@ class Table extends RawTable {
               // load rows and render Table
               me.countRows(function(){
                 me.loadRows(function(){
-                  me.renderHTML()
+                  me.renderContent();
                   me.onEntriesModified.trigger();
                   // TODO: Overwrite the new Content from Database
                   //me.modifyRow(msg.element_id, ModalID)
                   $('#'+ModalID).modal('hide');
+                  // Reopen Modal
+                  if (reOpenModal) me.modifyRow(me.lastModifiedRowID);
+
                 })
               })
             }
@@ -994,7 +1008,7 @@ class Table extends RawTable {
             // load rows and render Table
             me.countRows(function(){
               me.loadRows(function(){
-                me.renderHTML()
+                me.renderContent();
                 me.onEntriesModified.trigger();
                 $('#'+ModalID).modal('hide')
               })
@@ -1016,7 +1030,7 @@ class Table extends RawTable {
       //------------------------------------
       this.selectedIDs = []
       this.selectedIDs.push(id)
-      this.renderHTML()
+      this.renderContent();
       this.onSelectionChanged.trigger();
       return
     }
@@ -1033,7 +1047,7 @@ class Table extends RawTable {
         // Add to List
         this.selectedIDs.push(id)
       }
-      this.renderHTML();
+      this.renderContent();
       this.onSelectionChanged.trigger();
       return
     }
@@ -1126,7 +1140,7 @@ class Table extends RawTable {
   }
   public setSelectedRows(selRows: Array<number>) {
     this.selectedIDs = selRows;
-    this.renderHTML()
+    this.renderContent();
   }
   private renderStateButton(ID: number, name: string, withDropdown: boolean = false) {
     const cssClass = 'state' + ID;
@@ -1276,7 +1290,10 @@ class Table extends RawTable {
 
     // Pre fill with 1 because of selector
     if (t.GUIOptions.showControlColumn)
-      th = '<th class="border-0" scope="col"></th>';
+      th = `<th class="border-0 align-middle text-center text-muted" scope="col">
+        ${ (t.TableType != TableType.obj ? '<i class="fa fa-link"></i>' : '<i class="fa fa-cog"></i>') }
+      </th>`;
+
     // Loop Columns
     for (const colname of colnames) {
       if (t.Columns[colname].is_in_menu) {
@@ -1331,7 +1348,54 @@ class Table extends RawTable {
   }
 
 
-  public async renderHTML() {
+  private renderHeader() {
+    let t = this
+    // ---- Header
+    let header: string = '';
+
+    // Pre-Selected Row
+    if (t.selectedIDs.length > 0) {
+      if (t.selectedIDs[0] != null) {
+        // Set the selected text -> concat foreign keys
+        t.FilterText = '' + t.selectedIDs[0];
+      }
+      else
+        t.FilterText = '';
+    } else {
+      // Filter was set
+      t.FilterText = t.Filter;
+    }
+
+
+    header = `<form class="header form-inline bg-light mb-1">
+    <div class="form-group">
+      <input type="text" class="form-control mr-1 filterText" ${ (t.FilterText != '' ? 'value="'+t.FilterText+'"' : '') } placeholder="${t.GUIOptions.filterPlaceholderText}">
+    </div>
+
+    ${
+    (t.ReadOnly ? '' : 
+      `<!-- Create Button -->
+      <button class="btn btn-success btnCreateEntry mr-1">
+        <i class="fa fa-plus"></i>${ (t.TableType != TableType.obj ? '' : '&nbsp;' + t.GUIOptions.modalButtonTextCreate + ' ' + t.TableConfig.table_alias) }
+      </button>`) +
+
+    ( (t.SM && t.GUIOptions.showWorkflowButton) ? 
+      `<!-- Workflow Button -->
+      <button class="btn btn-info btnShowWorkflow mr-1">
+        <i class="fa fa-random"></i>&nbsp; Workflow
+      </button>` : '') +
+
+    (t.selType == SelectType.Single ? 
+      `<!-- Reset & Expand -->
+      <button class="btn btn-secondary resetSelection mr-1" type="button"><i class="fa fa-times"></i></button>
+      <button class="btn btn-secondary text-muted bg-light" type="button" data-toggle="collapse" data-target="${t.GUID}"><i class="fa fa-angle-down"></i></button>`
+      : '')
+    }
+    </form>`;
+    return header;
+  }
+  private async getContent() {
+    let tds: string = '';
     let t = this
 
     // Order Headers by col_order
@@ -1342,107 +1406,15 @@ class Table extends RawTable {
     }
     let sortedColumnNames = Object.keys(t.Columns).sort(compare);
 
-    let p1 = new Promise((resolve, reject) => {
+    let p1 = new Promise((resolve) => {
       resolve(t.htmlHeaders(sortedColumnNames));
     });
     let ths = await p1;
-    
-    // Pagination
-    let pgntn = ''
-    let PaginationButtons = t.getPaginationButtons()
-    // Only Display Buttons, when more than one Button exists
-    if (PaginationButtons.length > 1)
-      PaginationButtons.forEach(
-        btnIndex => {
-          if (t.PageIndex == t.PageIndex + btnIndex) {
-            // Active
-            pgntn += `<li class="page-item active">
-              <span class="page-link">${t.PageIndex + 1 + btnIndex}</span></li>`;
-          } else {
-            pgntn += `<li class="page-item">
-              <a class="page-link" data-pageindex="${t.PageIndex + btnIndex}">${t.PageIndex + 1 + btnIndex}</a></li>`;
-          }
-        })
-    else
-      pgntn += '';
-  
-
-    // ---- Header
-    let header: string = '<div class="element shadow-sm">';
-    let footer: string = '';
-    let GUID: string = GUI.ID();
-
-    // Filter
-    if (t.GUIOptions.showFilter) {
-      // Pre-Selected Row
-      if (t.selectedIDs.length > 0) {
-        if (t.selectedIDs[0] != null)
-          t.FilterText = '' + t.selectedIDs[0];
-        else
-          t.FilterText = '';
-      } else {
-        // Filter was set
-        t.FilterText = t.Filter;
-      }
-      header += '<div class="input-group">'
-      header += '  <input type="text"class="form-control filterText text-muted bg-light" '+
-        (t.FilterText != '' ? 'value="'+t.FilterText+'"' : '') +
-        ' placeholder="'+t.GUIOptions.filterPlaceholderText+'">'
-      header += '  <div class="input-group-append">';      
-      if (!t.ReadOnly) {
-        const TableAlias = t.TableConfig.table_alias;
-        // Create Button
-        header += '<button class="btn btn-success btnCreateEntry">';
-        header += '<i class="fa fa-plus"></i>'; 
-        if (t.TableType == 'obj')
-          header += '&nbsp;'+t.GUIOptions.modalButtonTextCreate + ' ' + TableAlias;
-        header += '</button>';
-      }
-      if (t.SM && t.GUIOptions.showWorkflowButton && t.selType == SelectType.NoSelect) {
-        // Workflow Button
-        header += '    <button class="btn btn-secondary text-muted bg-light border-left-0 btnShowWorkflow"><i class="fa fa-random"></i>&nbsp; Workflow</button>'
-      }
-      if (t.selType == SelectType.Single) {
-        header += '    <button class="btn btn-secondary text-muted bg-light resetSelection" type="button"><i class="fa fa-times"></i></button>';
-        header += '    <button class="btn btn-secondary text-muted bg-light border-left-0" type="button" data-toggle="collapse" data-target=".'+GUID+'"><i class="fa fa-angle-down"></i></button>';
-      }
-      header += '  </div>'
-      header += '</div>'
- //     header += '</div>'
-    }
-    header += '</div>'; //</div>';
-
-    //------ Table Header
-    
-    if (t.Rows.length > 0) {
-      header += '<div class="card-body '+GUID+' p-0'+(t.selType == SelectType.Single ? ' collapse' : '')+'">';
-      header += '<div class="tablewrapper border border-top-0"><table class="table table-striped table-hover m-0 table-sm datatbl">';
-      header += '<thead><tr>'+ths+'</tr></thead><tbody>';
-      footer = '</tbody></table></div>';
-    }
-
-    //------ Footer
-    if (t.selType == SelectType.NoSelect && t.TableType == 'obj') {
-      footer += 
-        '<div class="card-footer text-muted p-0 px-2">'+
-          '<p class="float-left m-0 mb-1"><small>'+t.getHTMLStatusText()+'</small></p>'+
-          '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">'+pgntn+'</ul></nav>'+
-          '<div class="clearfix"></div>'+
-        '</div>';
-    } else {
-      footer += '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">'+pgntn+'</ul></nav>';
-    }
-    footer += '</div>';
-
-    //============================== data
-
-    let tds: string = '';
 
     // Loop Rows
-    if (!t.Rows) return
+    if (!t.Rows || t.Rows.length <= 0) return '';
     t.Rows.forEach(function(row){
-      let data_string: string = '';
-      
+      let data_string: string = '';      
       // If a Control Column is set then Add one before each row
       if (t.GUIOptions.showControlColumn) {
         data_string = '<td scope="row" class="controllcoulm modRow align-middle border-0" data-rowid="'+row[t.PrimaryColumn]+'">';
@@ -1457,14 +1429,12 @@ class Table extends RawTable {
         }
         data_string += '</td>';
       }
-
       // Generate HTML for Table-Data Cells sorted
       sortedColumnNames.forEach(function(col) {
         // Check if it is displayed
         if (t.Columns[col].is_in_menu) 
           data_string += '<td class="align-middle p-0 border-0">' + t.renderCell(row, col) + '</td>';
       })
-
       // Add row to table
       if (t.GUIOptions.showControlColumn) {
         // Edit via first column
@@ -1478,67 +1448,45 @@ class Table extends RawTable {
           tds += '<tr class="datarow row-'+row[t.PrimaryColumn]+' editFullRow modRow" data-rowid="'+row[t.PrimaryColumn]+'">'+data_string+'</tr>';
         }
       }
-
     })
-
-    
-    // GUI
-    const content = header + tds + footer;
-    $(t.jQSelector).empty()
-    $(t.jQSelector).append(content);
-
-    
-    //---------------- Bind Events
-
-    function filterEvent(t: Table) {
-      t.PageIndex = 0; // jump to first page
-      t.Filter = $(t.jQSelector + ' .filterText').val();
-      t.countRows(function(){
-        if (t.getNrOfRows() > 0)
-          t.loadRows(function(){ t.renderHTML(); })
-        else {
-          t.Rows = [];
-          t.renderHTML();
-        }
-      })
+    const output: string =  
+    `<div class="content ${t.GUID} p-0${ (this.selType == SelectType.Single ? ' collapse' : '')}">
+      <div class="tablewrapper border">
+        <table class="table table-striped table-hover m-0 table-sm datatbl">
+          <thead>
+            <tr>${ths}</tr>
+          </thead>
+          <tbody>
+            ${tds}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+    return output;
+  }
+  private async renderContent() {
+    let t = this;
+    const output = await t.getContent();
+    if (output) {
+      $('.'+t.GUID).replaceWith(output);
     }
-
-    // Filter-Button clicked
-    $(t.jQSelector+' .btnFilter').off('click').on('click', function(e){
-      e.preventDefault();
-      filterEvent(t);
-    })
-    // hitting Return on searchbar at Filter
-    $(t.jQSelector+' .filterText').off('keydown').on('keydown', function(e){
-      if (e.keyCode == 13) {
-        e.preventDefault();
-        filterEvent(t)
-      }
-    })
-    // Show Workflow Button clicked
-    $(t.jQSelector+' .btnShowWorkflow').off('click').on('click', function(e){
-      e.preventDefault();
-      t.SM.openSEPopup();
-    })
-    // Reset Selection Button clicked
-    $(t.jQSelector+' .resetSelection').off('click').on('click', function(e){
-      e.preventDefault();
-      //console.log('Reset selection', t);
-      t.modifyRow(null);
-    })
-    // Show Workflow Button clicked
-    $(t.jQSelector+' .btnCreateEntry').off('click').on('click', function(e){
-      e.preventDefault();
-      t.createEntry()
-    })
+    else
+      $('.'+t.GUID).text('Sorry... Nothing found.');
+    //---------------------- Link jquery
     // Edit Row
-    $(t.jQSelector+' .modRow').off('click').on('click', function(e){
+    $('.'+t.GUID+' .modRow').off('click').on('click', function(e){
       e.preventDefault();
       let RowID = $(this).data('rowid');
       t.modifyRow(RowID);
     })
-    // PopUp Menu
-    $(t.jQSelector+' .showNextStates').off('show.bs.dropdown').on('show.bs.dropdown', function(e){
+    // Table-Header - Sort
+    $('.'+t.GUID+' .datatbl_header').off('click').on('click', function(e){
+      e.preventDefault();
+      let colname = $(this).data('colname');
+      t.toggleSort(colname)
+    })
+    // State PopUp Menu
+    $('.'+t.GUID+' .showNextStates').off('show.bs.dropdown').on('show.bs.dropdown', function(e){
       let jQRow = $(this).parent().parent();
       let RowID = jQRow.find('td:first').data('rowid');
       let PrimaryColumn: string = t.PrimaryColumn;
@@ -1568,28 +1516,119 @@ class Table extends RawTable {
           }
         }
       })
-    })    
-    // Table-Header - Sort
-    $(t.jQSelector+' .datatbl_header').off('click').on('click', function(e){
-      e.preventDefault();
-      let colname = $(this).data('colname');
-      t.toggleSort(colname)
     })
+  }
+  private getFooter() {
+    let t = this;
+    if (!t.Rows || t.Rows.length <= 0) return '';
+
+    // Pagination
+    let pgntn = '';
+    let footer: string = '';
+    let PaginationButtons = t.getPaginationButtons();
+    // Only Display Buttons if more than one Button exists
+    if (PaginationButtons.length > 1) {
+      PaginationButtons.forEach(btnIndex => {
+        if (t.PageIndex == t.PageIndex + btnIndex) { // Active
+          pgntn += `<li class="page-item active"><span class="page-link">${t.PageIndex + 1 + btnIndex}</span></li>`;
+        } else {
+          pgntn += `<li class="page-item"><a class="page-link" data-pageindex="${t.PageIndex + btnIndex}">${t.PageIndex + 1 + btnIndex}</a></li>`;
+        }
+      })
+    }
+    else
+      pgntn += '';
+      if (t.TableType == 'obj') {
+        footer = 
+          '<div class="text-muted p-0 px-2">'+
+            '<p class="float-left m-0 mb-1"><small>'+t.getHTMLStatusText()+'</small></p>'+
+            '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">'+pgntn+'</ul></nav>'+
+            '<div class="clearfix"></div>'+
+          '</div>';
+      } else {
+        if (pgntn)
+          footer = '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">'+pgntn+'</ul></nav>';
+      }
+
+    if (footer) return `<div class="tbl_footer">${footer}</div>`; else return '';
+  }
+  private renderFooter() {
+    let t = this;
+    const output = t.getFooter();
+    if (output) {
+      $('.'+t.GUID).parent().find('.tbl_footer').replaceWith(output);
+    } else {
+      $('.'+t.GUID).parent().find('.tbl_footer').text('');
+    }
+    //---------------------- Link jquery
     // Pagination Button
     $(t.jQSelector+' a.page-link').off('click').on('click', function(e){
       e.preventDefault();
       let newPageIndex = $(this).data('pageindex');
       t.setPageIndex(newPageIndex)
     })
+    return t.getFooter(); // TODO: Remove
+  }
+
+  public async renderHTML() {
+    let t = this 
+
+    // GUI
+    const content = t.renderHeader() + await t.getContent() + t.renderFooter();
+
+    $(t.jQSelector).empty();
+    $(t.jQSelector).append(content);
+
+    await t.renderContent();
+    await t.renderFooter();
+    
+    //---------------- Bind Events
+
+    async function filterEvent(t: Table) {
+      t.PageIndex = 0; // jump to first page
+      t.Filter = $(t.jQSelector + ' .filterText').val();
+      t.loadRows(async function(){
+        console.log('->', t.Rows.length);
+        if (t.Rows.length == t.PageLimit) {
+          // TODO: countRows
+        } else {
+          t.actRowCount = t.Rows.length;
+        }
+        await t.renderContent();
+        await t.renderFooter();
+      })
+    }
+
+    // Filter-Button clicked
+    $(t.jQSelector+' .btnFilter').off('click').on('click', function(e){
+      e.preventDefault();
+      filterEvent(t);
+    })
+    // hitting Return on searchbar at Filter
+    $(t.jQSelector+' .filterText').off('keydown').on('keydown', function(e){
+      if (e.keyCode == 13) {
+        e.preventDefault();
+        filterEvent(t)
+      }
+    })
+    // Show Workflow Button clicked
+    $(t.jQSelector+' .btnShowWorkflow').off('click').on('click', function(e){
+      e.preventDefault();
+      t.SM.openSEPopup();
+    })
+    // Reset Selection Button clicked
+    $(t.jQSelector+' .resetSelection').off('click').on('click', function(e){
+      e.preventDefault();
+      t.modifyRow(null);
+    })
+    // Show Workflow Button clicked
+    $(t.jQSelector+' .btnCreateEntry').off('click').on('click', function(e){
+      e.preventDefault();
+      t.createEntry()
+    })
+
 
     //-------------------------------
-
-    // Autofocus Filter
-    if (t.Filter.length > 0) {
-      let el = $(t.jQSelector+' .filterText');
-      el.focus();
-      el.val('').val(t.Filter);
-    }
 
     // Mark last modified Row
     if (t.lastModifiedRowID) {

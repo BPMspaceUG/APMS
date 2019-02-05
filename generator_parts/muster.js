@@ -49,7 +49,9 @@ GUI.ID = function () {
     // Math.random should be unique because of its seeding algorithm.
     // Convert it to base 36 (numbers + letters), and grab the first 9 characters
     // after the decimal.
-    return Math.random().toString(36).substr(2, 9);
+    function chr4() { return Math.random().toString(16).slice(-4); }
+    return chr4() + chr4() + chr4() + chr4() + chr4() + chr4() + chr4() + chr4();
+    //return Math.random().toString(36).substr(2, 9);
 };
 //==============================================================
 // Class: Database
@@ -395,7 +397,6 @@ class Table extends RawTable {
             maxCellLength: 30,
             showControlColumn: true,
             showWorkflowButton: false,
-            showFilter: true,
             smallestTimeUnitMins: true,
             modalHeaderTextCreate: 'Create Entry',
             modalHeaderTextModify: 'Modify Entry',
@@ -414,6 +415,7 @@ class Table extends RawTable {
         this.onEntriesModified = new LiteEvent(); // Created, Deleted, Updated
         let me = this;
         this.jQSelector = DOMSelector;
+        this.GUID = GUI.ID();
         this.defaultValues = defaultObj;
         this.selType = SelType;
         this.Where = whereFilter;
@@ -476,22 +478,29 @@ class Table extends RawTable {
             this.OrderBy = ColumnName;
         // Refresh
         this.loadRows(function () {
-            me.renderHTML();
+            me.renderContent();
         });
     }
     setPageIndex(targetIndex) {
-        let me = this;
-        var newIndex = targetIndex;
-        var lastPageIndex = this.getNrOfPages() - 1;
-        // Check borders
-        if (targetIndex < 0)
-            newIndex = 0; // Lower limit
-        if (targetIndex > lastPageIndex)
-            newIndex = lastPageIndex; // Upper Limit
-        // Set new index
-        this.PageIndex = newIndex;
-        // Refresh
-        this.loadRows(function () { me.renderHTML(); });
+        return __awaiter(this, void 0, void 0, function* () {
+            let me = this;
+            var newIndex = targetIndex;
+            var lastPageIndex = this.getNrOfPages() - 1;
+            // Check borders
+            if (targetIndex < 0)
+                newIndex = 0; // Lower limit
+            if (targetIndex > lastPageIndex)
+                newIndex = lastPageIndex; // Upper Limit
+            // Set new index
+            this.PageIndex = newIndex;
+            // Refresh
+            this.loadRows(function () {
+                return __awaiter(this, void 0, void 0, function* () {
+                    yield me.renderContent();
+                    yield me.renderFooter();
+                });
+            });
+        });
     }
     getNrOfPages() {
         return Math.ceil(this.getNrOfRows() / this.PageLimit);
@@ -751,7 +760,7 @@ class Table extends RawTable {
                         $('#' + MID).modal('hide');
                     t.lastModifiedRowID = data[t.PrimaryColumn];
                     t.loadRows(function () {
-                        t.renderHTML();
+                        t.renderContent();
                         t.onEntriesModified.trigger();
                     });
                 }
@@ -851,7 +860,7 @@ class Table extends RawTable {
                     t.lastModifiedRowID = RowID;
                 // Reload all rows
                 t.loadRows(function () {
-                    t.renderHTML();
+                    t.renderContent();
                     t.onEntriesModified.trigger();
                     // close Modal if it was save and close
                     if (MID != '' && closeModal)
@@ -881,12 +890,16 @@ class Table extends RawTable {
         const TableIcon = '<i class="' + this.TableConfig.table_icon + '"></i>';
         const TableAlias = this.TableConfig.table_alias;
         const ModalTitle = this.GUIOptions.modalHeaderTextCreate + '<span class="text-muted ml-3">in ' + TableIcon + ' ' + TableAlias + '</span>';
-        let CreateBtn = '<button class="btn btn-success btnCreateEntry" type="button">' +
-            '<i class="fa fa-plus"></i>&nbsp;' + this.GUIOptions.modalButtonTextCreate + ' ' + TableAlias + '</button>';
+        const CreateBtn = `<button class="btn btn-success btnCreateEntry" type="button">
+        <i class="fa fa-plus"></i>&nbsp;${this.GUIOptions.modalButtonTextCreate + ' ' + TableAlias}
+      </button>`;
+        const CreateReopenBtn = `<button class="btn btn-success btnCreateEntry andReopen ml-1" type="button">
+    <i class="fa fa-plus"></i>&nbsp;${this.GUIOptions.modalButtonTextCreate + ' and Reopen ' + TableAlias}
+  </button>`;
         // Create Modal
-        let M = new Modal(ModalTitle, me.Form_Create, CreateBtn, true);
+        let M = new Modal(ModalTitle, me.Form_Create, CreateBtn + CreateReopenBtn, true);
         M.options.btnTextClose = me.GUIOptions.modalButtonTextModifyClose;
-        let ModalID = M.getDOMID();
+        const ModalID = M.getDOMID();
         this.updateLabels(ModalID); // Update all Labels
         this.writeDataToForm('#' + ModalID, me.defaultValues); // Update Default values
         // Save origin Table in all FKeys
@@ -896,6 +909,7 @@ class Table extends RawTable {
             e.preventDefault();
             // Read out all input fields with {key:value}
             let data = me.readDataFromForm('#' + ModalID);
+            const reOpenModal = $(this).hasClass('andReopen');
             me.createRow(data, function (r) {
                 let msgs = [];
                 $('#' + ModalID + ' .modal-body .alert').remove(); // Remove all Error Messages
@@ -933,11 +947,14 @@ class Table extends RawTable {
                             // load rows and render Table
                             me.countRows(function () {
                                 me.loadRows(function () {
-                                    me.renderHTML();
+                                    me.renderContent();
                                     me.onEntriesModified.trigger();
                                     // TODO: Overwrite the new Content from Database
                                     //me.modifyRow(msg.element_id, ModalID)
                                     $('#' + ModalID).modal('hide');
+                                    // Reopen Modal
+                                    if (reOpenModal)
+                                        me.modifyRow(me.lastModifiedRowID);
                                 });
                             });
                         }
@@ -953,7 +970,7 @@ class Table extends RawTable {
                         // load rows and render Table
                         me.countRows(function () {
                             me.loadRows(function () {
-                                me.renderHTML();
+                                me.renderContent();
                                 me.onEntriesModified.trigger();
                                 $('#' + ModalID).modal('hide');
                             });
@@ -974,7 +991,7 @@ class Table extends RawTable {
             //------------------------------------
             this.selectedIDs = [];
             this.selectedIDs.push(id);
-            this.renderHTML();
+            this.renderContent();
             this.onSelectionChanged.trigger();
             return;
         }
@@ -992,7 +1009,7 @@ class Table extends RawTable {
                 // Add to List
                 this.selectedIDs.push(id);
             }
-            this.renderHTML();
+            this.renderContent();
             this.onSelectionChanged.trigger();
             return;
         }
@@ -1083,7 +1100,7 @@ class Table extends RawTable {
     }
     setSelectedRows(selRows) {
         this.selectedIDs = selRows;
-        this.renderHTML();
+        this.renderContent();
     }
     renderStateButton(ID, name, withDropdown = false) {
         const cssClass = 'state' + ID;
@@ -1233,7 +1250,9 @@ class Table extends RawTable {
             let th = '';
             // Pre fill with 1 because of selector
             if (t.GUIOptions.showControlColumn)
-                th = '<th class="border-0" scope="col"></th>';
+                th = `<th class="border-0 align-middle text-center text-muted" scope="col">
+        ${(t.TableType != TableType.obj ? '<i class="fa fa-link"></i>' : '<i class="fa fa-cog"></i>')}
+      </th>`;
             // Loop Columns
             for (const colname of colnames) {
                 if (t.Columns[colname].is_in_menu) {
@@ -1283,8 +1302,49 @@ class Table extends RawTable {
             return th;
         });
     }
-    renderHTML() {
+    renderHeader() {
+        let t = this;
+        // ---- Header
+        let header = '';
+        // Pre-Selected Row
+        if (t.selectedIDs.length > 0) {
+            if (t.selectedIDs[0] != null) {
+                // Set the selected text -> concat foreign keys
+                t.FilterText = '' + t.selectedIDs[0];
+            }
+            else
+                t.FilterText = '';
+        }
+        else {
+            // Filter was set
+            t.FilterText = t.Filter;
+        }
+        header = `<form class="header form-inline bg-light mb-1">
+    <div class="form-group">
+      <input type="text" class="form-control mr-1 filterText" ${(t.FilterText != '' ? 'value="' + t.FilterText + '"' : '')} placeholder="${t.GUIOptions.filterPlaceholderText}">
+    </div>
+
+    ${(t.ReadOnly ? '' :
+            `<!-- Create Button -->
+      <button class="btn btn-success btnCreateEntry mr-1">
+        <i class="fa fa-plus"></i>${(t.TableType != TableType.obj ? '' : '&nbsp;' + t.GUIOptions.modalButtonTextCreate + ' ' + t.TableConfig.table_alias)}
+      </button>`) +
+            ((t.SM && t.GUIOptions.showWorkflowButton) ?
+                `<!-- Workflow Button -->
+      <button class="btn btn-info btnShowWorkflow mr-1">
+        <i class="fa fa-random"></i>&nbsp; Workflow
+      </button>` : '') +
+            (t.selType == SelectType.Single ?
+                `<!-- Reset & Expand -->
+      <button class="btn btn-secondary resetSelection mr-1" type="button"><i class="fa fa-times"></i></button>
+      <button class="btn btn-secondary text-muted bg-light" type="button" data-toggle="collapse" data-target="${t.GUID}"><i class="fa fa-angle-down"></i></button>`
+                : '')}
+    </form>`;
+        return header;
+    }
+    getContent() {
         return __awaiter(this, void 0, void 0, function* () {
+            let tds = '';
             let t = this;
             // Order Headers by col_order
             function compare(a, b) {
@@ -1293,97 +1353,13 @@ class Table extends RawTable {
                 return a < b ? -1 : (a > b ? 1 : 0);
             }
             let sortedColumnNames = Object.keys(t.Columns).sort(compare);
-            let p1 = new Promise((resolve, reject) => {
+            let p1 = new Promise((resolve) => {
                 resolve(t.htmlHeaders(sortedColumnNames));
             });
             let ths = yield p1;
-            // Pagination
-            let pgntn = '';
-            let PaginationButtons = t.getPaginationButtons();
-            // Only Display Buttons, when more than one Button exists
-            if (PaginationButtons.length > 1)
-                PaginationButtons.forEach(btnIndex => {
-                    if (t.PageIndex == t.PageIndex + btnIndex) {
-                        // Active
-                        pgntn += `<li class="page-item active">
-              <span class="page-link">${t.PageIndex + 1 + btnIndex}</span></li>`;
-                    }
-                    else {
-                        pgntn += `<li class="page-item">
-              <a class="page-link" data-pageindex="${t.PageIndex + btnIndex}">${t.PageIndex + 1 + btnIndex}</a></li>`;
-                    }
-                });
-            else
-                pgntn += '';
-            // ---- Header
-            let header = '<div class="element shadow-sm">';
-            let footer = '';
-            let GUID = GUI.ID();
-            // Filter
-            if (t.GUIOptions.showFilter) {
-                // Pre-Selected Row
-                if (t.selectedIDs.length > 0) {
-                    if (t.selectedIDs[0] != null)
-                        t.FilterText = '' + t.selectedIDs[0];
-                    else
-                        t.FilterText = '';
-                }
-                else {
-                    // Filter was set
-                    t.FilterText = t.Filter;
-                }
-                header += '<div class="input-group">';
-                header += '  <input type="text"class="form-control filterText text-muted bg-light" ' +
-                    (t.FilterText != '' ? 'value="' + t.FilterText + '"' : '') +
-                    ' placeholder="' + t.GUIOptions.filterPlaceholderText + '">';
-                header += '  <div class="input-group-append">';
-                if (!t.ReadOnly) {
-                    const TableAlias = t.TableConfig.table_alias;
-                    // Create Button
-                    header += '<button class="btn btn-success btnCreateEntry">';
-                    header += '<i class="fa fa-plus"></i>';
-                    if (t.TableType == 'obj')
-                        header += '&nbsp;' + t.GUIOptions.modalButtonTextCreate + ' ' + TableAlias;
-                    header += '</button>';
-                }
-                if (t.SM && t.GUIOptions.showWorkflowButton && t.selType == SelectType.NoSelect) {
-                    // Workflow Button
-                    header += '    <button class="btn btn-secondary text-muted bg-light border-left-0 btnShowWorkflow"><i class="fa fa-random"></i>&nbsp; Workflow</button>';
-                }
-                if (t.selType == SelectType.Single) {
-                    header += '    <button class="btn btn-secondary text-muted bg-light resetSelection" type="button"><i class="fa fa-times"></i></button>';
-                    header += '    <button class="btn btn-secondary text-muted bg-light border-left-0" type="button" data-toggle="collapse" data-target=".' + GUID + '"><i class="fa fa-angle-down"></i></button>';
-                }
-                header += '  </div>';
-                header += '</div>';
-                //     header += '</div>'
-            }
-            header += '</div>'; //</div>';
-            //------ Table Header
-            if (t.Rows.length > 0) {
-                header += '<div class="card-body ' + GUID + ' p-0' + (t.selType == SelectType.Single ? ' collapse' : '') + '">';
-                header += '<div class="tablewrapper border border-top-0"><table class="table table-striped table-hover m-0 table-sm datatbl">';
-                header += '<thead><tr>' + ths + '</tr></thead><tbody>';
-                footer = '</tbody></table></div>';
-            }
-            //------ Footer
-            if (t.selType == SelectType.NoSelect && t.TableType == 'obj') {
-                footer +=
-                    '<div class="card-footer text-muted p-0 px-2">' +
-                        '<p class="float-left m-0 mb-1"><small>' + t.getHTMLStatusText() + '</small></p>' +
-                        '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">' + pgntn + '</ul></nav>' +
-                        '<div class="clearfix"></div>' +
-                        '</div>';
-            }
-            else {
-                footer += '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">' + pgntn + '</ul></nav>';
-            }
-            footer += '</div>';
-            //============================== data
-            let tds = '';
             // Loop Rows
-            if (!t.Rows)
-                return;
+            if (!t.Rows || t.Rows.length <= 0)
+                return '';
             t.Rows.forEach(function (row) {
                 let data_string = '';
                 // If a Control Column is set then Add one before each row
@@ -1425,59 +1401,45 @@ class Table extends RawTable {
                     }
                 }
             });
-            // GUI
-            const content = header + tds + footer;
-            $(t.jQSelector).empty();
-            $(t.jQSelector).append(content);
-            //---------------- Bind Events
-            function filterEvent(t) {
-                t.PageIndex = 0; // jump to first page
-                t.Filter = $(t.jQSelector + ' .filterText').val();
-                t.countRows(function () {
-                    if (t.getNrOfRows() > 0)
-                        t.loadRows(function () { t.renderHTML(); });
-                    else {
-                        t.Rows = [];
-                        t.renderHTML();
-                    }
-                });
+            const output = `<div class="content ${t.GUID} p-0${(this.selType == SelectType.Single ? ' collapse' : '')}">
+      <div class="tablewrapper border">
+        <table class="table table-striped table-hover m-0 table-sm datatbl">
+          <thead>
+            <tr>${ths}</tr>
+          </thead>
+          <tbody>
+            ${tds}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+            return output;
+        });
+    }
+    renderContent() {
+        return __awaiter(this, void 0, void 0, function* () {
+            let t = this;
+            const output = yield t.getContent();
+            if (output) {
+                $('.' + t.GUID).replaceWith(output);
             }
-            // Filter-Button clicked
-            $(t.jQSelector + ' .btnFilter').off('click').on('click', function (e) {
-                e.preventDefault();
-                filterEvent(t);
-            });
-            // hitting Return on searchbar at Filter
-            $(t.jQSelector + ' .filterText').off('keydown').on('keydown', function (e) {
-                if (e.keyCode == 13) {
-                    e.preventDefault();
-                    filterEvent(t);
-                }
-            });
-            // Show Workflow Button clicked
-            $(t.jQSelector + ' .btnShowWorkflow').off('click').on('click', function (e) {
-                e.preventDefault();
-                t.SM.openSEPopup();
-            });
-            // Reset Selection Button clicked
-            $(t.jQSelector + ' .resetSelection').off('click').on('click', function (e) {
-                e.preventDefault();
-                //console.log('Reset selection', t);
-                t.modifyRow(null);
-            });
-            // Show Workflow Button clicked
-            $(t.jQSelector + ' .btnCreateEntry').off('click').on('click', function (e) {
-                e.preventDefault();
-                t.createEntry();
-            });
+            else
+                $('.' + t.GUID).text('Sorry... Nothing found.');
+            //---------------------- Link jquery
             // Edit Row
-            $(t.jQSelector + ' .modRow').off('click').on('click', function (e) {
+            $('.' + t.GUID + ' .modRow').off('click').on('click', function (e) {
                 e.preventDefault();
                 let RowID = $(this).data('rowid');
                 t.modifyRow(RowID);
             });
-            // PopUp Menu
-            $(t.jQSelector + ' .showNextStates').off('show.bs.dropdown').on('show.bs.dropdown', function (e) {
+            // Table-Header - Sort
+            $('.' + t.GUID + ' .datatbl_header').off('click').on('click', function (e) {
+                e.preventDefault();
+                let colname = $(this).data('colname');
+                t.toggleSort(colname);
+            });
+            // State PopUp Menu
+            $('.' + t.GUID + ' .showNextStates').off('show.bs.dropdown').on('show.bs.dropdown', function (e) {
                 let jQRow = $(this).parent().parent();
                 let RowID = jQRow.find('td:first').data('rowid');
                 let PrimaryColumn = t.PrimaryColumn;
@@ -1508,25 +1470,121 @@ class Table extends RawTable {
                     }
                 });
             });
-            // Table-Header - Sort
-            $(t.jQSelector + ' .datatbl_header').off('click').on('click', function (e) {
-                e.preventDefault();
-                let colname = $(this).data('colname');
-                t.toggleSort(colname);
+        });
+    }
+    getFooter() {
+        let t = this;
+        if (!t.Rows || t.Rows.length <= 0)
+            return '';
+        // Pagination
+        let pgntn = '';
+        let footer = '';
+        let PaginationButtons = t.getPaginationButtons();
+        // Only Display Buttons if more than one Button exists
+        if (PaginationButtons.length > 1) {
+            PaginationButtons.forEach(btnIndex => {
+                if (t.PageIndex == t.PageIndex + btnIndex) { // Active
+                    pgntn += `<li class="page-item active"><span class="page-link">${t.PageIndex + 1 + btnIndex}</span></li>`;
+                }
+                else {
+                    pgntn += `<li class="page-item"><a class="page-link" data-pageindex="${t.PageIndex + btnIndex}">${t.PageIndex + 1 + btnIndex}</a></li>`;
+                }
             });
-            // Pagination Button
-            $(t.jQSelector + ' a.page-link').off('click').on('click', function (e) {
+        }
+        else
+            pgntn += '';
+        if (t.TableType == 'obj') {
+            footer =
+                '<div class="text-muted p-0 px-2">' +
+                    '<p class="float-left m-0 mb-1"><small>' + t.getHTMLStatusText() + '</small></p>' +
+                    '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">' + pgntn + '</ul></nav>' +
+                    '<div class="clearfix"></div>' +
+                    '</div>';
+        }
+        else {
+            if (pgntn)
+                footer = '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">' + pgntn + '</ul></nav>';
+        }
+        if (footer)
+            return `<div class="tbl_footer">${footer}</div>`;
+        else
+            return '';
+    }
+    renderFooter() {
+        let t = this;
+        const output = t.getFooter();
+        if (output) {
+            $('.' + t.GUID).parent().find('.tbl_footer').replaceWith(output);
+        }
+        else {
+            $('.' + t.GUID).parent().find('.tbl_footer').text('');
+        }
+        //---------------------- Link jquery
+        // Pagination Button
+        $(t.jQSelector + ' a.page-link').off('click').on('click', function (e) {
+            e.preventDefault();
+            let newPageIndex = $(this).data('pageindex');
+            t.setPageIndex(newPageIndex);
+        });
+        return t.getFooter(); // TODO: Remove
+    }
+    renderHTML() {
+        return __awaiter(this, void 0, void 0, function* () {
+            let t = this;
+            // GUI
+            const content = t.renderHeader() + (yield t.getContent()) + t.renderFooter();
+            $(t.jQSelector).empty();
+            $(t.jQSelector).append(content);
+            yield t.renderContent();
+            yield t.renderFooter();
+            //---------------- Bind Events
+            function filterEvent(t) {
+                return __awaiter(this, void 0, void 0, function* () {
+                    t.PageIndex = 0; // jump to first page
+                    t.Filter = $(t.jQSelector + ' .filterText').val();
+                    t.loadRows(function () {
+                        return __awaiter(this, void 0, void 0, function* () {
+                            console.log('->', t.Rows.length);
+                            if (t.Rows.length == t.PageLimit) {
+                                // TODO: countRows
+                            }
+                            else {
+                                t.actRowCount = t.Rows.length;
+                            }
+                            yield t.renderContent();
+                            yield t.renderFooter();
+                        });
+                    });
+                });
+            }
+            // Filter-Button clicked
+            $(t.jQSelector + ' .btnFilter').off('click').on('click', function (e) {
                 e.preventDefault();
-                let newPageIndex = $(this).data('pageindex');
-                t.setPageIndex(newPageIndex);
+                filterEvent(t);
+            });
+            // hitting Return on searchbar at Filter
+            $(t.jQSelector + ' .filterText').off('keydown').on('keydown', function (e) {
+                if (e.keyCode == 13) {
+                    e.preventDefault();
+                    filterEvent(t);
+                }
+            });
+            // Show Workflow Button clicked
+            $(t.jQSelector + ' .btnShowWorkflow').off('click').on('click', function (e) {
+                e.preventDefault();
+                t.SM.openSEPopup();
+            });
+            // Reset Selection Button clicked
+            $(t.jQSelector + ' .resetSelection').off('click').on('click', function (e) {
+                e.preventDefault();
+                t.modifyRow(null);
+            });
+            // Show Workflow Button clicked
+            $(t.jQSelector + ' .btnCreateEntry').off('click').on('click', function (e) {
+                e.preventDefault();
+                t.createEntry();
             });
             //-------------------------------
-            // Autofocus Filter
-            if (t.Filter.length > 0) {
-                let el = $(t.jQSelector + ' .filterText');
-                el.focus();
-                el.val('').val(t.Filter);
-            }
             // Mark last modified Row
             if (t.lastModifiedRowID) {
                 if (t.lastModifiedRowID != 0) {
