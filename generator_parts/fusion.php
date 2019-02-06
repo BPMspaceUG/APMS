@@ -337,8 +337,8 @@ END";
           $state_css = ".state$tmpStateID {background-color: hsl($initColorHue, 50%, $v%);}\n";
         } else {
           // NM Table
-          if ($v == 20) $state_css = ".state$tmpStateID {background-color: hsl(120, 50%, 40%);}\n";
-          else $state_css = ".state$tmpStateID {background-color: hsl(0, 50%, 40%);}\n";
+          if ($v == 20) $state_css = ".state$tmpStateID {background-color: #328332;}\n"; // Selected
+          else $state_css = ".state$tmpStateID {background-color: #8b0000;}\n";
         }
         $content_css_statecolors .= $state_css;
       }

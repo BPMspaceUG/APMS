@@ -16,7 +16,6 @@ var SelectType;
 (function (SelectType) {
     SelectType[SelectType["NoSelect"] = 0] = "NoSelect";
     SelectType[SelectType["Single"] = 1] = "Single";
-    SelectType[SelectType["Multi"] = 2] = "Multi";
 })(SelectType || (SelectType = {}));
 var TableType;
 (function (TableType) {
@@ -116,7 +115,7 @@ class Modal {
           </div>
           <div class="modal-footer">
             <span class="customfooter d-flex">${this.footer}</span>
-            <button type="button" class="btn btn-secondary" data-dismiss="modal">
+            <button type="button" class="btn btn-light" data-dismiss="modal">
               ${this.options.btnTextClose}
             </button>
           </div>
@@ -171,7 +170,6 @@ class StateMachine {
                 }
                 let nodes = smNodes;
                 let edges = smLinks;
-                console.log(edges);
                 for (let i = 0; i < nodes.length; i++) {
                     //--- Add EntryPoint Node and Edge
                     if (nodes[i].entrypoint == 1) {
@@ -180,7 +178,8 @@ class StateMachine {
                     }
                     const isExitNode = me.isExitNode(nodes[i].id, smLinks);
                     const cssClass = 'state' + (nodes[i].id - idOffset);
-                    const _color = $('<div class="' + cssClass + '"></div>').css("background-color");
+                    const _color = $('<div class="' + cssClass + '"></div>').appendTo('html').css("background-color");
+                    console.log(_color);
                     if (isExitNode) {
                         // Exit Node
                         nodes[i]['color'] = _color;
@@ -228,10 +227,12 @@ class StateMachine {
                         },
                         borderWidth: 0,
                         size: 24,
-                        /*color: {
-                            border: '#3598DC',
-                            background: '#fff'
-                        },*/
+                        /*
+                        color: {
+                          border: '#fff',
+                          background: '#fff'
+                        },
+                        */
                         font: { color: '#888888', size: 16 },
                         shapeProperties: {
                             useBorderWithImage: false
@@ -386,10 +387,10 @@ class RawTable {
 //==============================================================
 class Table extends RawTable {
     constructor(tablename, DOMSelector, SelType = SelectType.NoSelect, callback = function () { }, whereFilter = '', defaultObj = {}) {
-        // Call parent constructor
-        super(tablename);
-        this.jQSelector = '';
-        this.FilterText = '';
+        super(tablename); // Call parent constructor
+        this.jQSelector = ''; // TODO: Remove
+        this.FilterText = ''; // TODO: Remove
+        this.isExpanded = false;
         this.Form_Create = '';
         this.Form_Modify = '';
         this.defaultValues = {}; // Default Values in Create-Form
@@ -414,7 +415,7 @@ class Table extends RawTable {
         this.onSelectionChanged = new LiteEvent();
         this.onEntriesModified = new LiteEvent(); // Created, Deleted, Updated
         let me = this;
-        this.jQSelector = DOMSelector;
+        this.jQSelector = DOMSelector; // TODO: Remove
         this.GUID = GUI.ID();
         this.defaultValues = defaultObj;
         this.selType = SelType;
@@ -463,10 +464,6 @@ class Table extends RawTable {
                 callback();
             }
         });
-    }
-    addClassToDataRow(id, classname) {
-        $(this.jQSelector + ' .datarow').removeClass(classname); // Remove class from all other rows
-        $(this.jQSelector + ' .row-' + id).addClass(classname);
     }
     toggleSort(ColumnName) {
         let me = this;
@@ -689,21 +686,22 @@ class Table extends RawTable {
         if (nextStates.length > 0) {
             let cnt_states = 0;
             // Header
-            btns = '<div class="btn-group dropup ml-0 mr-auto">';
-            btns += '<button type="button" class="btn ' + cssClass + ' text-white dropdown-toggle" data-toggle="dropdown">' + actStateName + '</button>';
-            btns += '<div class="dropdown-menu p-0">';
+            btns = `<div class="btn-group dropup ml-0 mr-auto">
+        <button type="button" class="btn ${cssClass} text-white dropdown-toggle" data-toggle="dropdown">${actStateName}</button>
+      <div class="dropdown-menu p-0">`;
             // Loop States
             nextStates.forEach(function (state) {
                 let btn_text = state.name;
                 let btn = '';
                 // Override the state-name if it is a Loop (Save)
                 if (actStateID == state.id) {
-                    saveBtn = '<div class="btn-group ml-auto mr-0" role="group">';
-                    saveBtn += '<button class="btn btn-primary btnState btnStateSave" data-rowid="' + RowID + '" data-targetstate="' + state.id + '" data-targetname="' + state.name + '" type="button">' +
-                        '<i class="fa fa-floppy-o"></i> ' + t.GUIOptions.modalButtonTextModifySave + '</button>';
-                    saveBtn += '<button class="btn btn-primary btnState btnSaveAndClose" data-rowid="' + RowID + '" data-targetstate="' + state.id + '" data-targetname="' + state.name + '" type="button">' +
-                        t.GUIOptions.modalButtonTextModifySaveAndClose + '</button>';
-                    saveBtn += '</div>';
+                    saveBtn = `<div class="ml-auto mr-0">
+<button class="btn btn-primary btnState btnStateSave mr-1" data-rowid="${RowID}" data-targetstate="${state.id}" data-targetname="${state.name}" type="button">
+  <i class="fa fa-floppy-o"></i>&nbsp;${t.GUIOptions.modalButtonTextModifySave}</button>
+<button class="btn btn-outline-primary btnState btnSaveAndClose" data-rowid="${RowID}" data-targetstate="${state.id}" data-targetname="${state.name}" type="button">
+  ${t.GUIOptions.modalButtonTextModifySaveAndClose}
+</button>
+</div>`;
                 }
                 else {
                     cnt_states++;
@@ -890,14 +888,16 @@ class Table extends RawTable {
         const TableIcon = '<i class="' + this.TableConfig.table_icon + '"></i>';
         const TableAlias = this.TableConfig.table_alias;
         const ModalTitle = this.GUIOptions.modalHeaderTextCreate + '<span class="text-muted ml-3">in ' + TableIcon + ' ' + TableAlias + '</span>';
-        const CreateBtn = `<button class="btn btn-success btnCreateEntry" type="button">
-        <i class="fa fa-plus"></i>&nbsp;${this.GUIOptions.modalButtonTextCreate + ' ' + TableAlias}
-      </button>`;
-        const CreateReopenBtn = `<button class="btn btn-success btnCreateEntry andReopen ml-1" type="button">
-    <i class="fa fa-plus"></i>&nbsp;${this.GUIOptions.modalButtonTextCreate + ' and Reopen ' + TableAlias}
-  </button>`;
+        const CreateBtns = `<div class="ml-auto mr-0">
+  <button class="btn btn-success btnCreateEntry andReopen" type="button">
+    <i class="fa fa-plus"></i>&nbsp;${this.GUIOptions.modalButtonTextCreate}
+  </button>
+  <button class="btn btn-outline-success btnCreateEntry ml-1" type="button">
+    ${this.GUIOptions.modalButtonTextCreate} &amp; Close
+  </button>
+</div>`;
         // Create Modal
-        let M = new Modal(ModalTitle, me.Form_Create, CreateBtn + CreateReopenBtn, true);
+        let M = new Modal(ModalTitle, me.Form_Create, CreateBtns, true);
         M.options.btnTextClose = me.GUIOptions.modalButtonTextModifyClose;
         const ModalID = M.getDOMID();
         this.updateLabels(ModalID); // Update all Labels
@@ -995,24 +995,6 @@ class Table extends RawTable {
             this.onSelectionChanged.trigger();
             return;
         }
-        else if (this.selType == SelectType.Multi) {
-            //------------------------------------
-            // MULTI SELECT
-            //------------------------------------
-            let pos = this.selectedIDs.indexOf(id);
-            // Check if already exists in array -> then remove
-            if (pos >= 0) {
-                // Remove from List and reindex array
-                this.selectedIDs.splice(pos, 1);
-            }
-            else {
-                // Add to List
-                this.selectedIDs.push(id);
-            }
-            this.renderContent();
-            this.onSelectionChanged.trigger();
-            return;
-        }
         else {
             //------------------------------------
             // NO SELECT / EDITABLE / READ-ONLY
@@ -1021,7 +1003,6 @@ class Table extends RawTable {
             if (this.ReadOnly)
                 return;
             // Indicate which row is getting modified
-            //this.addClassToDataRow(id, 'table-warning');
             $(this.jQSelector + ' .datarow .controllcoulm').html('<i class="fa fa-pencil"></i>'); // for all
             $(this.jQSelector + ' .row-' + id + ' .controllcoulm').html('<i class="fa fa-pencil text-primary"></i>');
             // Set Form
@@ -1060,11 +1041,11 @@ class Table extends RawTable {
                 // Save origin Table in all FKeys
                 $('#' + ModalID + ' .inputFK').data('origintable', this.tablename);
                 // Save buttons
-                let btn = `<div class="btn-group ml-auto mr-0" role="group">
+                let btn = `<div class="ml-auto mr-0">
           <button class="btn btn-primary btnSave" type="button">
             <i class="fa fa-floppy-o"></i> ${this.GUIOptions.modalButtonTextModifySave}
           </button>
-          <button class="btn btn-primary btnSaveAndClose" type="button">
+          <button class="btn btn-outline-primary btnSaveAndClose" type="button">
             ${this.GUIOptions.modalButtonTextModifySaveAndClose}
           </button>
         </div>`;
@@ -1302,10 +1283,8 @@ class Table extends RawTable {
             return th;
         });
     }
-    renderHeader() {
+    getHeader() {
         let t = this;
-        // ---- Header
-        let header = '';
         // Pre-Selected Row
         if (t.selectedIDs.length > 0) {
             if (t.selectedIDs[0] != null) {
@@ -1319,11 +1298,14 @@ class Table extends RawTable {
             // Filter was set
             t.FilterText = t.Filter;
         }
-        header = `<form class="header form-inline bg-light mb-1">
-    <div class="form-group">
-      <input type="text" class="form-control mr-1 filterText" ${(t.FilterText != '' ? 'value="' + t.FilterText + '"' : '')} placeholder="${t.GUIOptions.filterPlaceholderText}">
+        const hasEntries = t.Rows && (t.Rows.length > 0);
+        return `<form class="header form-inline">
+    <div class="form-group m-0 p-0">
+      <input type="text" ${(!hasEntries ? 'readonly disabled ' : '')}class="form-control${(!hasEntries ? '-plaintext' : '')} mr-1 filterText"
+        ${(t.FilterText != '' ? ' value="' + t.FilterText + '"' : '')}
+        placeholder="${(!hasEntries ? 'No Entries' : t.GUIOptions.filterPlaceholderText)}">
     </div>
-
+    <div class="form-group m-0 p-0">
     ${(t.ReadOnly ? '' :
             `<!-- Create Button -->
       <button class="btn btn-success btnCreateEntry mr-1">
@@ -1337,10 +1319,64 @@ class Table extends RawTable {
             (t.selType == SelectType.Single ?
                 `<!-- Reset & Expand -->
       <button class="btn btn-secondary resetSelection mr-1" type="button"><i class="fa fa-times"></i></button>
-      <button class="btn btn-secondary text-muted bg-light" type="button" data-toggle="collapse" data-target="${t.GUID}"><i class="fa fa-angle-down"></i></button>`
+      <button class="btn btn-secondary btnExpandTable text-muted bg-light" type="button"><i class="fa fa-angle-down"></i></button>`
                 : '')}
-    </form>`;
-        return header;
+    </div></form>`;
+    }
+    renderHeader() {
+        let t = this;
+        const output = t.getHeader();
+        $('.' + t.GUID).parent().find('header').replaceWith(output);
+        //---------------------- Link jquery
+        // Edit Row
+        function filterEvent(t) {
+            return __awaiter(this, void 0, void 0, function* () {
+                t.PageIndex = 0; // jump to first page
+                t.Filter = $(t.jQSelector + ' .filterText').val();
+                t.loadRows(function () {
+                    return __awaiter(this, void 0, void 0, function* () {
+                        if (t.Rows.length == t.PageLimit) {
+                            t.countRows(yield function () {
+                                t.renderFooter();
+                            });
+                        }
+                        else {
+                            t.actRowCount = t.Rows.length;
+                            yield t.renderFooter();
+                        }
+                        yield t.renderContent();
+                    });
+                });
+            });
+        }
+        // hitting Return on searchbar at Filter
+        $(t.jQSelector + ' .filterText').off('keydown').on('keydown', function (e) {
+            if (e.keyCode == 13) {
+                e.preventDefault();
+                filterEvent(t);
+            }
+        });
+        // Show Workflow Button clicked
+        $(t.jQSelector + ' .btnShowWorkflow').off('click').on('click', function (e) {
+            e.preventDefault();
+            t.SM.openSEPopup();
+        });
+        // Reset Selection Button clicked
+        $(t.jQSelector + ' .resetSelection').off('click').on('click', function (e) {
+            e.preventDefault();
+            t.modifyRow(null);
+        });
+        // Create Button clicked
+        $(t.jQSelector + ' .btnCreateEntry').off('click').on('click', function (e) {
+            e.preventDefault();
+            t.createEntry();
+        });
+        // Expand Table
+        $('.' + t.GUID).parent().find('.btnExpandTable').off('click').on('click', function (e) {
+            e.preventDefault();
+            t.isExpanded = !t.isExpanded;
+            $('.' + t.GUID).collapse('toggle');
+        });
     }
     getContent() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -1358,26 +1394,24 @@ class Table extends RawTable {
             });
             let ths = yield p1;
             // Loop Rows
-            if (!t.Rows || t.Rows.length <= 0)
-                return '';
             t.Rows.forEach(function (row) {
+                const RowID = row[t.PrimaryColumn];
                 let data_string = '';
-                // If a Control Column is set then Add one before each row
+                let isSelected = false;
+                // Check if selected
+                if (t.selectedIDs) {
+                    if (t.selectedIDs.length > 0) {
+                        t.selectedIDs.forEach(selRowID => {
+                            if (selRowID == RowID)
+                                isSelected = true;
+                        });
+                    }
+                }
+                // [Control Column] is set then Add one before each row
                 if (t.GUIOptions.showControlColumn) {
-                    data_string = '<td scope="row" class="controllcoulm modRow align-middle border-0" data-rowid="' + row[t.PrimaryColumn] + '">';
-                    // Entries are selectable?
-                    if (t.selType == SelectType.Single) {
-                        data_string += '<i class="fa fa-circle-o"></i>';
-                    }
-                    else if (t.selType == SelectType.Multi) {
-                        data_string += '<i class="fa fa-square-o"></i>';
-                    }
-                    else {
-                        // Entries are editable
-                        if (!t.ReadOnly)
-                            data_string += '<i class="fa fa-pencil"></i>';
-                    }
-                    data_string += '</td>';
+                    data_string = `<td scope="row" class="controllcoulm modRow align-middle border-0" data-rowid="${row[t.PrimaryColumn]}">
+          ${(t.selType == SelectType.Single ? (isSelected ? '<i class="fa fa-dot-circle-o"></i>' : '<i class="fa fa-circle-o"></i>') : '<i class="fa fa-pencil"></i>')}
+        </td>`;
                 }
                 // Generate HTML for Table-Data Cells sorted
                 sortedColumnNames.forEach(function (col) {
@@ -1388,7 +1422,7 @@ class Table extends RawTable {
                 // Add row to table
                 if (t.GUIOptions.showControlColumn) {
                     // Edit via first column
-                    tds += '<tr class="datarow row-' + row[t.PrimaryColumn] + '">' + data_string + '</tr>';
+                    tds += `<tr class="datarow row-${row[t.PrimaryColumn] + (isSelected ? ' table-success' : '')}">${data_string}</tr>`;
                 }
                 else {
                     if (t.ReadOnly) {
@@ -1401,8 +1435,9 @@ class Table extends RawTable {
                     }
                 }
             });
-            const output = `<div class="content ${t.GUID} p-0${(this.selType == SelectType.Single ? ' collapse' : '')}">
-      <div class="tablewrapper border">
+            return `<div class="content ${t.GUID} mt-1 p-0${((t.selType == SelectType.Single && !t.isExpanded) ? ' collapse' : '')}">
+      ${(t.Rows && t.Rows.length > 0) ?
+                `<div class="tablewrapper border">
         <table class="table table-striped table-hover m-0 table-sm datatbl">
           <thead>
             <tr>${ths}</tr>
@@ -1411,20 +1446,15 @@ class Table extends RawTable {
             ${tds}
           </tbody>
         </table>
-      </div>
+      </div>` : (t.Filter != '' ? 'Sorry, nothing found.' : '')}
     </div>`;
-            return output;
         });
     }
     renderContent() {
         return __awaiter(this, void 0, void 0, function* () {
             let t = this;
             const output = yield t.getContent();
-            if (output) {
-                $('.' + t.GUID).replaceWith(output);
-            }
-            else
-                $('.' + t.GUID).text('Sorry... Nothing found.');
+            $('.' + t.GUID).replaceWith(output);
             //---------------------- Link jquery
             // Edit Row
             $('.' + t.GUID + ' .modRow').off('click').on('click', function (e) {
@@ -1478,7 +1508,6 @@ class Table extends RawTable {
             return '';
         // Pagination
         let pgntn = '';
-        let footer = '';
         let PaginationButtons = t.getPaginationButtons();
         // Only Display Buttons if more than one Button exists
         if (PaginationButtons.length > 1) {
@@ -1491,24 +1520,13 @@ class Table extends RawTable {
                 }
             });
         }
-        else
-            pgntn += '';
-        if (t.TableType == 'obj') {
-            footer =
-                '<div class="text-muted p-0 px-2">' +
-                    '<p class="float-left m-0 mb-1"><small>' + t.getHTMLStatusText() + '</small></p>' +
-                    '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">' + pgntn + '</ul></nav>' +
-                    '<div class="clearfix"></div>' +
-                    '</div>';
-        }
-        else {
-            if (pgntn)
-                footer = '<nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">' + pgntn + '</ul></nav>';
-        }
-        if (footer)
-            return `<div class="tbl_footer">${footer}</div>`;
-        else
-            return '';
+        return `<div class="tbl_footer">
+      <div class="text-muted p-0 px-2">
+        <p class="float-left m-0 mb-1"><small>${t.getHTMLStatusText()}</small></p>
+        <nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">${pgntn}</ul></nav>
+        <div class="clearfix"></div>
+      </div>
+    </div>`;
     }
     renderFooter() {
         let t = this;
@@ -1532,80 +1550,12 @@ class Table extends RawTable {
         return __awaiter(this, void 0, void 0, function* () {
             let t = this;
             // GUI
-            const content = t.renderHeader() + (yield t.getContent()) + t.renderFooter();
+            const content = t.getHeader() + (yield t.getContent()) + t.getFooter();
             $(t.jQSelector).empty();
             $(t.jQSelector).append(content);
+            yield t.renderHeader();
             yield t.renderContent();
             yield t.renderFooter();
-            //---------------- Bind Events
-            function filterEvent(t) {
-                return __awaiter(this, void 0, void 0, function* () {
-                    t.PageIndex = 0; // jump to first page
-                    t.Filter = $(t.jQSelector + ' .filterText').val();
-                    t.loadRows(function () {
-                        return __awaiter(this, void 0, void 0, function* () {
-                            console.log('->', t.Rows.length);
-                            if (t.Rows.length == t.PageLimit) {
-                                // TODO: countRows
-                            }
-                            else {
-                                t.actRowCount = t.Rows.length;
-                            }
-                            yield t.renderContent();
-                            yield t.renderFooter();
-                        });
-                    });
-                });
-            }
-            // Filter-Button clicked
-            $(t.jQSelector + ' .btnFilter').off('click').on('click', function (e) {
-                e.preventDefault();
-                filterEvent(t);
-            });
-            // hitting Return on searchbar at Filter
-            $(t.jQSelector + ' .filterText').off('keydown').on('keydown', function (e) {
-                if (e.keyCode == 13) {
-                    e.preventDefault();
-                    filterEvent(t);
-                }
-            });
-            // Show Workflow Button clicked
-            $(t.jQSelector + ' .btnShowWorkflow').off('click').on('click', function (e) {
-                e.preventDefault();
-                t.SM.openSEPopup();
-            });
-            // Reset Selection Button clicked
-            $(t.jQSelector + ' .resetSelection').off('click').on('click', function (e) {
-                e.preventDefault();
-                t.modifyRow(null);
-            });
-            // Show Workflow Button clicked
-            $(t.jQSelector + ' .btnCreateEntry').off('click').on('click', function (e) {
-                e.preventDefault();
-                t.createEntry();
-            });
-            //-------------------------------
-            // Mark last modified Row
-            if (t.lastModifiedRowID) {
-                if (t.lastModifiedRowID != 0) {
-                    t.addClassToDataRow(t.lastModifiedRowID, 'table-info');
-                    t.lastModifiedRowID = 0;
-                }
-            }
-            // Mark Elements which are in Array of SelectedIDs
-            if (t.selectedIDs) {
-                if (t.selectedIDs.length > 0) {
-                    t.selectedIDs.forEach(selRowID => {
-                        if (t.GUIOptions.showControlColumn) {
-                            if (t.selType == SelectType.Single)
-                                $(t.jQSelector + ' .row-' + selRowID + ' td:first').html('<i class="fa fa-dot-circle-o"></i>');
-                            else
-                                $(t.jQSelector + ' .row-' + selRowID + ' td:first').html('<i class="fa fa-check-square-o"></i>');
-                        }
-                        $(t.jQSelector + ' .row-' + selRowID).addClass('table-success');
-                    });
-                }
-            }
         });
     }
     //-------------------------------------------------- EVENTS
@@ -1655,6 +1605,7 @@ $(document).on('shown.bs.modal', function () {
 $(document).on('hidden.bs.modal', '.modal', function () {
     $('.modal:visible').length && $(document.body).addClass('modal-open');
 });
+// Show the actual Tab in the URL and also open Tab by URL
 $(function () {
     var hash = window.location.hash;
     hash && $('ul.nav a[href="' + hash + '"]').tab('show');

@@ -294,12 +294,13 @@
       // TODO: Make a special count function maybe inside of SP
       global $token;
       $tablename = $param["table"];
-      $where = $param["where"] != '' ? $param["where"] : '';
+      $where = $param["where"] ? $param["where"] : '';
+      $filter = isset($param["filter"]) ? $param["filter"] : '';
       $token_uid = $token->uid;
       $params = array(
         'table' => $tablename,
         'token' => $token_uid,
-        'filter' => '',
+        'filter' => $filter,
         'where' => $where,
         'orderby' => '',
         'ascdesc' => null,
@@ -309,8 +310,8 @@
       $data = json_decode($this->call($params), true);
       return json_encode(array(array('cnt' => count($data))));
     }
-    //================================== CALL
-    public function call($param) {
+    //================================== private (CALL) and format foreign key structure
+    private function call($param) {
       $tablename = $param["table"];
       $keys = [];
       $vals = [];
