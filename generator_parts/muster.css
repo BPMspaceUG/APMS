@@ -3,7 +3,7 @@ body {margin-bottom: 60px;}
 .footer {position: absolute; bottom: 0; width: 100%; height: 60px; line-height: 60px; background-color: #f5f5f5; font-size: 12px;}
 
 /* Table */
-/*.tablewrapper {overflow: auto;}*/
+/*.tablewrapper {overflow-x: auto;}*/
 .datatbl {font-size: 1em; }
 .datatbl thead tr {/*background-color: #eee;*/ font-size: .8em;}
 .datatbl thead th {cursor: pointer; }

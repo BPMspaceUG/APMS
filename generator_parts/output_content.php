@@ -26,12 +26,12 @@
     <div class="card mainapp collapse border-0">
       <div class="card-header">
         <ul class="nav nav-tabs card-header-tabs">
-          ###TABS###
+          <!--###TABS###-->
         </ul>
       </div>
       <div class="card-body">
         <div class="tab-content">
-          ###TAB_PANELS###
+          <!--###TAB_PANELS###-->
         </div>
       </div>
     </div>

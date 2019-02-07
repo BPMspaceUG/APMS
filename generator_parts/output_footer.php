@@ -16,7 +16,7 @@
     $(document).ready(function() {
       DB.API_URL = 'api.php';
       // Create objects
-      ###JS_TABLE_OBJECTS###
+      /*###JS_TABLE_OBJECTS###*/
       // Loading disable
       $('.initloadingtext').hide();
       $('.mainapp').show();

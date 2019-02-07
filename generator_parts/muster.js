@@ -948,6 +948,8 @@ class Table extends RawTable {
                             me.countRows(function () {
                                 me.loadRows(function () {
                                     me.renderContent();
+                                    me.renderFooter();
+                                    me.renderHeader();
                                     me.onEntriesModified.trigger();
                                     // TODO: Overwrite the new Content from Database
                                     //me.modifyRow(msg.element_id, ModalID)
@@ -971,6 +973,8 @@ class Table extends RawTable {
                         me.countRows(function () {
                             me.loadRows(function () {
                                 me.renderContent();
+                                me.renderFooter();
+                                me.renderHeader();
                                 me.onEntriesModified.trigger();
                                 $('#' + ModalID).modal('hide');
                             });
@@ -986,25 +990,21 @@ class Table extends RawTable {
         let me = this;
         // Check Selection-Type
         if (this.selType == SelectType.Single) {
-            //------------------------------------
-            // SINGLE SELECT
-            //------------------------------------
+            //------------------------------------ SINGLE SELECT
             this.selectedIDs = [];
             this.selectedIDs.push(id);
+            this.isExpanded = false;
             this.renderContent();
+            this.renderHeader();
+            this.renderFooter();
             this.onSelectionChanged.trigger();
             return;
         }
         else {
-            //------------------------------------
-            // NO SELECT / EDITABLE / READ-ONLY
-            //------------------------------------
+            //------------------------------------ NO SELECT / EDITABLE / READ-ONLY
             // Exit if it is a ReadOnly Table
             if (this.ReadOnly)
                 return;
-            // Indicate which row is getting modified
-            $(this.jQSelector + ' .datarow .controllcoulm').html('<i class="fa fa-pencil"></i>'); // for all
-            $(this.jQSelector + ' .row-' + id + ' .controllcoulm').html('<i class="fa fa-pencil text-primary"></i>');
             // Set Form
             if (this.SM) {
                 // EDIT-Modal WITH StateMachine
@@ -1120,30 +1120,32 @@ class Table extends RawTable {
             //-----------------------
             // Foreign Key
             //-----------------------
-            let content = '';
-            const split = (100 * (1 / (Object.keys(cellContent).length - 1))).toFixed(0);
-            content += '<table class="w-100 border-0"><tr class="border-0">';
+            const nrOfCells = Object.keys(cellContent).length;
+            const split = (nrOfCells == 1 ? 100 : (100 * (1 / (nrOfCells - 1))).toFixed(0));
+            let content = '<table class="w-100 border-0"><tr class="border-0">';
             let cnt = 0;
             Object.keys(cellContent).forEach(c => {
-                if (cnt != 0) {
-                    let val = cellContent[c];
-                    if ((typeof val === "object") && (val !== null)) {
-                        if (c === 'state_id') {
-                            if (val['state_id'])
-                                content += '<td class="border-0" style="width: ' + split + '%">' + t.renderStateButton(val['state_id'], val['name'], false) + '</td>';
-                            else
-                                content += '<td class="border-0">&nbsp;</td>';
-                        }
-                        else
-                            content += '<td class="border-0" style="width: ' + split + '%">' + JSON.stringify(val) + '</td>';
-                    }
-                    else {
-                        //console.log('-', val);
-                        if (val)
-                            content += '<td class="border-0" style="width: ' + split + '%">' + escapeHtml(val) + '</td>';
+                if (nrOfCells > 1 && cnt == 0) {
+                    cnt += 1;
+                    return;
+                }
+                let val = cellContent[c];
+                if ((typeof val === "object") && (val !== null)) {
+                    if (c === 'state_id') {
+                        if (val['state_id'])
+                            content += '<td class="border-0" style="width: ' + split + '%">' + t.renderStateButton(val['state_id'], val['name'], false) + '</td>';
                         else
                             content += '<td class="border-0">&nbsp;</td>';
                     }
+                    else
+                        content += '<td class="border-0" style="width: ' + split + '%">' + JSON.stringify(val) + '</td>';
+                }
+                else {
+                    //console.log('-', val);
+                    if (val)
+                        content += '<td class="border-0" style="width: ' + split + '%">' + escapeHtml(val) + '</td>';
+                    else
+                        content += '<td class="border-0">&nbsp;</td>';
                 }
                 cnt += 1;
             });
@@ -1197,7 +1199,9 @@ class Table extends RawTable {
         }
         else if (t.Columns[col].field_type == 'tinyint') {
             //--- BOOLEAN
-            return parseInt(value) !== 0 ? '<i class="fa fa-check text-center"></i>&nbsp;' : '';
+            return (parseInt(value) !== 0 ?
+                '<i class="fa fa-check text-success text-center"></i>&nbsp;' :
+                '<i class="fa fa-times text-danger text-center"></i>&nbsp;');
         }
         else if (col == 'state_id' && t.tablename != 'state') {
             //--- STATE
@@ -1218,12 +1222,10 @@ class Table extends RawTable {
             }
             return t.renderStateButton(stateID, text);
         }
-        else {
-            //--- OTHER
-            let isHTML = t.Columns[col].is_virtual;
-            value = t.formatCell(value, isHTML);
-            return value;
-        }
+        //--- OTHER
+        let isHTML = t.Columns[col].is_virtual;
+        value = t.formatCell(value, isHTML);
+        return value;
     }
     htmlHeaders(colnames) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -1285,6 +1287,7 @@ class Table extends RawTable {
     }
     getHeader() {
         let t = this;
+        // TODO: 
         // Pre-Selected Row
         if (t.selectedIDs.length > 0) {
             if (t.selectedIDs[0] != null) {
@@ -1299,7 +1302,7 @@ class Table extends RawTable {
             t.FilterText = t.Filter;
         }
         const hasEntries = t.Rows && (t.Rows.length > 0);
-        return `<form class="header form-inline">
+        return `<form class="tbl_header form-inline">
     <div class="form-group m-0 p-0">
       <input type="text" ${(!hasEntries ? 'readonly disabled ' : '')}class="form-control${(!hasEntries ? '-plaintext' : '')} mr-1 filterText"
         ${(t.FilterText != '' ? ' value="' + t.FilterText + '"' : '')}
@@ -1318,15 +1321,17 @@ class Table extends RawTable {
       </button>` : '') +
             (t.selType == SelectType.Single ?
                 `<!-- Reset & Expand -->
-      <button class="btn btn-secondary resetSelection mr-1" type="button"><i class="fa fa-times"></i></button>
-      <button class="btn btn-secondary btnExpandTable text-muted bg-light" type="button"><i class="fa fa-angle-down"></i></button>`
+      <button class="btn btn-secondary resetSelection mr-1" type="button" title="Reset" ><i class="fa fa-times"></i></button>
+      <button class="btn btn-secondary btnExpandTable text-muted bg-light" title="Expand or Collapse Table" type="button">
+        ${t.isExpanded ? '<i class="fa fa-angle-up"></i>' : '<i class="fa fa-angle-down"></i>'}
+      </button>`
                 : '')}
     </div></form>`;
     }
     renderHeader() {
         let t = this;
         const output = t.getHeader();
-        $('.' + t.GUID).parent().find('header').replaceWith(output);
+        $('.' + t.GUID).parent().find('.tbl_header').replaceWith(output);
         //---------------------- Link jquery
         // Edit Row
         function filterEvent(t) {
@@ -1375,7 +1380,9 @@ class Table extends RawTable {
         $('.' + t.GUID).parent().find('.btnExpandTable').off('click').on('click', function (e) {
             e.preventDefault();
             t.isExpanded = !t.isExpanded;
-            $('.' + t.GUID).collapse('toggle');
+            t.renderContent();
+            t.renderHeader();
+            t.renderFooter();
         });
     }
     getContent() {
@@ -1422,7 +1429,7 @@ class Table extends RawTable {
                 // Add row to table
                 if (t.GUIOptions.showControlColumn) {
                     // Edit via first column
-                    tds += `<tr class="datarow row-${row[t.PrimaryColumn] + (isSelected ? ' table-success' : '')}">${data_string}</tr>`;
+                    tds += `<tr class="datarow row-${row[t.PrimaryColumn] + (isSelected ? ' table-info' : '')}">${data_string}</tr>`;
                 }
                 else {
                     if (t.ReadOnly) {
@@ -1435,7 +1442,7 @@ class Table extends RawTable {
                     }
                 }
             });
-            return `<div class="content ${t.GUID} mt-1 p-0${((t.selType == SelectType.Single && !t.isExpanded) ? ' collapse' : '')}">
+            return `<div class="tbl_content ${t.GUID} mt-1 p-0${((t.selType == SelectType.Single && !t.isExpanded) ? ' collapse' : '')}">
       ${(t.Rows && t.Rows.length > 0) ?
                 `<div class="tablewrapper border">
         <table class="table table-striped table-hover m-0 table-sm datatbl">
@@ -1520,6 +1527,9 @@ class Table extends RawTable {
                 }
             });
         }
+        if (t.selType == SelectType.Single && !t.isExpanded)
+            return `<div class="tbl_footer"></div>`;
+        // Normal
         return `<div class="tbl_footer">
       <div class="text-muted p-0 px-2">
         <p class="float-left m-0 mb-1"><small>${t.getHTMLStatusText()}</small></p>
@@ -1531,12 +1541,7 @@ class Table extends RawTable {
     renderFooter() {
         let t = this;
         const output = t.getFooter();
-        if (output) {
-            $('.' + t.GUID).parent().find('.tbl_footer').replaceWith(output);
-        }
-        else {
-            $('.' + t.GUID).parent().find('.tbl_footer').text('');
-        }
+        $('.' + t.GUID).parent().find('.tbl_footer').replaceWith(output);
         //---------------------- Link jquery
         // Pagination Button
         $(t.jQSelector + ' a.page-link').off('click').on('click', function (e) {
@@ -1544,7 +1549,7 @@ class Table extends RawTable {
             let newPageIndex = $(this).data('pageindex');
             t.setPageIndex(newPageIndex);
         });
-        return t.getFooter(); // TODO: Remove
+        //return t.getFooter(); // TODO: Remove
     }
     renderHTML() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -1607,11 +1612,11 @@ $(document).on('hidden.bs.modal', '.modal', function () {
 });
 // Show the actual Tab in the URL and also open Tab by URL
 $(function () {
-    var hash = window.location.hash;
+    let hash = window.location.hash;
     hash && $('ul.nav a[href="' + hash + '"]').tab('show');
     $('.nav-tabs a').click(function (e) {
         $(this).tab('show');
-        var scrollmem = $('body').scrollTop() || $('html').scrollTop();
+        const scrollmem = $('body').scrollTop() || $('html').scrollTop();
         window.location.hash = this.hash;
         $('html,body').scrollTop(scrollmem);
     });

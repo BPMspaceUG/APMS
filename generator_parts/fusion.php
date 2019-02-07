@@ -379,11 +379,11 @@ END";
   // Insert Tabs in HTML (Remove last \n)
   $content_tabs = substr($content_tabs, 0, -1);
   $content_tabpanels = substr($content_tabpanels, 0, -1);
-  $output_content = str_replace('###TABS###', $content_tabs, $output_content);
-  $output_content = str_replace('###TAB_PANELS###', $content_tabpanels, $output_content);
+  $output_content = str_replace('<!--###TABS###-->', $content_tabs, $output_content);
+  $output_content = str_replace('<!--###TAB_PANELS###-->', $content_tabpanels, $output_content);
   $output_content = str_replace('replaceDBName', $db_name, $output_content);
   // Write the init functions for the JS-Table Objects
-  $output_footer = str_replace('###JS_TABLE_OBJECTS###', $content_jsObjects, $output_footer);
+  $output_footer = str_replace('/*###JS_TABLE_OBJECTS###*/', $content_jsObjects, $output_footer);
   // CSS
   $output_css = str_replace('/*###CSS_STATES###*/', $content_css_statecolors, $output_css);
 
