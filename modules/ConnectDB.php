@@ -61,6 +61,27 @@
     return $res;
   }
 
+  function getFieldType($datatype) {
+    $datatype = strtolower($datatype);
+    // Numbers
+    if ($datatype == 'bigint') return 'number';
+    elseif ($datatype == 'int') return 'number';
+    elseif ($datatype == 'float') return 'text'; // TODO
+    // Boolean
+    elseif ($datatype == 'tinyint') return 'tinyint';
+    // Date & Time
+    elseif ($datatype == 'time') return 'time';
+    elseif ($datatype == 'date') return 'date';
+    elseif ($datatype == 'datetime') return 'datetime';
+    elseif ($datatype == 'timestamp') return 'datetime';
+    // Textfields
+    elseif ($datatype == 'varchar') return 'text';
+    elseif ($datatype == 'mediumtext') return 'textarea';
+    elseif ($datatype == 'longtext') return 'textarea';
+    // Default
+    else return 'text';
+  }
+
   // Extracting tables
   function getTables($con, $db) {
     $query = "SHOW TABLES IN $db";
@@ -87,6 +108,7 @@
           // Column information
           $column_info = $row2;
           $column_name = $row2["COLUMN_NAME"];
+          $col_datatype = $row2["DATA_TYPE"];
           // Additional information
 
           //------------------------------------------------------
@@ -120,8 +142,9 @@
           $additional_info = array(
             "column_alias" => ucfirst($column_name),
             "is_in_menu" => true,
+            "show_in_grid" => true,
             "rel_caption" => '',
-            "field_type" => '',
+            "field_type" => getFieldType($col_datatype),
             "foreignKey" => $fk,
             "col_order" => (int)$column_counter,
             "is_virtual" => false,

@@ -1,4 +1,5 @@
 <?php
+    /*
     include_once('../../DB_config/login_credentials_DB_bpmspace_ipms.inc.php');
 
     //prepareLocalDbAndTables();
@@ -89,10 +90,6 @@
         }
 
     }
-    /**
-     * creates local database and table(s) for the first time
-     * @return void
-     * */
     function prepareLocalDbAndTables()
     {
         $con = new mysqli(DB_HOST, DB_USER, DB_PSWD);
@@ -113,4 +110,5 @@
         mysqli_query($con, $createTableQuery);
         $con->close();
     }
+    */
 ?>

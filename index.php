@@ -142,7 +142,7 @@
                     <th width="25%">ALIAS</th>
                     <th width="5%"><a href="" ng-click="tbl_toggle_sel_all()">IN MENU</a></th>
                     <th width="5%">STATE-ENGINE</th>
-                    <th width="5%">RO (View)</th>
+                    <th width="5%">RO</th>
                     <th width="30%">ICON</th>
                   </tr>
                 </thead>
@@ -230,7 +230,7 @@
                     <td>
                       <select
                         class="custom-select custom-select-sm"
-                        ng-if="(col.EXTRA != 'auto_increment' && col.COLUMN_NAME != 'state_id')"
+                        ng-if="(col.EXTRA != 'auto_increment' && col.COLUMN_NAME != 'state_id' && col.foreignKey.table == '')"
                         ng-model="col.field_type"
                       >
                         <option value="text">Text</option>
@@ -253,9 +253,8 @@
 
                     <!-- Visibility -->
                     <td ng-if="!col.is_virtual">
-                      <label class="m-0"><input type="checkbox" class="mr-2" ng-model="col.is_in_menu">G+F</label>
-                      <!--<br>
-                      <label class="m-0"><input type="checkbox" class="mr-2" ng-model="col.is_in_menu">F</label>-->
+                      <label class="m-0"><input type="checkbox" class="mr-1" ng-model="col.is_in_menu">Frm</label>
+                      <label class="m-0"><input type="checkbox" class="mr-1" ng-model="col.show_in_grid">Grid</label>
                     </td>
 
                     <!-- Show FK Menu if it is no Primary column -->

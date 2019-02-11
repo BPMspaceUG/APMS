@@ -147,22 +147,27 @@ class Modal {
 // Class: StateMachine
 //==============================================================
 class StateMachine {
-  private tablename: string
+  private myTable: Table;
 
-  constructor(tablename: string){
-    this.tablename = tablename
+  constructor(table: Table){
+    this.myTable = table
   }
   public openSEPopup() {
-    let smLinks, smNodes
+    let smLinks, smNodes;
     let me = this;
+    const tablename = me.myTable.getTablename();
   
-    DB.request('getStates', {table: me.tablename}, function(r) {
+    DB.request('getStates', {table: tablename}, function(r) {
       smNodes = JSON.parse(r)
-      DB.request('smGetLinks', {table: me.tablename}, function(r) {
-        smLinks = JSON.parse(r)
-
+      DB.request('smGetLinks', {table: tablename}, function(r) {
+        smLinks = JSON.parse(r);
         // Finally, when everything was loaded, show Modal
-        let M = new Modal('StateMachine', '<div class="statediagram" style="width: 100%; height: 300px;"></div>', '<button class="btn btn-secondary fitsm"><i class="fa fa-expand"></i> Fit</button>', true)
+        let M = new Modal(
+          '<i class="fa fa-random"></i> Workflow <span class="text-muted ml-3">of '+ me.myTable.getTableIcon() +' '+ me.myTable.getTableAlias() +'</span>',
+          '<div class="statediagram" style="width: 100%; height: 300px;"></div>',
+          '<button class="btn btn-secondary fitsm"><i class="fa fa-expand"></i> Fit</button>',
+          true
+        )
         let container =  document.getElementsByClassName('statediagram')[0]
         const idOffset = 10000;
 
@@ -187,21 +192,24 @@ class StateMachine {
 
           const isExitNode = me.isExitNode(nodes[i].id, smLinks);
           const cssClass = 'state' + (nodes[i].id - idOffset);
-          const _color = $('<div class="'+cssClass+'"></div>').appendTo('html').css("background-color");
-          console.log(_color);
+          const _color = $('<div class="'+cssClass+' delete-this-div"></div>').appendTo('html').css("background-color");
+          $('.delete-this-div').remove(); // Delete the divs
 
+          
           if (isExitNode) {
             // Exit Node
             nodes[i]['color'] = _color;
             nodes[i]['shape'] = 'dot';
             nodes[i]['size'] = 10;
             nodes[i]['font'] = { multi: 'html', color: 'black'};
+            nodes[i]['title'] = 'StateID: ' + (nodes[i].id - idOffset);
           }
           // every node, except 0 node
           if (nodes[i].id >= idOffset && !isExitNode) {
             // Get color
             nodes[i]['font'] = { multi: 'html', color: 'white'};
             nodes[i]['color'] = _color;
+            nodes[i]['title'] = 'StateID: ' + (nodes[i].id - idOffset);
           }
         }
       
@@ -278,12 +286,12 @@ class StateMachine {
         M.show()
         let ID = M.getDOMID();
         $('#' + ID).on('shown.bs.modal', function (e) {
-          network.fit({scale: 1, offset: {x:0,y:0}, animation: {duration: 500, easingFunction: 'easeInOutQuad'}});
+          network.fit({scale: 1, offset: {x:0, y:0}});
         })
 
         $('.fitsm').click(function(e){
           e.preventDefault();
-          network.fit({scale: 1, offset: {x:0,y:0}, animation: {duration: 1000, easingFunction: 'easeInOutQuad'}})
+          network.fit({scale: 1, offset: {x:0, y:0}})
         })
 
 
@@ -309,14 +317,12 @@ class RawTable {
   protected Filter: string;
   protected OrderBy: string;
   protected AscDesc: SortOrder = SortOrder.DESC;
-  protected Select: string;
   protected PageLimit: number;
   protected PageIndex: number = 0;
   protected Where: string = '';
   protected Rows: any;
   protected actRowCount: number; // Count total
   protected TableType: TableType = TableType.obj;
-  //protected selRowIDs: number[] = [];
 
   constructor (tablename: string) {
     this.tablename = tablename;
@@ -389,12 +395,12 @@ class RawTable {
       table: this.tablename,
       limitStart: this.PageIndex * this.PageLimit,
       limitSize: this.PageLimit,
-      select: this.Select,
-      where: this.Where,
-      filter: this.Filter,
       orderby: this.OrderBy,
       ascdesc: this.AscDesc
     }
+    // Append extra
+    if (this.Filter) data['filter'] = this.Filter;
+    if (this.Where) data['where'] = this.Where;
     // HTTP Request
     DB.request('read', data, function(r){
       let response = JSON.parse(r);
@@ -404,6 +410,9 @@ class RawTable {
   }
   public getNrOfRows(): number {
     return this.actRowCount
+  }
+  public getTablename(): string {
+    return this.tablename;
   }
 }
 //==============================================================
@@ -417,7 +426,7 @@ class Table extends RawTable {
   private GUID: string;
   private SM: StateMachine;
   private ReadOnly: boolean;
-  private isExpanded: boolean = false;
+  private isExpanded: boolean = true;
   private selType: SelectType;
   private selectedIDs: number[];
   private Form_Create: string = '';
@@ -431,11 +440,9 @@ class Table extends RawTable {
     modalHeaderTextCreate: 'Create Entry',
     modalHeaderTextModify: 'Modify Entry',
     modalButtonTextCreate: 'Create',
-    modalButtonTextCreateRelation: 'Create Relationship',
     modalButtonTextModifySave: 'Save',
     modalButtonTextModifySaveAndClose: 'Save &amp; Close',
     modalButtonTextModifyClose: 'Close',
-    modalButtonTextSelect: 'Select',
     filterPlaceholderText: 'Search...',
     statusBarTextNoEntries: 'No Entries',
     statusBarTextEntries: 'Showing Entries {lim_from} - {lim_to} of {count} Entries'
@@ -472,7 +479,7 @@ class Table extends RawTable {
         me.TableConfig = resp['config'];
         // Initialize StateMachine for the Table
         if (me.TableConfig['se_active'])
-          me.SM = new StateMachine(tablename);
+          me.SM = new StateMachine(me);
         else
           me.SM = null;
         me.Columns = me.TableConfig.columns;
@@ -486,7 +493,7 @@ class Table extends RawTable {
         // Loop all cloumns form this table
         Object.keys(me.Columns).forEach(function(col){
           // Get Primary and SortColumn
-          if (me.Columns[col].is_in_menu && me.OrderBy == '') {
+          if (me.Columns[col].show_in_grid && me.OrderBy == '') {
             // DEFAULT: Sort by first visible Col
             if (me.Columns[col].foreignKey['table'] != '')
               me.OrderBy = 'a.'+col;
@@ -499,6 +506,12 @@ class Table extends RawTable {
         callback();
       }
     })
+  }
+  public getTableIcon(): string {
+    return `<i class="${this.TableConfig.table_icon}"></i>`;
+  }
+  public getTableAlias(): string {
+    return this.TableConfig.table_alias;
   }
   private toggleSort(ColumnName: string): void {
     let me = this;
@@ -639,12 +652,21 @@ class Table extends RawTable {
         if ((typeof value === "object") && (value !== null)) {
           //--- ForeignKey
           // -> Hidden input!!
-          const primCol = Object.keys(value)[0];
+          const keys = Object.keys(value);
+          let vals = keys.map(key => {
+            return value[key];
+          })
+          let str = vals.join(' - ');
+          const primCol = keys[0];
           const val = value[primCol];
-          e.val(val);
-          console.log(me.tablename, data, col, value)
+          if (e.attr("type") == "hidden") {
+            e.val(val); // Normal value
+            e.parent().find('.filterText').val(str); // FK Formatted Value
+          }
           if (value[1] == 'Already selected') {
             // Change 
+            e.parent().find('.filterText').addClass("text-muted");
+            e.parent().find('.btnLinkFK').prop("disabled", true);
           }
         }
         else {
@@ -836,7 +858,7 @@ class Table extends RawTable {
       $('#'+MID+' .modal-body .alert').remove();
       // Read out all input fields with {key:value}
       data = t.readDataFromForm('#'+MID);
-      $('#'+MID+' .modal-title').prepend(`<span class="loadingtext"><div class="spinner-border" role="status"></div></span>`);
+      $('#'+MID+' .modal-title').prepend(`<span class="loadingtext"><i class="fa fa-spinner fa-pulse"></i></span>`);
       $('#'+MID+' :input').prop("disabled", true);
     }
 
@@ -921,10 +943,7 @@ class Table extends RawTable {
   public createEntry(): void {
     let me = this
 
-    const TableIcon = '<i class="'+this.TableConfig.table_icon+'"></i>';
-    const TableAlias = this.TableConfig.table_alias;
-    const ModalTitle = this.GUIOptions.modalHeaderTextCreate + '<span class="text-muted ml-3">in '+TableIcon + ' ' + TableAlias+'</span>';
-
+    const ModalTitle = this.GUIOptions.modalHeaderTextCreate + '<span class="text-muted ml-3">in ' + this.getTableIcon() + ' ' + this.getTableAlias()+'</span>';
     const CreateBtns = `<div class="ml-auto mr-0">
   <button class="btn btn-success btnCreateEntry andReopen" type="button">
     <i class="fa fa-plus"></i>&nbsp;${this.GUIOptions.modalButtonTextCreate}
@@ -1074,8 +1093,8 @@ class Table extends RawTable {
         let M: Modal = undefined;
         let ModalID = undefined;
         if (!ExistingModalID) {
-          let TableAlias = 'in <i class="'+this.TableConfig.table_icon+'"></i> ' + this.TableConfig.table_alias;
-          let TitleText = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+id+')</span><span class="text-muted ml-3">'+TableAlias+'</span>';        
+          const tblTxt = 'in '+ this.getTableIcon() +' ' + this.getTableAlias();
+          let TitleText = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+id+')</span><span class="text-muted ml-3">'+tblTxt+'</span>';        
           M = new Modal(TitleText, this.Form_Modify, '', true);
           M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
           ModalID = M.getDOMID();
@@ -1286,7 +1305,7 @@ class Table extends RawTable {
 
     // Loop Columns
     for (const colname of colnames) {
-      if (t.Columns[colname].is_in_menu) {
+      if (t.Columns[colname].show_in_grid) {
         //--- Alias (+Sorting)
         const ordercol = t.OrderBy.replace('a.', '');
         th += '<th scope="col" data-colname="'+colname+'" class="border-0 p-0 align-middle datatbl_header'+(colname == ordercol ? ' sorted' : '')+'">'+
@@ -1361,12 +1380,11 @@ class Table extends RawTable {
         ${ (t.FilterText != '' ? ' value="'+t.FilterText+'"' : '') }
         placeholder="${ (!hasEntries ? 'No Entries' : t.GUIOptions.filterPlaceholderText) }">
     </div>
-    <div class="form-group m-0 p-0">
     ${
     (t.ReadOnly ? '' : 
       `<!-- Create Button -->
       <button class="btn btn-success btnCreateEntry mr-1">
-        ${ t.TableType != TableType.obj ? '<i class="fa fa-link"></i> Add Relation' : `<i class="fa fa-plus"></i> ${t.GUIOptions.modalButtonTextCreate} ${t.TableConfig.table_alias}`}
+        ${ t.TableType != TableType.obj ? '<i class="fa fa-link"></i> Add Relation' : `<i class="fa fa-plus"></i> ${t.GUIOptions.modalButtonTextCreate} ${t.getTableAlias()}`}
       </button>`) +
     ( (t.SM && t.GUIOptions.showWorkflowButton) ? 
       `<!-- Workflow Button -->
@@ -1375,13 +1393,12 @@ class Table extends RawTable {
       </button>` : '') +
     (t.selType == SelectType.Single ? 
       `<!-- Reset & Expand -->
-      <button class="btn btn-secondary resetSelection mr-1" type="button" title="Reset" ><i class="fa fa-times"></i></button>
-      <button class="btn btn-secondary btnExpandTable text-muted bg-light" title="Expand or Collapse Table" type="button">
-        ${ t.isExpanded ? '<i class="fa fa-angle-up"></i>' : '<i class="fa fa-angle-down"></i>' }
+      <button class="btn btn-secondary btnExpandTable ml-auto mr-0" title="Expand or Collapse Table" type="button">
+        ${ t.isExpanded ? '<i class="fa fa-chevron-up"></i>' : '<i class="fa fa-chevron-down"></i>' }
       </button>`
       : '')
     }
-    </div></form>`;
+    </form>`;
   }
   private renderHeader(): void {
     let t = this;
@@ -1394,8 +1411,8 @@ class Table extends RawTable {
       t.Filter = $(t.jQSelector + ' .filterText').val();
       t.loadRows(async function(){
         if (t.Rows.length == t.PageLimit) {
-          t.countRows(await function(){
-            t.renderFooter();
+          t.countRows(async function(){
+            await t.renderFooter();
           });
         } else {
           t.actRowCount = t.Rows.length;
@@ -1417,10 +1434,11 @@ class Table extends RawTable {
       t.SM.openSEPopup();
     })
     // Reset Selection Button clicked
+    /*
     $(t.jQSelector+' .resetSelection').off('click').on('click', function(e){
       e.preventDefault();
       t.modifyRow(null);
-    })
+    })*/
     // Create Button clicked
     $(t.jQSelector+' .btnCreateEntry').off('click').on('click', function(e){
       e.preventDefault();
@@ -1474,7 +1492,7 @@ class Table extends RawTable {
       // Generate HTML for Table-Data Cells sorted
       sortedColumnNames.forEach(function(col) {
         // Check if it is displayed
-        if (t.Columns[col].is_in_menu) 
+        if (t.Columns[col].show_in_grid) 
           data_string += '<td class="align-middle p-0 border-0">' + t.renderCell(row, col) + '</td>';
       })
 
@@ -1560,7 +1578,7 @@ class Table extends RawTable {
   }
   private getFooter() {
     let t = this;
-    if (!t.Rows || t.Rows.length <= 0) return '';
+    if (!t.Rows || t.Rows.length <= 0) return '<div class="tbl_footer"></div>';
     // Pagination
     let pgntn = '';
     let PaginationButtons = t.getPaginationButtons();
@@ -1668,3 +1686,25 @@ $(function(){
     $('html,body').scrollTop(scrollmem);
   });
 });
+
+
+function test(x): void {
+  let me = $(x);
+  const FKTable = me.data('tablename');
+  const randID = GUI.ID();
+  let fkInput = me.parent().parent().parent().find('.inputFK');
+  fkInput.val(''); // Reset Selection
+
+  me.parent().parent().parent().find('.external-table').replaceWith('<div class="'+randID+'"></div>');
+
+  let tmpTable = new Table(FKTable, '.'+randID, 1, function(){
+    tmpTable.loadRows(async function(){
+      await tmpTable.renderHTML();
+      $('.' + randID).find('.filterText').focus();
+    });
+  });
+  tmpTable.SelectionHasChanged.on(function(){
+    const selRow = tmpTable.getSelectedRows()[0];
+    if (selRow) fkInput.val(selRow); else fkInput.val("");
+  })
+}

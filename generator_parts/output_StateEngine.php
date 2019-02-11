@@ -253,42 +253,20 @@
 
 
     private function getFormElement($isVisible, $key, $alias, $default, $data_type, $FKTable, $substCol) {
-      // Special case if $key == 'state_id'      
-      /*if ($key == 'state_id') {
-        return $this->getTempl($isVisible, $alias, '<div class="input-group">
-          <input type="hidden" name="'.$key.'" value="'.$default.'"/>
-          <span class="input-group-text label-state"></span>
-        </div>');
-      }
-      //----------------------------------
-      else*/
       if ($FKTable != '') {
         // FOREIGN KEY
-        return $this->getTempl($isVisible, $alias, '<input type="text" class="form-control-plaintext" name="'.$key.'" readonly>'
-        /*
-  '<div class="tbl_fk_'.$FKTable.'_'.$key.'"></div>
-  <input type="hidden" name="'.$key.'" value="'.$default.'" class="inputFK"/>
-  <script>
-    // Wait for element to exist.
-    function elLoaded(el, cb) {if ($(el).length) {cb($(el));} else {setTimeout(function(){ elLoaded(el, cb) }, 100);}};
-
-    (function(){
-      let x = new Table("'.$FKTable.'", ".tbl_fk_'.$FKTable.'_'.$key.'", 1, function(){
-        x.loadRows(function(){
-          const selRow = $("input[name='.$key.']").val();
-          x.setSelectedRows([selRow]);
-          x.renderHTML();
-        });
-      });
-      x.SelectionHasChanged.on(function(){
-        const selRow = x.getSelectedRows()[0];
-        if (selRow)
-          $("input[name='.$key.']").val(selRow);
-        else
-        $("input[name='.$key.']").val("");
-      })
-    })();
-  </script>'*/);
+        $content = '<div>
+          <input type="hidden" name="'.$key.'" value="'.$default.'" class="inputFK"/>
+          <div class="external-table">
+            <div class="input-group">
+              <input type="text" class="form-control-plaintext mr-1 filterText" placeholder="Nothing selected" disabled>
+              <button class="btn btn-primary btnLinkFK" onclick="test(this)" data-tablename="'.$FKTable.'" title="Link Element" type="button">
+                <i class="fa fa-chain-broken"></i>
+              </button>
+            </div>
+          </div>
+        </div>';
+        return $this->getTempl($isVisible, $alias, $content);
       }
       else if (strtolower($data_type) == 'number') {
         // Number
@@ -413,7 +391,7 @@
       elLoaded(\'input[name='.$this_primary.']\', function(el) {
         let PrimID = $(\'input[name='.$this_primary.']\').val();
         let x = new Table(\''.$nm_table.'\', \'.extern_table'.$unique_table_name.'\', 0, function(){
-          x.Columns[\''.$foreignPrimaryColname.'\'].is_in_menu = false;
+          x.Columns[\''.$foreignPrimaryColname.'\'].show_in_grid = false;
           x.loadRows(function(){
             x.renderHTML();
           })
