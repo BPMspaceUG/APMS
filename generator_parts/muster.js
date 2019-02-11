@@ -417,6 +417,7 @@ class Table extends RawTable {
         let me = this;
         this.jQSelector = DOMSelector; // TODO: Remove
         this.GUID = GUI.ID();
+        // Check this values
         this.defaultValues = defaultObj;
         this.selType = SelType;
         this.Where = whereFilter;
@@ -600,7 +601,7 @@ class Table extends RawTable {
         });
         return data;
     }
-    writeDataToForm(MID, data) {
+    writeDataToForm(MID, data, blockValues = false) {
         let me = this;
         let inputs = $(MID + ' :input');
         inputs.each(function () {
@@ -611,11 +612,14 @@ class Table extends RawTable {
             if (value) {
                 if ((typeof value === "object") && (value !== null)) {
                     //--- ForeignKey
-                    // -> Save in hidden input
-                    //console.log('wD2F', value)
+                    // -> Hidden input!!
                     const primCol = Object.keys(value)[0];
                     const val = value[primCol];
                     e.val(val);
+                    console.log(me.tablename, data, col, value);
+                    if (value[1] == 'Already selected') {
+                        // Change 
+                    }
                 }
                 else {
                     //--- Normal
@@ -901,7 +905,7 @@ class Table extends RawTable {
         M.options.btnTextClose = me.GUIOptions.modalButtonTextModifyClose;
         const ModalID = M.getDOMID();
         this.updateLabels(ModalID); // Update all Labels
-        this.writeDataToForm('#' + ModalID, me.defaultValues); // Update Default values
+        this.writeDataToForm('#' + ModalID, me.defaultValues, true); // Update Default values
         // Save origin Table in all FKeys
         $('#' + ModalID + ' .inputFK').data('origintable', me.tablename);
         // Bind Buttonclick
@@ -994,6 +998,7 @@ class Table extends RawTable {
             this.selectedIDs = [];
             this.selectedIDs.push(id);
             this.isExpanded = false;
+            // Render HTML
             this.renderContent();
             this.renderHeader();
             this.renderFooter();
@@ -1312,7 +1317,7 @@ class Table extends RawTable {
     ${(t.ReadOnly ? '' :
             `<!-- Create Button -->
       <button class="btn btn-success btnCreateEntry mr-1">
-        <i class="fa fa-plus"></i>${(t.TableType != TableType.obj ? '' : '&nbsp;' + t.GUIOptions.modalButtonTextCreate + ' ' + t.TableConfig.table_alias)}
+        ${t.TableType != TableType.obj ? '<i class="fa fa-link"></i> Add Relation' : `<i class="fa fa-plus"></i> ${t.GUIOptions.modalButtonTextCreate} ${t.TableConfig.table_alias}`}
       </button>`) +
             ((t.SM && t.GUIOptions.showWorkflowButton) ?
                 `<!-- Workflow Button -->
@@ -1549,7 +1554,6 @@ class Table extends RawTable {
             let newPageIndex = $(this).data('pageindex');
             t.setPageIndex(newPageIndex);
         });
-        //return t.getFooter(); // TODO: Remove
     }
     renderHTML() {
         return __awaiter(this, void 0, void 0, function* () {

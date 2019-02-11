@@ -243,84 +243,91 @@
     }
 
     // [START]   FORM - Elements
-    private function getFormElementStd($isVisible, $label, $content, $fk = '') {
+    private function getTempl($isVisible, $label, $content, $fk = '') {
       return "<div class=\"form-group row".($isVisible ? '' : ' collapse')."\">$fk\n\t".
         "<label class=\"col-sm-3 col-form-label\">".$label."</label>\n\t".
         "<div class=\"col-sm-9\">\n\t\t".$content."\n\t".
         "</div>\n</div>\n";
     }
+
+
+
     private function getFormElement($isVisible, $key, $alias, $default, $data_type, $FKTable, $substCol) {
-      
       // Special case if $key == 'state_id'      
-      if ($key == 'state_id') {
-        return $this->getFormElementStd($isVisible, $alias, '<div class="input-group">
+      /*if ($key == 'state_id') {
+        return $this->getTempl($isVisible, $alias, '<div class="input-group">
           <input type="hidden" name="'.$key.'" value="'.$default.'"/>
           <span class="input-group-text label-state"></span>
         </div>');
       }
       //----------------------------------
-      else if ($FKTable != '') {
+      else*/
+      if ($FKTable != '') {
         // FOREIGN KEY
-        return $this->getFormElementStd($isVisible, $alias,
-'<div class="tbl_fk_'.$FKTable.'_'.$key.'"></div>
-<input type="hidden" name="'.$key.'" value="'.$default.'" class="inputFK"/>
-<script>
-  // Wait for element to exist.
-  function elLoaded(el, cb) {if ($(el).length) {cb($(el));} else {setTimeout(function(){ elLoaded(el, cb) }, 100);}};
+        return $this->getTempl($isVisible, $alias, '<input type="text" class="form-control-plaintext" name="'.$key.'" readonly>'
+        /*
+  '<div class="tbl_fk_'.$FKTable.'_'.$key.'"></div>
+  <input type="hidden" name="'.$key.'" value="'.$default.'" class="inputFK"/>
+  <script>
+    // Wait for element to exist.
+    function elLoaded(el, cb) {if ($(el).length) {cb($(el));} else {setTimeout(function(){ elLoaded(el, cb) }, 100);}};
 
-  (function(){
-    let x = new Table("'.$FKTable.'", ".tbl_fk_'.$FKTable.'_'.$key.'", 1, function(){
-      x.loadRows(function(){
-        const selRow = $("input[name='.$key.']").val();
-        x.setSelectedRows([selRow]);
-        x.renderHTML();
+    (function(){
+      let x = new Table("'.$FKTable.'", ".tbl_fk_'.$FKTable.'_'.$key.'", 1, function(){
+        x.loadRows(function(){
+          const selRow = $("input[name='.$key.']").val();
+          x.setSelectedRows([selRow]);
+          x.renderHTML();
+        });
       });
-    });
-    x.SelectionHasChanged.on(function(){
-      const selRow = x.getSelectedRows()[0];
-      if (selRow)
-        $("input[name='.$key.']").val(selRow);
-      else
-      $("input[name='.$key.']").val("");
-    })
-  })();
-</script>');
+      x.SelectionHasChanged.on(function(){
+        const selRow = x.getSelectedRows()[0];
+        if (selRow)
+          $("input[name='.$key.']").val(selRow);
+        else
+        $("input[name='.$key.']").val("");
+      })
+    })();
+  </script>'*/);
       }
       else if (strtolower($data_type) == 'number') {
         // Number
-        return $this->getFormElementStd($isVisible, $alias, '<input type="number" class="form-control" name="'.$key.'">');
+        return $this->getTempl($isVisible, $alias, '<input type="number" class="form-control" name="'.$key.'">');
       }
       else if (strtolower($data_type) == 'tinyint') {
         // Boolean
-        return $this->getFormElementStd($isVisible, $alias, '<div class="custom-control custom-checkbox mt-1">'.
-          '<input type="checkbox" class="custom-control-input" id="customCheck1" name="'.$key.'"><label class="custom-control-label" for="customCheck1">&nbsp;</label></div>');
+        return $this->getTempl($isVisible, $alias, '<div class="custom-control custom-checkbox mt-1">'.
+          '<input type="checkbox" class="custom-control-input" id="customCheck1" name="'.$key.'">'.
+          '<label class="custom-control-label" for="customCheck1">&nbsp;</label></div>');
       }
       else if (strtolower($data_type) == 'textarea') {
         // TextEditor (Code)
-        return $this->getFormElementStd($isVisible, $alias, '<textarea rows="4" class="form-control editor" name="'.$key.'">'.$default.'</textarea>');
+        return $this->getTempl($isVisible, $alias, '<textarea rows="4" class="form-control editor" name="'.$key.'">'.$default.'</textarea>');
       }
       else if (strtolower($data_type) == 'time') {
         // TIME
-        return $this->getFormElementStd($isVisible, $alias, '<input type="time" class="form-control" name="'.$key.'">');
+        return $this->getTempl($isVisible, $alias, '<input type="time" class="form-control" name="'.$key.'">');
       }
       else if (strtolower($data_type) == 'date') {
         // DATE
-        return $this->getFormElementStd($isVisible, $alias, '<input type="date" class="form-control" name="'.$key.'">');
+        return $this->getTempl($isVisible, $alias, '<input type="date" class="form-control" name="'.$key.'">');
       }
       else if (strtolower($data_type) == 'datetime') {        
         // DATETIME
-        return $this->getFormElementStd($isVisible, $alias, "<div class=\"row\">\n".
+        return $this->getTempl($isVisible, $alias, "<div class=\"row\">\n".
         "  <div class=\"col-7\"><input type=\"date\" class=\"form-control\" name=\"".$key."\"></div>\n". // DATE
         "  <div class=\"col-5\"><input type=\"time\" class=\"form-control\" name=\"".$key."\"></div>\n". // TIME
         "</div>");
       }
       else if (strtolower($data_type) == 'table') {
         // TABLE
-        return $this->getFormElementStd($isVisible, $alias, '<div class="extern_table'.$key.'"></div>');
+        return $this->getTempl($isVisible, $alias, '<div class="extern_table'.$key.'"></div>');
       }
-      // Standard = TEXT
-      return $this->getFormElementStd($isVisible, $alias, '<input type="text" class="form-control" name="'.$key.'" value="'.$default.'">');
+      // Standard
+      return $this->getTempl($isVisible, $alias, '<input type="text" class="form-control" name="'.$key.'" value="'.$default.'">');
     }
+
+
     public function getBasicFormDataByColumns($tablename, $config, $colData, $excludeKeys, $withoutReverseFKs = false) {
       $header = "<form>\n";
       $footer = "</form>";

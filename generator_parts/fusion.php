@@ -358,11 +358,11 @@ END";
   $output_AuthHandler = loadFile("./output_AuthHandler.php");
   $output_API = loadFile("./output_API.php");
   $output_LoginPage = loadFile("./output_LoginPage.php");
-  $output_header = loadFile("./output_header.php");
   $output_css = loadFile("./muster.css");
-  $output_content = loadFile("./output_content.php");
-  $output_footer = loadFile("./output_footer.php");
   $output_JS = loadFile("./muster.js");
+  $output_header = loadFile("./output_header.html");
+  $output_content = loadFile("./output_content.html");
+  $output_footer = loadFile("./output_footer.html");
 
   // Replace Names
   $output_DBHandler = str_replace('replaceDBName', $db_name, $output_DBHandler); // For Config-Include

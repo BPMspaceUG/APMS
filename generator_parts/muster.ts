@@ -450,6 +450,7 @@ class Table extends RawTable {
     let me = this;
     this.jQSelector = DOMSelector; // TODO: Remove
     this.GUID = GUI.ID();
+    // Check this values
     this.defaultValues = defaultObj;
     this.selType = SelType;
     this.Where = whereFilter;
@@ -625,23 +626,26 @@ class Table extends RawTable {
     })
     return data
   }
-  private writeDataToForm(MID: string, data: any): void {
+  private writeDataToForm(MID: string, data: any, blockValues: boolean = false): void {
     let me = this
     let inputs = $(MID+' :input')
 
     inputs.each(function(){
       let e = $(this);
-      let col = e.attr('name')
-      let value = data[col]  
+      let col = e.attr('name');
+      let value = data[col];
       // isFK?
       if (value) {
         if ((typeof value === "object") && (value !== null)) {
           //--- ForeignKey
-          // -> Save in hidden input
-          //console.log('wD2F', value)
+          // -> Hidden input!!
           const primCol = Object.keys(value)[0];
           const val = value[primCol];
-          e.val(val)
+          e.val(val);
+          console.log(me.tablename, data, col, value)
+          if (value[1] == 'Already selected') {
+            // Change 
+          }
         }
         else {
           //--- Normal
@@ -724,7 +728,6 @@ class Table extends RawTable {
         let btn = '';
         // Override the state-name if it is a Loop (Save)
         if (actStateID == state.id) {
-
           saveBtn = `<div class="ml-auto mr-0">
 <button class="btn btn-primary btnState btnStateSave mr-1" data-rowid="${RowID}" data-targetstate="${state.id}" data-targetname="${state.name}" type="button">
   <i class="fa fa-floppy-o"></i>&nbsp;${t.GUIOptions.modalButtonTextModifySave}</button>
@@ -771,7 +774,7 @@ class Table extends RawTable {
     // Save origin Table in all FKeys
     $('#'+EditMID+' .inputFK').data('origintable', t.tablename);
     // Load data from row and write to input fields with {key:value}
-    t.writeDataToForm('#'+EditMID, TheRow)
+    t.writeDataToForm('#'+EditMID, TheRow);
     // Add PrimaryID in stored Data
     $('#'+EditMID+' .modal-body').append('<input type="hidden" name="'+t.PrimaryColumn+'" value="'+RowID+'">')
 
@@ -937,7 +940,7 @@ class Table extends RawTable {
     const ModalID = M.getDOMID();
   
     this.updateLabels(ModalID) // Update all Labels
-    this.writeDataToForm('#'+ModalID, me.defaultValues) // Update Default values
+    this.writeDataToForm('#'+ModalID, me.defaultValues, true) // Update Default values
   
     // Save origin Table in all FKeys
     $('#'+ModalID+' .inputFK').data('origintable', me.tablename);
@@ -1037,6 +1040,7 @@ class Table extends RawTable {
       this.selectedIDs = []
       this.selectedIDs.push(id);
       this.isExpanded = false;
+      // Render HTML
       this.renderContent();
       this.renderHeader();
       this.renderFooter();
@@ -1362,7 +1366,7 @@ class Table extends RawTable {
     (t.ReadOnly ? '' : 
       `<!-- Create Button -->
       <button class="btn btn-success btnCreateEntry mr-1">
-        <i class="fa fa-plus"></i>${ (t.TableType != TableType.obj ? '' : '&nbsp;' + t.GUIOptions.modalButtonTextCreate + ' ' + t.TableConfig.table_alias) }
+        ${ t.TableType != TableType.obj ? '<i class="fa fa-link"></i> Add Relation' : `<i class="fa fa-plus"></i> ${t.GUIOptions.modalButtonTextCreate} ${t.TableConfig.table_alias}`}
       </button>`) +
     ( (t.SM && t.GUIOptions.showWorkflowButton) ? 
       `<!-- Workflow Button -->
@@ -1592,12 +1596,9 @@ class Table extends RawTable {
       let newPageIndex = $(this).data('pageindex');
       t.setPageIndex(newPageIndex)
     })
-    //return t.getFooter(); // TODO: Remove
   }
 
-
-
-  public async renderHTML() {
+  public async renderHTML() { // TODO: Remove
     let t = this
     // GUI
     const content = t.getHeader() + await t.getContent() + t.getFooter();
