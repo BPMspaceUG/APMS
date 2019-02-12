@@ -68,7 +68,7 @@
     elseif ($datatype == 'int') return 'number';
     elseif ($datatype == 'float') return 'text'; // TODO
     // Boolean
-    elseif ($datatype == 'tinyint') return 'tinyint';
+    elseif ($datatype == 'tinyint') return 'switch';
     // Date & Time
     elseif ($datatype == 'time') return 'time';
     elseif ($datatype == 'date') return 'date';
@@ -142,6 +142,7 @@
           $additional_info = array(
             "column_alias" => ucfirst($column_name),
             "is_in_menu" => true,
+            "mode_form" => 'ro',
             "show_in_grid" => true,
             "rel_caption" => '',
             "field_type" => getFieldType($col_datatype),

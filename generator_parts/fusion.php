@@ -135,9 +135,9 @@
 
       // Init a JS-Object
       $tableVarName = "tbl_$tablename";
-      $content_jsObjects .= "      let $tableVarName = new Table('$tablename', '.table_$tablename', 0, function(){
+      $content_jsObjects .= "      let $tableVarName = new Table('$tablename', 0, function(){
         $tableVarName.GUIOptions.showWorkflowButton = true;
-        $tableVarName.loadRows(function(){ $tableVarName.renderHTML(); });
+        $tableVarName.loadRows(function(){ $tableVarName.renderHTML('.table_$tablename'); });
       });\n";
     }
     $tabCount += 1;
@@ -307,10 +307,12 @@ END";
       }
       
       // Default Form Data
+      /*
       $form_data_default = $SM->getBasicFormDataByColumns($tablename, json_encode($data), $colData, $excludeKeys);
       $query = "UPDATE state_machines SET form_data_default = ? WHERE tablename = ? AND NULLIF(form_data_default, '') IS NULL";
       $stmt = $con->prepare($query);
       $stmt->execute(array($form_data_default, $tablename));
+      */
 
       $queries1 = '';
       $queries1 = $SM->getQueryLog();

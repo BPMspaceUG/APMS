@@ -3,6 +3,7 @@
   require_once(__DIR__.'/src/AuthHandler.inc.php');
   include_once(__DIR__."/src/RequestHandler.inc.php");
 
+  //========================================= Authentification
   // Check if authenticated via Token
   $rawtoken = JWT::getBearerToken();
   try {
@@ -13,7 +14,7 @@
     http_response_code(401);
     exit();
   }
-  // Token vaild but expired
+  // Token is valid but expired?
   if (property_exists($token, "exp")) {
     if (($token->exp - time()) <= 0) {
       http_response_code(401);
@@ -21,7 +22,7 @@
     }
   }
   
-  // Parameter
+  //========================================= Parameter & Handling
   try {
     $paramData = json_decode(file_get_contents('php://input'), true);
     $command = $paramData["cmd"]; // HAS TO EXIST!
@@ -29,19 +30,6 @@
   } catch (Exception $e) {
     die('Error: Invalid data sent to API');
   }
-
-  /* TODO
-  // Check if has rights
-  if ($command == 'create') {
-    http_response_code(403); // Forbidden
-    exit();
-  }
-
-  if ($command == 'read') {
-    $param["where"] = 'a.account_id = '.$token->uid;
-  }
-  */
-
   // Handle the Requests
   if ($command != "") {
     $RH = new RequestHandler();

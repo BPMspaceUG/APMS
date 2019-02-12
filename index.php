@@ -212,7 +212,7 @@
 
                   <tr ng-repeat="col in convertObjToArr(tbl.columns) | orderBy: 'col_order'" ng-show="tbl.showKids" ng-class="{'bg-warning' : col.is_virtual}" style="font-size: .8em;">
                     <!-- Column Order -->
-                    <td>
+                    <td class="align-middle">
                       <div style="white-space:nowrap;overflow:hidden;">
                         <input type="text" style="width: 40px" ng-model="col.col_order">
                         <a ng-click="changeSortOrder(col, 1)"><i class="fa fa-angle-down p-1 pl-2"></i></a>
@@ -227,18 +227,20 @@
                       </div>
                     </td>
 
-                    <td>
+                    <td class="align-middle">
                       <select
                         class="custom-select custom-select-sm"
-                        ng-if="(col.EXTRA != 'auto_increment' && col.COLUMN_NAME != 'state_id' && col.foreignKey.table == '')"
+                        ng-if="(col.EXTRA != 'auto_increment' && col.COLUMN_NAME != 'state_id')"
                         ng-model="col.field_type"
                       >
                         <option value="text">Text</option>
                         <option value="textarea">Textarea</option>
                         <option value="number">Number</option>
-                        <option value="tinyint">Boolean (Yes/No)</option>
+                        <option value="switch">Switch (Yes/No)</option>
+                        <option value="checkbox">Checkbox (Yes/No)</option>
                         <option value="date">Date</option>
                         <option value="time">Time</option>
+                        <option value="foreignkey">ForeignKey</option>
                         <option value="datetime">DateTime</option>
                         <option value="password">Passwordfield</option>
                         <option value="htmleditor">HTML-Editor</option>
@@ -246,19 +248,24 @@
                     </td>
 
                     <!-- Alias(es) -->
-                    <td>
+                    <td class="align-middle">
                       <input type="text" class="form-control form-control-sm" ng-model="col.column_alias">
                       <input type="text" class="form-control form-control-sm" ng-if="(tbl.table_type != 'obj' && col.foreignKey.table != '')" ng-model="col.rel_caption">    
                     </td>
 
-                    <!-- Visibility -->
-                    <td ng-if="!col.is_virtual">
-                      <label class="m-0"><input type="checkbox" class="mr-1" ng-model="col.is_in_menu">Frm</label>
+                    <!-- Visibility / Mode -->
+                    <td colspan="2" class="align-middle" ng-if="!col.is_virtual">
+                      <label class="m-0"><input type="checkbox" class="mr-1" ng-model="col.is_in_menu">Form</label>
+                      <select class="custom-select custom-select-sm" ng-model="col.mode_form">
+                        <option value="rw">RW</option>
+                        <option value="ro">RO</option>
+                        <option value="hi">HI</option>
+                      </select>
                       <label class="m-0"><input type="checkbox" class="mr-1" ng-model="col.show_in_grid">Grid</label>
                     </td>
 
                     <!-- Show FK Menu if it is no Primary column -->
-                    <td colspan="3" ng-if="(col.EXTRA != 'auto_increment')">
+                    <td class="align-middle" colspan="2" ng-if="(col.EXTRA != 'auto_increment')">
                       <b>ForeignKey:</b>
                       <select class="custom-select custom-select-sm" style="width: 120px; display: inline !important;" ng-model="col.foreignKey.table">
                         <option value="" selected></option>
@@ -269,7 +276,8 @@
                         <input ng-if="(col.foreignKey.table != '')" type="text" class="form-control form-control-sm w-100" ng-model="col.foreignKey.col_subst" placeholder="ReplacedCloumn">
                       </span>
                     </td>
-                    
+
+                    <!-- VIRTUAL GRID COLUMN -->
                     <td colspan="4" ng-if="col.is_virtual">
                       <span>SELECT ( i.e. CONCAT(a, b) ): </span>
                       <input type="text" ng-model="col.virtual_select" style="width: 300px" placeholder="CONCAT(id, col1, col2)">

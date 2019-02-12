@@ -4,8 +4,6 @@
   if (file_exists($file_DB)) include_once($file_DB);
   $file_SM = __DIR__."/StateMachine.inc.php";
   if (file_exists($file_SM)) include_once($file_SM);
-
-
   
   // Global function for StateMachine
   function api($data) {
@@ -141,7 +139,6 @@
     }
   }
 
-
   class RequestHandler {
 
     private static function splitQuery($row) {
@@ -152,7 +149,6 @@
       return $res;
     }
     // -------------------------------------------------- Database Access Methods
-    // TODO: Use the stored procedure
     private function readRowByPrimaryID($tablename, $ElementID) {
       $primColName = Config::getPrimaryColNameByTablename($tablename);
 
@@ -200,8 +196,8 @@
         // ---- Count
         $result['count'] = json_decode($this->count($param), true)[0]['cnt'];
         // ---- Forms
-        $result['formcreate'] = $this->getFormCreate($param);
-        $result['formmodify'] = $this->getFormData($param);  
+        //$result['formcreate'] = $this->getFormCreate($param);
+        //$result['formmodify'] = $this->getFormData($param);  
         // Return result as JSON
         return json_encode($result);
       }
@@ -290,27 +286,8 @@
       // Return
       return json_encode($script_result);
     }
-    public function count($param) {
-      // TODO: Make a special count function maybe inside of SP
-      global $token;
-      $tablename = $param["table"];
-      $where = $param["where"] ? $param["where"] : '';
-      $filter = isset($param["filter"]) ? $param["filter"] : '';
-      $token_uid = $token->uid;
-      $params = array(
-        'table' => $tablename,
-        'token' => $token_uid,
-        'filter' => $filter,
-        'where' => $where,
-        'orderby' => '',
-        'ascdesc' => null,
-        'limitstart' => null,
-        'limitsize' => null
-      );
-      $data = json_decode($this->call($params), true);
-      return json_encode(array(array('cnt' => count($data))));
-    }
     //================================== private (CALL) and format foreign key structure
+    //================================== READ & COUNT
     private function call($param) {
       $tablename = $param["table"];
       $keys = [];
@@ -385,7 +362,6 @@
       // Return result as JSON
       return json_encode($result);
     }
-    //================================== READ
     public function read($param) {
       // Parameters and default values
       try {
@@ -426,6 +402,25 @@
       );
 
       return $this->call($params);
+    }
+    public function count($param) {
+      global $token;
+      $tablename = $param["table"];
+      $where = $param["where"] ? $param["where"] : '';
+      $filter = isset($param["filter"]) ? $param["filter"] : '';
+      $token_uid = $token->uid;
+      $params = array(
+        'table' => $tablename,
+        'token' => $token_uid,
+        'filter' => $filter,
+        'where' => $where,
+        'orderby' => '',
+        'ascdesc' => null,
+        'limitstart' => null,
+        'limitsize' => null
+      );
+      $data = json_decode($this->call($params), true);
+      return json_encode(array(array('cnt' => count($data))));
     }
     //================================== UPDATE
     public function update($param, $allowUpdateFromSM = false) {
@@ -506,8 +501,7 @@
       return $success ? "1" : "0";
     }
 
-    //----------------------------------
-
+    //---------------------------------- Statemachine
     public function getFormData($param) {
       // Inputs
       $tablename = $param["table"];
@@ -521,7 +515,7 @@
       if ($SM->getID() > 0) {
         $stateID = $this->getActualStateByRow($tablename, $row);
         $r = $SM->getFormDataByStateID($stateID);
-        if (empty($r)) $r = "1"; // default: allow editing (if there are no rules set)
+        if (empty($r)) $r = "{}"; // default: allow editing (if there are no rules set)
         return $r;
       }
       else {
@@ -534,6 +528,7 @@
         return $r;
       }
     }
+    /*
     public function getFormCreate($param) {
       $tablename = $param["table"];
       // Check Parameter
@@ -557,7 +552,7 @@
       $excludeKeys = array_merge($PrimKey, $VirtKeys, array('state_id'));
       $r = $SM->getBasicFormDataByColumns($tablename, Config::getConfig(), $cols, $excludeKeys, true);
       return $r;
-    }
+    }*/
     public function getNextStates($param) {
       // Inputs
       $tablename = $param["table"];
@@ -670,6 +665,8 @@
       $res = $SE->getLinks();
       return json_encode($res);
     }
+
+    //---------------------------------- File Handling
     public function getFile($param) {
       // Download File from Server
 

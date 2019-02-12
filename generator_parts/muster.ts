@@ -7,6 +7,7 @@ enum SortOrder {ASC = 'ASC', DESC = 'DESC'}
 enum SelectType {NoSelect = 0, Single = 1}
 enum TableType {obj = 'obj', t1_1 = '1_1', t1_n = '1_n', tn_1 = 'n_1', tn_m = 'n_m'}
 
+
 // Events
 // see here: https://stackoverflow.com/questions/12881212/does-typescript-support-events-on-classes
 interface ILiteEvent<T> {
@@ -30,6 +31,8 @@ class LiteEvent<T> implements ILiteEvent<T> {
   }
 }
 
+
+// Generates GUID for jQuery DOM Handling
 abstract class GUI {
   public static ID = function () {
     // Math.random should be unique because of its seeding algorithm.
@@ -42,7 +45,7 @@ abstract class GUI {
 }
 
 //==============================================================
-// Class: Database
+// Class: Database (Communication via API)
 //==============================================================
 abstract class DB {
   private static API_URL: string;
@@ -73,8 +76,9 @@ abstract class DB {
     });
   }
 }
+
 //==============================================================
-// Class: Modal
+// Class: Modal (Dynamic Modal Generation and Handling)
 //==============================================================
 class Modal {
   private DOM_ID: string;
@@ -143,6 +147,7 @@ class Modal {
     return this.DOM_ID
   }
 }
+
 //==============================================================
 // Class: StateMachine
 //==============================================================
@@ -307,6 +312,7 @@ class StateMachine {
     return res
   }
 }
+
 //==============================================================
 // Class: RawTable
 //==============================================================
@@ -421,16 +427,13 @@ class RawTable {
 class Table extends RawTable {
   private TableConfig: any;
   private lastModifiedRowID: number;
-  private jQSelector: string = ''; // TODO: Remove
   private FilterText: string = ''; // TODO: Remove
   private GUID: string;
-  private SM: StateMachine;
+  private SM: StateMachine = null;
   private ReadOnly: boolean;
   private isExpanded: boolean = true;
   private selType: SelectType;
   private selectedIDs: number[];
-  private Form_Create: string = '';
-  private Form_Modify: string = '';
   private defaultValues = {}; // Default Values in Create-Form
   public GUIOptions = {
     maxCellLength: 30,
@@ -451,11 +454,10 @@ class Table extends RawTable {
   private readonly onSelectionChanged = new LiteEvent<void>();
   private readonly onEntriesModified = new LiteEvent<void>(); // Created, Deleted, Updated
 
-  constructor(tablename: string, DOMSelector: string, SelType: SelectType = SelectType.NoSelect, callback: any = function(){}, whereFilter: string = '', defaultObj = {}) {
+  constructor(tablename: string, SelType: SelectType = SelectType.NoSelect, callback: any = function(){}, whereFilter: string = '', defaultObj = {}) {
     super(tablename); // Call parent constructor
 
     let me = this;
-    this.jQSelector = DOMSelector; // TODO: Remove
     this.GUID = GUI.ID();
     // Check this values
     this.defaultValues = defaultObj;
@@ -469,29 +471,21 @@ class Table extends RawTable {
     this.Filter = '';
     this.OrderBy = '';
 
-    DB.request('init', {table: tablename, where: whereFilter}, function(resp) {
+    DB.request('init', {table: tablename, where: whereFilter}, function(resp: string) {
       if (resp.length > 0) {
         resp = JSON.parse(resp);
         // Save Form Data
-        me.Form_Create = resp['formcreate'];
-        me.Form_Modify = resp['formmodify'];
-        me.actRowCount = resp['count'];
         me.TableConfig = resp['config'];
-        // Initialize StateMachine for the Table
-        if (me.TableConfig['se_active'])
-          me.SM = new StateMachine(me);
-        else
-          me.SM = null;
+        me.actRowCount = resp['count'];
         me.Columns = me.TableConfig.columns;
         me.ReadOnly = me.TableConfig.is_read_only;
         me.TableType = me.TableConfig.table_type;
-        //console.log('InitTable -> ', me.tablename, '[', me.TableType, ']');
-
+        // Initialize StateMachine for the Table
+        if (me.TableConfig['se_active']) me.SM = new StateMachine(me);
         // check if is read only and no select then hide first column
-        if (me.ReadOnly && me.selType == SelectType.NoSelect)
-          me.GUIOptions.showControlColumn = false;
-        // Loop all cloumns form this table
-        Object.keys(me.Columns).forEach(function(col){
+        if (me.ReadOnly && me.selType == SelectType.NoSelect) me.GUIOptions.showControlColumn = false;
+        // Loop all cloumns from this table
+        for (const col of Object.keys(me.Columns)) {
           // Get Primary and SortColumn
           if (me.Columns[col].show_in_grid && me.OrderBy == '') {
             // DEFAULT: Sort by first visible Col
@@ -501,7 +495,7 @@ class Table extends RawTable {
               me.OrderBy = col;
           }
           if (me.Columns[col].EXTRA == 'auto_increment') me.PrimaryColumn = col;
-        })
+        }
         // Initializing finished
         callback();
       }
@@ -569,77 +563,15 @@ class Table extends RawTable {
     }
     return pages
   }
-  private getHTMLStatusText(): string {
-    if (this.getNrOfRows() > 0 && this.Rows.length > 0) {
-      let text = this.GUIOptions.statusBarTextEntries;
-      // Replace Texts
-      text = text.replace('{lim_from}', ''+ ((this.PageIndex * this.PageLimit) + 1) );
-      text = text.replace('{lim_to}', ''+ ((this.PageIndex * this.PageLimit) + this.Rows.length) );
-      text = text.replace('{count}', '' + this.getNrOfRows() );
-      return text;
-    }
-    else {
-      // No Entries
-      return this.GUIOptions.statusBarTextNoEntries;
-    }
-  }
   private getFormModify(data: any, callback): void {
-    var me: Table = this;
+    const me: Table = this;
     DB.request('getFormData', {table: me.tablename, row: data}, function(response) {
       callback(response)
     })
   }
-  private readDataFromForm(MID: string): any {
-    let me = this
-    let data = {}
-    let inputs = $(MID+' :input')
-  
-    inputs.each(function(){
-      const e = $(this);
-      const key = e.attr('name');
-      const val = e.val();
 
-      if (key) {
-        let column = null;
-        try {
-          column = me.Columns[key];
-        } catch (error) {
-          column = null; // Column doesnt exist in current Table
-        }
-  
-        if (column) {
-          const DataType = column.field_type
-          //console.log('[', DataType, ']', key, ' -> ', val );
-
-          //  if empty then value should be NULL
-          if ( (val == '' || val == null ) && (DataType.indexOf('text') < 0 || column.foreignKey.table != '')) {
-            data[key] = null;
-          } else {
-            // [NO FK]          
-            if (DataType == 'datetime') {
-              // For DATETIME
-              if (e.attr('type') == 'date')
-                data[key] = val // overwrite
-              else if (e.attr('type') == 'time')
-                data[key] += ' '+val // append
-            }
-            else if (DataType == 'tinyint') {
-              // Boolean
-              data[key] = e.prop('checked') ? '1' : '0';
-            }
-            else {
-              data[key] = val
-            }
-          }
-        } else {
-          // Virtual Element in FormData
-          data[key] = val
-        }
-      }
-    })
-    return data
-  }
-  private writeDataToForm(MID: string, data: any, blockValues: boolean = false): void {
+  //-------------------- Remove
+  private writeDataToForm(MID: string, data: any): void {
     let me = this
     let inputs = $(MID+' :input')
 
@@ -707,7 +639,10 @@ class Table extends RawTable {
       }
     })
   }
-  private renderEditForm(RowID: number, htmlForm: string, nextStates: any, ExistingModalID: string = undefined) {
+  //-------------------- /Remove
+
+
+  private renderEditForm(RowID: number, diffObject: any, nextStates: any, ExistingModalID: string = undefined) {
     let t = this
     let TheRow = null
     // get The Row
@@ -715,6 +650,45 @@ class Table extends RawTable {
       if (row[t.PrimaryColumn] == RowID)
         TheRow = row
     });
+
+
+    function isObject(item) {
+      return (item && typeof item === 'object' && !Array.isArray(item));
+    }
+    
+    function mergeDeep(target, ...sources) {
+      if (!sources.length) return target;
+      const source = sources.shift();    
+      if (isObject(target) && isObject(source)) {    
+        for (const key in source) {
+          if (isObject(source[key])) {
+            if (!target[key]) { 
+              Object.assign(target, { [key]: {} });
+            }else{          
+              target[key] = Object.assign({}, target[key])
+            }
+            mergeDeep(target[key], source[key]);
+          } else {
+            Object.assign(target, { [key]: source[key] });
+          }
+        }
+      }
+      return mergeDeep(target, ...sources);
+    }
+
+
+
+
+    let defaultFormObj = this.getDefaultFormObject();
+    console.log('default', defaultFormObj);
+
+    // Overwrite and merge the differences from diffObject
+    const newObj = mergeDeep(defaultFormObj, diffObject);
+
+    console.log('new', newObj);
+    const newForm = new FormGenerator(newObj);
+    let htmlForm = newForm.getHTML();
+
 
     // Create a new Modal or get the Existing Modal by DOM-ID
     let EditMID = null;
@@ -792,7 +766,7 @@ class Table extends RawTable {
 
     $('#'+EditMID+' .label-state').addClass('state' + actStateID).text(TheRow.state_id[1]);  
     // Update all Labels
-    this.updateLabels(EditMID)
+    //this.updateLabels(EditMID)
     // Save origin Table in all FKeys
     $('#'+EditMID+' .inputFK').data('origintable', t.tablename);
     // Load data from row and write to input fields with {key:value}
@@ -803,16 +777,14 @@ class Table extends RawTable {
     //--- finally show Modal if it is a new one
     if (M) M.show()
   }
-  private saveEntry(MID: string, closeModal: boolean = true){
+  private saveEntry(data: any, closeModal: boolean = true){
     let t = this
-    let data = t.readDataFromForm('#'+MID)
     // REQUEST
     t.updateRow(data[t.PrimaryColumn], data, function(r){
       if (r.length > 0) {
         if (r != "0") {
           // Success
-          if (closeModal)
-            $('#'+MID).modal('hide')
+          //if (closeModal) $('#'+MID).modal('hide')
           t.lastModifiedRowID = data[t.PrimaryColumn]
           t.loadRows(function(){
             t.renderContent();
@@ -825,24 +797,9 @@ class Table extends RawTable {
       }
     })
   }
-  private updateLabels(MID: string) {
-    let me = this
-    let labels = $('#'+MID+' label');
-    // Update all Labels
-    labels.each(function(){
-      let label = $(this);
-      let colname = label.parent().find('[name]').attr('name');
-      if (colname) {
-        let aliasCol = me.Columns[colname];
-        if (aliasCol) {
-          label.text(aliasCol.column_alias);
-        }
-      }
-    });
-  }
-  private setState(MID: string, RowID: number, targetState: any, closeModal: boolean = false): void {
+  private setState(data: any, RowID: number, targetState: any, closeModal: boolean = false): void {
     let t = this
-    let data = {}
+    //let data = {}
     let parsedData = [];
     let actState = undefined
 
@@ -851,24 +808,25 @@ class Table extends RawTable {
       if (row[t.PrimaryColumn] == RowID)
         actState = row['state_id'];
     }
-
     // Set a loading icon or indicator when transition is running
+    /*
     if (MID != '') {
       // Remove all Error Messages
       $('#'+MID+' .modal-body .alert').remove();
       // Read out all input fields with {key:value}
-      data = t.readDataFromForm('#'+MID);
+      //data = t.readDataFromForm('#'+MID);
       $('#'+MID+' .modal-title').prepend(`<span class="loadingtext"><i class="fa fa-spinner fa-pulse"></i></span>`);
       $('#'+MID+' :input').prop("disabled", true);
     }
+    */
 
     // REQUEST
     t.transitRow(RowID, targetState.state_id, data, function(r) {
       // When a response came back
-      if (MID != '') {
+      /*if (MID != '') {
         $('#'+MID+' .loadingtext').remove();
         $('#'+MID+' :input').prop("disabled", false);
-      }
+      }*/
       // Try to parse result messages
       try {
         parsedData = JSON.parse(r);
@@ -880,8 +838,7 @@ class Table extends RawTable {
         return
       }
       // Remove all Error Messages from Modal
-      if (MID != '')
-        $('#'+MID+' .modal-body .alert').remove();
+      //if (MID != '') $('#'+MID+' .modal-body .alert').remove();
 
       // Handle Transition Feedback
       let counter = 0;
@@ -897,8 +854,9 @@ class Table extends RawTable {
       messages.reverse(); // like the process => [Out, Transit, In]
       // Check if Transition was successful
       if (counter == 3) {
-        // Refresh Form-Data if Modal exists
-        if (MID != '') {
+
+        // Refresh Form-Data if Modal exists        
+        /*if (MID != '') {
           t.getFormModify(data, function(r){
             if (r.length > 0) {
               let htmlForm = r;
@@ -912,7 +870,8 @@ class Table extends RawTable {
               })
             }
           })
-        }
+        }*/
+
         // Mark rows
         if (RowID != 0) t.lastModifiedRowID = RowID;
         // Reload all rows
@@ -920,8 +879,7 @@ class Table extends RawTable {
           t.renderContent();
           t.onEntriesModified.trigger();
           // close Modal if it was save and close
-          if (MID != '' && closeModal)
-            $('#'+MID).modal('hide');
+          //if (MID != '' && closeModal) $('#'+MID).modal('hide');
         })
       }
       // Show all Script-Result Messages
@@ -939,6 +897,26 @@ class Table extends RawTable {
     })
   }
 
+
+  private getDefaultFormObject(): any {
+    const me = this
+    let FormObj = {};
+    // Generate the Form via Config -> Loop all columns from this table
+    for (const col of Object.keys(me.Columns)) {
+      FormObj[col] = {
+        field_type: me.Columns[col].field_type,
+        label: me.Columns[col].column_alias,
+        mode_form: me.Columns[col].mode_form,
+      }
+    }
+    return FormObj;
+  }
+  private getDefaultForm(): FormGenerator {
+    const FormObj = this.getDefaultFormObject();
+    let form = new FormGenerator(FormObj);
+    return form;
+  }
+
   //-------------------------------------------------- PUBLIC METHODS
   public createEntry(): void {
     let me = this
@@ -953,22 +931,17 @@ class Table extends RawTable {
   </button>
 </div>`;
     
+    let fCreate = this.getDefaultForm();
     // Create Modal
-    let M = new Modal(ModalTitle, me.Form_Create, CreateBtns, true);
+    let M = new Modal(ModalTitle, fCreate.getHTML(), CreateBtns, true);
     M.options.btnTextClose = me.GUIOptions.modalButtonTextModifyClose;
     const ModalID = M.getDOMID();
-  
-    this.updateLabels(ModalID) // Update all Labels
-    this.writeDataToForm('#'+ModalID, me.defaultValues, true) // Update Default values
-  
-    // Save origin Table in all FKeys
-    $('#'+ModalID+' .inputFK').data('origintable', me.tablename);
   
     // Bind Buttonclick
     $('#'+ModalID+' .btnCreateEntry').click(function(e){
       e.preventDefault();
       // Read out all input fields with {key:value}
-      let data = me.readDataFromForm('#'+ModalID);
+      let data = fCreate.getValues(); //me.readDataFromForm('#'+ModalID);
       const reOpenModal = $(this).hasClass('andReopen');
 
       me.createRow(data, function(r){
@@ -1049,6 +1022,7 @@ class Table extends RawTable {
         });
       });
     })
+
     M.show()
   }
   public modifyRow(id: number, ExistingModalID: string = undefined) {
@@ -1074,16 +1048,18 @@ class Table extends RawTable {
       if (this.SM) {
         // EDIT-Modal WITH StateMachine
         let PrimaryColumn: string = this.PrimaryColumn;
-        let data = {}
-        data[PrimaryColumn] = id
+        let data = {};
+        data[PrimaryColumn] = id;
+
         // Get Forms
         me.getFormModify(data, function(r){
           if (r.length > 0) {
-            let htmlForm = r;
+            let diffJSON = JSON.parse(r);
+            console.log('---Diff to Default Form Object--->', diffJSON);
             me.getNextStates(data, function(re){
               if (re.length > 0) {
                 let nextstates = JSON.parse(re);
-                me.renderEditForm(id, htmlForm, nextstates, ExistingModalID);
+                me.renderEditForm(id, diffJSON, nextstates, ExistingModalID);
               }
             })
           }
@@ -1092,17 +1068,20 @@ class Table extends RawTable {
         // EDIT-Modal WITHOUT StateMachine
         let M: Modal = undefined;
         let ModalID = undefined;
+        let fModify = this.getDefaultForm();
+
         if (!ExistingModalID) {
           const tblTxt = 'in '+ this.getTableIcon() +' ' + this.getTableAlias();
           let TitleText = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+id+')</span><span class="text-muted ml-3">'+tblTxt+'</span>';        
-          M = new Modal(TitleText, this.Form_Modify, '', true);
+                    
+          M = new Modal(TitleText, fModify.getHTML(), '', true);
           M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
           ModalID = M.getDOMID();
         } else {
           ModalID = ExistingModalID;
         }
         // Save origin Table in all FKeys
-        $('#'+ModalID+' .inputFK').data('origintable', this.tablename);
+        //$('#'+ModalID+' .inputFK').data('origintable', this.tablename);
 
         // Save buttons
         let btn: string = `<div class="ml-auto mr-0">
@@ -1118,18 +1097,20 @@ class Table extends RawTable {
         //M.setFooter(btn);
         $('#'+ModalID+' .customfooter').html(btn);
 
+
         // Bind functions to Save Buttons
         $('#'+ModalID+' .btnSave').click(function(e){
           e.preventDefault();
-          me.saveEntry(ModalID, false)
+          me.saveEntry(fModify.getValues(), false)
         })
         $('#'+ModalID+' .btnSaveAndClose').click(function(e){
           e.preventDefault();
-          me.saveEntry(ModalID)
+          me.saveEntry(fModify.getValues())
         })
 
+
         // Add the Primary RowID
-        $('#'+ModalID+' .modal-body').append('<input type="hidden" name="'+this.PrimaryColumn+'" value="'+id+'">')
+        $('#'+ModalID+' .modal-body').append('<input type="hidden" name="'+this.PrimaryColumn+'" value="'+id+'">');        
         // Write all input fields with {key:value}
         let r = null
         me.Rows.forEach(row => {
@@ -1137,11 +1118,16 @@ class Table extends RawTable {
             r = row
         });
         this.writeDataToForm('#'+ModalID, r)
+
+
+
         // Finally show Modal if none existed
         if (M) M.show()
       }
     }
   }
+
+
   public getSelectedRows(): Array<number> {
     return this.selectedIDs
   }
@@ -1331,7 +1317,7 @@ class Table extends RawTable {
             // Get the config from the remote table
             let getSubHeaders = new Promise((resolve, reject) => {
               let subheaders = '';
-              let tmpTable = new Table(t.Columns[colname].foreignKey.table, '', 0, function(){
+              let tmpTable = new Table(t.Columns[colname].foreignKey.table, 0, function(){
                 const split = (100 * (1 / colsnames.length)).toFixed(0);
                 for (const c of colsnames) {
                   const tmpAlias = tmpTable.Columns[c].column_alias;
@@ -1408,7 +1394,7 @@ class Table extends RawTable {
     // Edit Row
     async function filterEvent(t: Table) {
       t.PageIndex = 0; // jump to first page
-      t.Filter = $(t.jQSelector + ' .filterText').val();
+      t.Filter = $('.'+t.GUID).parent().find('.filterText').val();
       t.loadRows(async function(){
         if (t.Rows.length == t.PageLimit) {
           t.countRows(async function(){
@@ -1422,14 +1408,14 @@ class Table extends RawTable {
       })
     }
     // hitting Return on searchbar at Filter
-    $(t.jQSelector+' .filterText').off('keydown').on('keydown', function(e){
+    $('.'+t.GUID).parent().find('.filterText').off('keydown').on('keydown', function(e){
       if (e.keyCode == 13) {
         e.preventDefault();
         filterEvent(t)
       }
     })
     // Show Workflow Button clicked
-    $(t.jQSelector+' .btnShowWorkflow').off('click').on('click', function(e){
+    $('.'+t.GUID).parent().find('.btnShowWorkflow').off('click').on('click', function(e){
       e.preventDefault();
       t.SM.openSEPopup();
     })
@@ -1440,7 +1426,7 @@ class Table extends RawTable {
       t.modifyRow(null);
     })*/
     // Create Button clicked
-    $(t.jQSelector+' .btnCreateEntry').off('click').on('click', function(e){
+    $('.'+t.GUID).parent().find('.btnCreateEntry').off('click').on('click', function(e){
       e.preventDefault();
       t.createEntry()
     })
@@ -1493,7 +1479,7 @@ class Table extends RawTable {
       sortedColumnNames.forEach(function(col) {
         // Check if it is displayed
         if (t.Columns[col].show_in_grid) 
-          data_string += '<td class="align-middle p-0 border-0">' + t.renderCell(row, col) + '</td>';
+          data_string += '<td class="align-middle py-0 border-0">' + t.renderCell(row, col) + '</td>';
       })
 
       // Add row to table
@@ -1594,10 +1580,26 @@ class Table extends RawTable {
     }
     if (t.selType == SelectType.Single && !t.isExpanded)
       return `<div class="tbl_footer"></div>`;
+
+    //--- StatusText
+    let statusText = '';
+    if (this.getNrOfRows() > 0 && this.Rows.length > 0) {
+      let text = this.GUIOptions.statusBarTextEntries;
+      // Replace Texts
+      text = text.replace('{lim_from}', ''+ ((this.PageIndex * this.PageLimit) + 1) );
+      text = text.replace('{lim_to}', ''+ ((this.PageIndex * this.PageLimit) + this.Rows.length) );
+      text = text.replace('{count}', '' + this.getNrOfRows() );
+      statusText = text;
+    }
+    else {
+      // No Entries
+      statusText = this.GUIOptions.statusBarTextNoEntries;
+    }
+
     // Normal
     return `<div class="tbl_footer">
       <div class="text-muted p-0 px-2">
-        <p class="float-left m-0 mb-1"><small>${t.getHTMLStatusText()}</small></p>
+        <p class="float-left m-0 mb-1"><small>${statusText}</small></p>
         <nav class="float-right"><ul class="pagination pagination-sm m-0 my-1">${pgntn}</ul></nav>
         <div class="clearfix"></div>
       </div>
@@ -1609,19 +1611,18 @@ class Table extends RawTable {
     $('.'+t.GUID).parent().find('.tbl_footer').replaceWith(output);
     //---------------------- Link jquery
     // Pagination Button
-    $(t.jQSelector+' a.page-link').off('click').on('click', function(e){
+    $('.'+t.GUID).parent().find('a.page-link').off('click').on('click', function(e){
       e.preventDefault();
       let newPageIndex = $(this).data('pageindex');
       t.setPageIndex(newPageIndex)
     })
   }
-
-  public async renderHTML() { // TODO: Remove
+  public async renderHTML(DOMSelector: string) {
     let t = this
     // GUI
     const content = t.getHeader() + await t.getContent() + t.getFooter();
-    $(t.jQSelector).empty();
-    $(t.jQSelector).append(content);
+    $(DOMSelector).empty();
+    $(DOMSelector).append(content);
 
     await t.renderHeader();
     await t.renderContent();
@@ -1636,6 +1637,158 @@ class Table extends RawTable {
   }
 }
 
+
+
+//==============================================================
+// Class: FormGenerator (Generates HTML-Bootstrap4 Forms from JSON)
+//==============================================================
+class FormGenerator {
+  private data: any;
+  private GUID: string;
+
+  constructor(Input: any) {
+    this.GUID = GUI.ID();
+    /*
+    // Tests
+    const testForm1 = {
+      column_name_1: {field_type: 'text', label: '', mode_form: 'ro', value: 'standard-value'},
+      column_name_2: {field_type: 'number', label: 'Number of Questions', mode_form: 'rw'},
+      column_name_3: {field_type: 'textarea', label: 'Description', mode_form: 'ro'},
+      column_name_7: {field_type: 'date', label: 'Date', mode_form: 'rw', value: '2019-01-01'},
+      column_name_8: {field_type: 'time', label: 'Time', mode_form: 'ro', value: "13:37"},
+      column_name_6: {field_type: 'foreignkey', label: 'Select a ForeignKey', mode_form: 'rw'},      
+      column_name_4: {field_type: 'switch', label: 'Correct', mode_form: 'rw', value: 1},
+      column_name_5: {field_type: 'switch', label: 'Just another Switch', mode_form: 'ro', value: 0},
+    };
+    const testForm2 = {
+      column_n: {field_type: 'foreignkey', label: 'First element', mode_form: 'rw'},
+      column_m: {field_type: 'foreignkey', label: 'Second element', mode_form: 'rw'},
+    };
+    */
+    //if (!Input) Input = testForm1;
+    // Save data internally
+    this.data = Input;
+  }
+  private getElement(key: string, el): string {
+    let result: string = '';
+    if (el.mode_form == 'hi') return '';
+
+    // Label?
+    const form_label: string = el.label ? `<label class="col-sm-2 col-form-label" for="inp_${key}">${el.label}</label>` : '';
+    // Textarea
+    if (el.field_type == 'textarea') {
+      result += `<textarea name="${key}" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}" ${el.mode_form == 'ro' ? ' readonly' : ''}>${el.value ? el.value : ''}</textarea>`;
+    }
+    // Text
+    else if (el.field_type == 'text') {
+      result += `<input name="${key}" type="text" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
+        value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
+    }
+    // Number
+    else if (el.field_type == 'number') {
+      result += `<input name="${key}" type="number" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
+        value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
+    }
+    // Time
+    else if (el.field_type == 'time') {
+      result += `<input name="${key}" type="time" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
+        value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
+    }
+    // Date
+    else if (el.field_type == 'date') {
+      result += `<input name="${key}" type="date" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
+        value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
+    }
+    // Datetime
+    else if (el.field_type == 'datetime') {
+      result += `<div class="input-group">
+          <input name="${key}" type="date" id="inp_${key}" class="dtm form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
+          value="${el.value ? el.value.split(' ')[0] : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>
+          <input name="${key}" type="time" id="inp_${key}_time" class="dtm form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
+          value="${el.value ? el.value.split(' ')[1] : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>
+        </div>`;
+    }
+    // Foreignkey
+    else if (el.field_type == 'foreignkey') {
+      result += `
+        <input type="hidden" name="${key}" value="${el.value ? el.value : ''}" class="inputFK${el.mode_form == 'rw' ? ' rwInput' : ''}">
+        <div class="external-table">
+          <div class="input-group">
+            <input type="text" class="form-control filterText${el.mode_form == 'rw' ? ' bg-white' : ''}" placeholder="Nothing selected" disabled>
+            <div class="input-group-append">
+              <button class="btn btn-primary btnLinkFK" onclick="test(this)" data-tablename="testtableA" title="Link Element" type="button"${el.mode_form == 'ro' ? ' disabled' : ''}>
+                <i class="fa fa-chain-broken"></i>
+              </button>
+            </div>
+          </div>
+        </div>`;
+    }
+    // Switch
+    else if (el.field_type == 'switch') {
+      result = '';
+      result += `<div class="custom-control custom-switch">
+      <input name="${key}" type="checkbox" class="custom-control-input${el.mode_form == 'rw' ? ' rwInput' : ''}" id="inp_${key}"${el.mode_form == 'ro' ? ' disabled' : ''}${el.value == 1 ? ' checked' : ''}>
+      <label class="custom-control-label" for="inp_${key}">${el.label}</label>
+    </div>`;
+    }
+    // Output
+    result = 
+    `<div class="form-group row">
+      ${form_label}
+      <div class="col-sm-10">
+        ${result}
+      </div>
+    </div>`;
+    return result;
+  }
+  public getValues() {
+    let result = {};
+    $('#' + this.GUID + ' .rwInput').each(function(){
+      let inp = $(this);
+      const key = inp.attr('name');
+      const type = inp.attr('type');
+      let value = undefined;
+      //--- Format different Types
+      if (type == 'checkbox')     // Checkbox
+        value = inp.is(':checked') ? 1 : 0;
+      else if (type == 'time' && inp.hasClass('dtm')) {
+        if (key in result) // if key already exists in result
+          value = result[key] + ' ' + inp.val(); // append Time to Date
+       } else 
+        // Other
+        value = inp.val();
+      //----
+      // Check & Save result
+      if (!(value == '' && (type == 'number' || type == 'date' || type == 'time' || type == 'datetime')))
+        result[key] = value;
+    })
+    console.log(result);
+    return result;
+  }
+  public getHTML(){
+    let html: string = `<form id="${this.GUID}">`;
+    const data = this.data;
+    const keys = Object.keys(data);
+    for (const key of keys) {
+      html += this.getElement(key, data[key]);
+    }
+    return html + '</form>';
+  }
+}
+
+
+
+/*
+let x = new FormGenerator(undefined);
+let m = new Modal('Form-Test', x.getHTML(), '<button onclick="readVals()">ReadVals</button>');
+m.show();
+function readVals() {
+  x.getValues();
+}
+*/
+
+
+
 //-------------------------------------------
 // Bootstrap-Helper-Method: Overlay of many Modal windows (newest on top)
 $(document).on('show.bs.modal', '.modal', function () {
@@ -1646,9 +1799,8 @@ $(document).on('show.bs.modal', '.modal', function () {
     $('.modal-backdrop').not('.modal-stack').css('z-index', zIndex - 1).addClass('modal-stack');
   }, 0);
 });
-// Focus first Input in Modal (Input, Textarea, or Select)
 $(document).on('shown.bs.modal', function() {
-  // Focus first visible Element
+  // Focus first visible Input in Modal (Input, Textarea, or Select)
   $('.modal').find('input,textarea,select').filter(':visible:first').trigger('focus');
   // On keydown
   // Restrict input to digits and '.' by using a regular expression filter.
@@ -1692,14 +1844,14 @@ function test(x): void {
   let me = $(x);
   const FKTable = me.data('tablename');
   const randID = GUI.ID();
-  let fkInput = me.parent().parent().parent().find('.inputFK');
+  let fkInput = me.parent().parent().parent().parent().find('.inputFK');
   fkInput.val(''); // Reset Selection
 
-  me.parent().parent().parent().find('.external-table').replaceWith('<div class="'+randID+'"></div>');
+  me.parent().parent().parent().parent().find('.external-table').replaceWith('<div class="'+randID+'"></div>');
 
-  let tmpTable = new Table(FKTable, '.'+randID, 1, function(){
+  let tmpTable = new Table(FKTable, 1, function(){
     tmpTable.loadRows(async function(){
-      await tmpTable.renderHTML();
+      await tmpTable.renderHTML('.'+randID);
       $('.' + randID).find('.filterText').focus();
     });
   });
