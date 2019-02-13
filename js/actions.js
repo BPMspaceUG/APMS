@@ -10,7 +10,8 @@ APMS.controller('APMScontrol', function ($scope, $http) {
   $scope.sqlServer = 'localhost'
   $scope.sqlPort = 3306
   $scope.username = 'root'
-  $scope.isLoading = false
+  $scope.isLoading = false;
+  $scope.DBhasBeenLoaded = false;
   $scope.configtext = ''
   $scope.configFileWasNotFound = false
   $scope.configFileWasFound = false
@@ -190,7 +191,8 @@ APMS.controller('APMScontrol', function ($scope, $http) {
         $scope.tables[t].table_icon = getRandomicon()
       })
       // Stop Loading Icon
-      $scope.isLoading = false
+      $scope.isLoading = false;
+      $scope.DBhasBeenLoaded = true;
     });
   }
   /*
@@ -249,13 +251,12 @@ APMS.controller('APMScontrol', function ($scope, $http) {
 
   $scope.add_virtCol = function(tbl){
     console.log("Add virtual Column", tbl);
-    let cols = $scope.tables[tbl.table_name].columns
-    
-    let new_virt_colname = 'virtualCol'
+    const cols = $scope.tables[tbl.table_name].columns;    
+    let new_virt_colname = 'virtualCol';
+    // TODO: Improve Name generation i.e. with Hash
     while (cols[new_virt_colname]) {
-      new_virt_colname = new_virt_colname + 'x'
+      new_virt_colname = new_virt_colname + 'x';
     }
-        
     $scope.tables[tbl.table_name].columns[new_virt_colname] = {
       COLUMN_NAME: new_virt_colname,
       field_type: 'textarea',
@@ -264,7 +265,7 @@ APMS.controller('APMScontrol', function ($scope, $http) {
       EXTRA: "",
       column_alias: "Virtual Column",
       read_only: false,
-      is_in_menu: true,
+      show_in_grid: true,
       foreignKey: {
           table: "",
           col_id: "",
@@ -277,13 +278,14 @@ APMS.controller('APMScontrol', function ($scope, $http) {
     return
   }
   $scope.del_virtCol = function(tbl, col){
+    console.log('Deleted virtual column');
     console.log(tbl);
     console.log(col);
     console.log($scope.tables[tbl.table_name].columns[col.COLUMN_NAME]);
     delete tbl.columns[col.COLUMN_NAME]
   }
   $scope.changeSortOrder = function(col, inc) {
-    const oldIndex = parseInt(col.col_order); // can be overwritten
+    //const oldIndex = parseInt(col.col_order); // can be overwritten
     const newIndex = parseInt(col.col_order) + inc;
     console.log('change Col Order', col, inc)
     col.col_order = newIndex

@@ -141,7 +141,6 @@
           ------------------------------*/
           $additional_info = array(
             "column_alias" => ucfirst($column_name),
-            "is_in_menu" => true,
             "mode_form" => 'ro',
             "show_in_grid" => true,
             "rel_caption" => '',

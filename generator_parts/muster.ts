@@ -143,6 +143,9 @@ class Modal {
     $("#"+this.DOM_ID).modal();
     $("#"+this.DOM_ID).modal('show');
   }
+  public close(): void {
+    $("#"+this.DOM_ID).modal('hide');
+  }
   public getDOMID(): string {
     return this.DOM_ID
   }
@@ -642,7 +645,7 @@ class Table extends RawTable {
   //-------------------- /Remove
 
 
-  private renderEditForm(RowID: number, diffObject: any, nextStates: any, ExistingModalID: string = undefined) {
+  private renderEditForm(RowID: number, diffObject: any, nextStates: any, ExistingModal: Modal = undefined) {
     let t = this
     let TheRow = null
     // get The Row
@@ -651,11 +654,10 @@ class Table extends RawTable {
         TheRow = row
     });
 
-
+    //--- Special Object merge functions
     function isObject(item) {
       return (item && typeof item === 'object' && !Array.isArray(item));
-    }
-    
+    }    
     function mergeDeep(target, ...sources) {
       if (!sources.length) return target;
       const source = sources.shift();    
@@ -674,42 +676,28 @@ class Table extends RawTable {
         }
       }
       return mergeDeep(target, ...sources);
-    }
-
-
-
-
+    }    
+    //--- Overwrite and merge the differences from diffObject
     let defaultFormObj = this.getDefaultFormObject();
-    console.log('default', defaultFormObj);
-
-    // Overwrite and merge the differences from diffObject
     const newObj = mergeDeep(defaultFormObj, diffObject);
-
-    console.log('new', newObj);
+    //console.log('default', defaultFormObj);
+    //console.log('new', newObj);
     const newForm = new FormGenerator(newObj);
-    let htmlForm = newForm.getHTML();
+    const htmlForm = newForm.getHTML();
 
-
-    // Create a new Modal or get the Existing Modal by DOM-ID
-    let EditMID = null;
-    let M: Modal = null;
-    if (!ExistingModalID) {
-      let TableAlias = 'in <i class="'+this.TableConfig.table_icon+'"></i> ' + this.TableConfig.table_alias;
-      let TitleText = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+RowID+')</span><span class="text-muted ml-3">'+ TableAlias +'</span>'
-      M = new Modal(TitleText, htmlForm, '', true)
-      M.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose;
-      EditMID = M.getDOMID();
-    } else {
-      EditMID = ExistingModalID;
-      $('#'+EditMID+' .modal-body').html(htmlForm);
-    }
+    // create Modal if not exists
+    console.log('RenderEditForm', ExistingModal);
+    const TableAlias = 'in <i class="'+this.TableConfig.table_icon+'"></i> ' + this.TableConfig.table_alias;
+    const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+RowID+')</span><span class="text-muted ml-3">'+ TableAlias +'</span>';
+    let M: Modal = ExistingModal || new Modal(ModalTitle, '', '', true);
+    M.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose;
+    M.setContent(htmlForm);
 
     let btns = '';
     let saveBtn = '';
     let actStateID = TheRow.state_id['state_id'] // ID
     let actStateName = TheRow.state_id['name'] // ID
     let cssClass = ' state' + actStateID;
-
     // Check States -> generate Footer HTML
     if (nextStates.length > 0) {
       let cnt_states = 0;
@@ -717,7 +705,6 @@ class Table extends RawTable {
       btns = `<div class="btn-group dropup ml-0 mr-auto">
         <button type="button" class="btn ${cssClass} text-white dropdown-toggle" data-toggle="dropdown">${actStateName}</button>
       <div class="dropdown-menu p-0">`;
-
       // Loop States
       nextStates.forEach(function(state){
         let btn_text = state.name
@@ -749,42 +736,38 @@ class Table extends RawTable {
     btns += saveBtn;
 
 
-    // TODO: Rewrite to MID
-    //M.setFooter(btns);
-    $('#'+EditMID+' .customfooter').html(btns);
+    M.setFooter(btns);
 
-    // Bind function to StateButtons
-    $('#'+EditMID+' .btnState').click(function(e){
+    //--------------------- Bind function to StateButtons
+    $('#' + M.getDOMID() + ' .btnState').click(function(e){
       e.preventDefault();
       const RowID = $(this).data('rowid');
       const TargetStateID = $(this).data('targetstate');
       const TargetStateName = $(this).data('targetname');
       const closeModal = $(this).hasClass("btnSaveAndClose");
       // Set new State
-      t.setState(EditMID, RowID, {state_id: TargetStateID, name: TargetStateName}, closeModal);
+      t.setState(newForm.getValues(), RowID, {state_id: TargetStateID, name: TargetStateName}, M, closeModal);
     })
 
-    $('#'+EditMID+' .label-state').addClass('state' + actStateID).text(TheRow.state_id[1]);  
-    // Update all Labels
-    //this.updateLabels(EditMID)
-    // Save origin Table in all FKeys
-    $('#'+EditMID+' .inputFK').data('origintable', t.tablename);
-    // Load data from row and write to input fields with {key:value}
-    t.writeDataToForm('#'+EditMID, TheRow);
-    // Add PrimaryID in stored Data
-    $('#'+EditMID+' .modal-body').append('<input type="hidden" name="'+t.PrimaryColumn+'" value="'+RowID+'">')
-
+    $('#' + M.getDOMID() + ' .label-state').addClass('state' + actStateID).text(TheRow.state_id[1]);
+    $('#' + M.getDOMID() + ' .inputFK').data('origintable', t.tablename); // Save origin Table in all FKeys
+    t.writeDataToForm('#' + M.getDOMID(), TheRow); // Load data from row and write to input fields with {key:value}    
+    $('#' + M.getDOMID() + ' .modal-body').append('<input type="hidden" name="'+t.PrimaryColumn+'" value="'+RowID+'">'); // Add PrimaryID in stored Data
     //--- finally show Modal if it is a new one
     if (M) M.show()
   }
-  private saveEntry(data: any, closeModal: boolean = true){
+
+
+
+  private saveEntry(SaveModal: Modal, data: any, closeModal: boolean = true){
     let t = this
     // REQUEST
     t.updateRow(data[t.PrimaryColumn], data, function(r){
       if (r.length > 0) {
         if (r != "0") {
           // Success
-          //if (closeModal) $('#'+MID).modal('hide')
+          if (closeModal)
+            SaveModal.close();
           t.lastModifiedRowID = data[t.PrimaryColumn]
           t.loadRows(function(){
             t.renderContent();
@@ -792,12 +775,13 @@ class Table extends RawTable {
           })
         } else {
           // Fail
-          alert("Element could not be updated!")
+          const m = new Modal('Error', 'Element could not be updated!');
+          m.show();
         }
       }
     })
   }
-  private setState(data: any, RowID: number, targetState: any, closeModal: boolean = false): void {
+  private setState(data: any, RowID: number, targetState: any, myModal: Modal, closeModal: boolean): void {
     let t = this
     //let data = {}
     let parsedData = [];
@@ -838,7 +822,7 @@ class Table extends RawTable {
         return
       }
       // Remove all Error Messages from Modal
-      //if (MID != '') $('#'+MID+' .modal-body .alert').remove();
+      if (myModal) $('#'+ myModal.getDOMID() + ' .modal-body .alert').remove();
 
       // Handle Transition Feedback
       let counter = 0;
@@ -856,21 +840,21 @@ class Table extends RawTable {
       if (counter == 3) {
 
         // Refresh Form-Data if Modal exists        
-        /*if (MID != '') {
+        if (myModal) {
           t.getFormModify(data, function(r){
             if (r.length > 0) {
-              let htmlForm = r;
+              const diffObject = JSON.parse(r);
               // Refresh Modal Buttons
               t.getNextStates(data, function(re){
                 if (re.length > 0) {
                   let nextstates = JSON.parse(re);
                   // Set Form-Content
-                  t.renderEditForm(RowID, htmlForm, nextstates, MID);
+                  t.renderEditForm(RowID, diffObject, nextstates, myModal); // The circle begins again
                 }
               })
             }
           })
-        }*/
+        }
 
         // Mark rows
         if (RowID != 0) t.lastModifiedRowID = RowID;
@@ -879,7 +863,8 @@ class Table extends RawTable {
           t.renderContent();
           t.onEntriesModified.trigger();
           // close Modal if it was save and close
-          //if (MID != '' && closeModal) $('#'+MID).modal('hide');
+          if (myModal && closeModal)
+            myModal.close();
         })
       }
       // Show all Script-Result Messages
@@ -908,6 +893,9 @@ class Table extends RawTable {
         label: me.Columns[col].column_alias,
         mode_form: me.Columns[col].mode_form,
       }
+      // Add foreign key -> Table
+      if (me.Columns[col].field_type == 'foreignkey')
+        FormObj[col]['fk_table'] = me.Columns[col].foreignKey.table;
     }
     return FormObj;
   }
@@ -1025,7 +1013,7 @@ class Table extends RawTable {
 
     M.show()
   }
-  public modifyRow(id: number, ExistingModalID: string = undefined) {
+  public modifyRow(id: number, ExistingModal: Modal = undefined) {
     let me = this
     // Check Selection-Type
     if (this.selType == SelectType.Single) {
@@ -1046,80 +1034,64 @@ class Table extends RawTable {
       if (this.ReadOnly) return
       // Set Form
       if (this.SM) {
-        // EDIT-Modal WITH StateMachine
+        //-------- EDIT-Modal WITH StateMachine
         let PrimaryColumn: string = this.PrimaryColumn;
         let data = {};
         data[PrimaryColumn] = id;
-
         // Get Forms
         me.getFormModify(data, function(r){
           if (r.length > 0) {
             let diffJSON = JSON.parse(r);
-            console.log('---Diff to Default Form Object--->', diffJSON);
+            //console.log('---Diff to Default Form Object--->', diffJSON);
             me.getNextStates(data, function(re){
               if (re.length > 0) {
                 let nextstates = JSON.parse(re);
-                me.renderEditForm(id, diffJSON, nextstates, ExistingModalID);
+                me.renderEditForm(id, diffJSON, nextstates, ExistingModal);
               }
             })
           }
         })
       } else {
-        // EDIT-Modal WITHOUT StateMachine
-        let M: Modal = undefined;
-        let ModalID = undefined;
+        //-------- EDIT-Modal WITHOUT StateMachine
+        const tblTxt = 'in '+ this.getTableIcon() +' ' + this.getTableAlias();
+        const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+id+')</span><span class="text-muted ml-3">'+tblTxt+'</span>';        
+        
         let fModify = this.getDefaultForm();
-
-        if (!ExistingModalID) {
-          const tblTxt = 'in '+ this.getTableIcon() +' ' + this.getTableAlias();
-          let TitleText = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+id+')</span><span class="text-muted ml-3">'+tblTxt+'</span>';        
-                    
-          M = new Modal(TitleText, fModify.getHTML(), '', true);
-          M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
-          ModalID = M.getDOMID();
-        } else {
-          ModalID = ExistingModalID;
-        }
+        let M: Modal = ExistingModal || new Modal(ModalTitle, fModify.getHTML(), '', true);
+        M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
         // Save origin Table in all FKeys
         //$('#'+ModalID+' .inputFK').data('origintable', this.tablename);
 
         // Save buttons
-        let btn: string = `<div class="ml-auto mr-0">
+        M.setFooter(`<div class="ml-auto mr-0">
           <button class="btn btn-primary btnSave" type="button">
             <i class="fa fa-floppy-o"></i> ${this.GUIOptions.modalButtonTextModifySave}
           </button>
           <button class="btn btn-outline-primary btnSaveAndClose" type="button">
             ${this.GUIOptions.modalButtonTextModifySaveAndClose}
           </button>
-        </div>`;
-
-        // TODO: Set Footer
-        //M.setFooter(btn);
-        $('#'+ModalID+' .customfooter').html(btn);
-
+        </div>`);
 
         // Bind functions to Save Buttons
-        $('#'+ModalID+' .btnSave').click(function(e){
+        $('#' + M.getDOMID() + ' .btnSave').click(function(e){
           e.preventDefault();
-          me.saveEntry(fModify.getValues(), false)
+          me.saveEntry(M, fModify.getValues(), false)
         })
-        $('#'+ModalID+' .btnSaveAndClose').click(function(e){
+        $('#' + M.getDOMID() + ' .btnSaveAndClose').click(function(e){
           e.preventDefault();
-          me.saveEntry(fModify.getValues())
+          me.saveEntry(M, fModify.getValues())
         })
-
-
         // Add the Primary RowID
-        $('#'+ModalID+' .modal-body').append('<input type="hidden" name="'+this.PrimaryColumn+'" value="'+id+'">');        
+        $('#' + M.getDOMID() + ' .modal-body form').append(
+          '<input type="hidden" class="rwInput" name="' + this.PrimaryColumn + '" value="' + id + '">'
+        );
         // Write all input fields with {key:value}
         let r = null
         me.Rows.forEach(row => {
           if (row[me.PrimaryColumn] == id)
             r = row
         });
-        this.writeDataToForm('#'+ModalID, r)
-
-
+        this.writeDataToForm('#' + M.getDOMID(), r);
 
         // Finally show Modal if none existed
         if (M) M.show()
@@ -1555,7 +1527,7 @@ class Table extends RawTable {
               const RowID = $(this).data('rowid');
               const TargetStateID = $(this).data('targetstate');
               const TargetStateName = $(this).data('targetname');
-              t.setState('', RowID, {state_id: TargetStateID, name: TargetStateName})
+              t.setState('', RowID, {state_id: TargetStateID, name: TargetStateName}, undefined, false);
             })
           }
         }
@@ -1637,8 +1609,6 @@ class Table extends RawTable {
   }
 }
 
-
-
 //==============================================================
 // Class: FormGenerator (Generates HTML-Bootstrap4 Forms from JSON)
 //==============================================================
@@ -1716,7 +1686,7 @@ class FormGenerator {
           <div class="input-group">
             <input type="text" class="form-control filterText${el.mode_form == 'rw' ? ' bg-white' : ''}" placeholder="Nothing selected" disabled>
             <div class="input-group-append">
-              <button class="btn btn-primary btnLinkFK" onclick="test(this)" data-tablename="testtableA" title="Link Element" type="button"${el.mode_form == 'ro' ? ' disabled' : ''}>
+              <button class="btn btn-primary btnLinkFK" onclick="test(this)" data-tablename="${el.fk_table}" title="Link Element" type="button"${el.mode_form == 'ro' ? ' disabled' : ''}>
                 <i class="fa fa-chain-broken"></i>
               </button>
             </div>
@@ -1762,8 +1732,13 @@ class FormGenerator {
       if (!(value == '' && (type == 'number' || type == 'date' || type == 'time' || type == 'datetime')))
         result[key] = value;
     })
-    console.log(result);
+    //console.log('read', result);
     return result;
+  }
+  public todo_setValues() {
+    // TODO: (Maybe use function writeDataToForm)
+    console.log('Not yet implemented!');
+    return false;
   }
   public getHTML(){
     let html: string = `<form id="${this.GUID}">`;
@@ -1775,9 +1750,6 @@ class FormGenerator {
     return html + '</form>';
   }
 }
-
-
-
 /*
 let x = new FormGenerator(undefined);
 let m = new Modal('Form-Test', x.getHTML(), '<button onclick="readVals()">ReadVals</button>');
@@ -1786,8 +1758,6 @@ function readVals() {
   x.getValues();
 }
 */
-
-
 
 //-------------------------------------------
 // Bootstrap-Helper-Method: Overlay of many Modal windows (newest on top)
@@ -1823,7 +1793,6 @@ $(document).on('shown.bs.modal', function() {
     }
   });  
 });
-// Helper method
 $(document).on('hidden.bs.modal', '.modal', function () {
   $('.modal:visible').length && $(document.body).addClass('modal-open');
 });
@@ -1838,7 +1807,7 @@ $(function(){
     $('html,body').scrollTop(scrollmem);
   });
 });
-
+//-------------------------------------------
 
 function test(x): void {
   let me = $(x);

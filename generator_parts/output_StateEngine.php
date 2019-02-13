@@ -305,7 +305,7 @@
       return $this->getTempl($isVisible, $alias, '<input type="text" class="form-control" name="'.$key.'" value="'.$default.'">');
     }
 
-
+/*
     public function getBasicFormDataByColumns($tablename, $config, $colData, $excludeKeys, $withoutReverseFKs = false) {
       $header = "<form>\n";
       $footer = "</form>";
@@ -407,7 +407,7 @@
       return $header.$content.$footer;
     }
     // [END]   FORM - Elements
-
+*/
 
     public function getFormDataByStateID($StateID) {
       if (!($this->ID > 0)) return "";

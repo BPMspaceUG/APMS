@@ -518,7 +518,7 @@
         if (empty($r)) $r = "{}"; // default: allow editing (if there are no rules set)
         return $r;
       }
-      else {
+      /*else {
         // Has NO StateMachine -> Return standard form
         $cols = Config::getColsByTablename($tablename);
         $PrimKey = array(Config::getPrimaryColNameByTablename($tablename));
@@ -526,7 +526,7 @@
         $excludeKeys = array_merge($PrimKey, $VirtKeys);        
         $r = $SM->getBasicFormDataByColumns($tablename, Config::getConfig(), $cols, $excludeKeys);
         return $r;
-      }
+      }*/
     }
     /*
     public function getFormCreate($param) {

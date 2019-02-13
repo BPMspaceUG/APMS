@@ -93,13 +93,13 @@
               <!-- Automatically load config -->
               <div class="col-6">
                 <p><strong>[1] Automatically load config</strong></p>
-                <button class="btn btn-outline-secondary" ng-click="loadConfigByName()"><i class="fa fa-search"></i> Look for last config</button>
+                <button ng-disabled="!DBhasBeenLoaded || isLoading" class="btn btn-outline-secondary" ng-click="loadConfigByName()"><i class="fa fa-search"></i> Look for last config</button>
               </div>
               <!-- Manually load config -->
               <div class="col-6">
                 <p><strong>[2] Manually load config</strong></p>
                 <textarea class="form-control configtxt" ng-model="configtext" placeholder="Paste Content of the Config-File here"></textarea>
-                <button class="btn btn-outline-secondary mt-1" ng-click="loadconfig(configtext)">
+                <button ng-disabled="configtext.length == 0" class="btn btn-outline-secondary mt-1" ng-click="loadconfig(configtext)">
                   <i class="fa fa-arrow-right"></i> Parse and Load configuration file
                 </button>
               </div>
@@ -255,7 +255,7 @@
 
                     <!-- Visibility / Mode -->
                     <td colspan="2" class="align-middle" ng-if="!col.is_virtual">
-                      <label class="m-0"><input type="checkbox" class="mr-1" ng-model="col.is_in_menu">Form</label>
+                      <!--<label class="m-0"><input type="checkbox" class="mr-1" ng-model="col.is_in_menu">Form</label>-->
                       <select class="custom-select custom-select-sm" ng-model="col.mode_form">
                         <option value="rw">RW</option>
                         <option value="ro">RO</option>
@@ -267,11 +267,11 @@
                     <!-- Show FK Menu if it is no Primary column -->
                     <td class="align-middle" colspan="2" ng-if="(col.EXTRA != 'auto_increment')">
                       <b>ForeignKey:</b>
-                      <select class="custom-select custom-select-sm" style="width: 120px; display: inline !important;" ng-model="col.foreignKey.table">
+                      <select class="custom-select custom-select-sm" style="width: 100px; display: inline !important;" ng-model="col.foreignKey.table">
                         <option value="" selected></option>
                         <option ng-repeat="tbl in tables" value="{{tbl.table_name}}">{{tbl.table_name}}</option>
                       </select>
-                      <input ng-if="(col.foreignKey.table != '')" type="text" class="form-control form-control-sm" style="width: 100px; display: inline !important;" ng-model="col.foreignKey.col_id" placeholder="JoinID">
+                      <input ng-if="(col.foreignKey.table != '')" type="text" class="form-control form-control-sm" style="width: 80px; display: inline !important;" ng-model="col.foreignKey.col_id" placeholder="JoinID">
                       <span>
                         <input ng-if="(col.foreignKey.table != '')" type="text" class="form-control form-control-sm w-100" ng-model="col.foreignKey.col_subst" placeholder="ReplacedCloumn">
                       </span>

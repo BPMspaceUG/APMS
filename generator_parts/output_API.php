@@ -2,7 +2,6 @@
   // Includes
   require_once(__DIR__.'/src/AuthHandler.inc.php');
   include_once(__DIR__."/src/RequestHandler.inc.php");
-
   //========================================= Authentification
   // Check if authenticated via Token
   $rawtoken = JWT::getBearerToken();
@@ -20,8 +19,7 @@
       http_response_code(401);
       exit();
     }
-  }
-  
+  }  
   //========================================= Parameter & Handling
   try {
     $paramData = json_decode(file_get_contents('php://input'), true);
