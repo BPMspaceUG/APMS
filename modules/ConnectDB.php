@@ -109,8 +109,9 @@
           $column_info = $row2;
           $column_name = $row2["COLUMN_NAME"];
           $col_datatype = $row2["DATA_TYPE"];
-          // Additional information
+          $col_isPrimary = ($row2['EXTRA'] == 'auto_increment');
 
+          // Additional information
           //------------------------------------------------------
           // Pre fill foreign keys
           //------------------------------------------------------
@@ -141,7 +142,7 @@
           ------------------------------*/
           $additional_info = array(
             "column_alias" => ucfirst($column_name),
-            "mode_form" => 'ro',
+            "mode_form" => ($column_name == "state_id" || $col_isPrimary) ? 'hi' : 'ro',
             "show_in_grid" => true,
             "rel_caption" => '',
             "field_type" => getFieldType($col_datatype),
