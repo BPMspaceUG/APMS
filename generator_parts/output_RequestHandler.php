@@ -196,7 +196,7 @@
         // ---- Count
         $result['count'] = json_decode($this->count($param), true)[0]['cnt'];
         // ---- Forms
-        //$result['formcreate'] = $this->getFormCreate($param);
+        $result['formcreate'] = $this->getFormCreate($param);
         //$result['formmodify'] = $this->getFormData($param);  
         // Return result as JSON
         return json_encode($result);
@@ -527,9 +527,8 @@
         $r = $SM->getBasicFormDataByColumns($tablename, Config::getConfig(), $cols, $excludeKeys);
         return $r;
       }*/
-    }
-    /*
-    public function getFormCreate($param) {
+    }    
+    private function getFormCreate($param) {
       $tablename = $param["table"];
       // Check Parameter
       if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
@@ -541,18 +540,20 @@
         // Has StateMachine
         $r = $SM->getCreateFormByTablename();
         if (empty($r))
-          $r = "1"; // default: allow editing (if there are no rules set)
+          $r = "{}"; // default: allow editing (if there are no rules set)
         else
           return $r;
       }
+      /*
       // Return standard form
       $cols = Config::getColsByTablename($tablename);
       $PrimKey = array(Config::getPrimaryColNameByTablename($tablename));
       $VirtKeys = Config::getVirtualColnames($tablename);
       $excludeKeys = array_merge($PrimKey, $VirtKeys, array('state_id'));
       $r = $SM->getBasicFormDataByColumns($tablename, Config::getConfig(), $cols, $excludeKeys, true);
-      return $r;
-    }*/
+      */
+      return '{}'; //$r;
+    }
     public function getNextStates($param) {
       // Inputs
       $tablename = $param["table"];

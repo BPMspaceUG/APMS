@@ -423,6 +423,35 @@ class RawTable {
     return this.tablename;
   }
 }
+
+
+
+  //--- Special Object merge functions
+  function isObject(item) {
+    return (item && typeof item === 'object' && !Array.isArray(item));
+  }    
+  function mergeDeep(target, ...sources) {
+    if (!sources.length) return target;
+    const source = sources.shift();    
+    if (isObject(target) && isObject(source)) {    
+      for (const key in source) {
+        if (isObject(source[key])) {
+          if (!target[key]) { 
+            Object.assign(target, { [key]: {} });
+          }else{          
+            target[key] = Object.assign({}, target[key])
+          }
+          mergeDeep(target[key], source[key]);
+        } else {
+          Object.assign(target, { [key]: source[key] });
+        }
+      }
+    }
+    return mergeDeep(target, ...sources);
+  }
+
+
+
 //==============================================================
 // Class: Table
 //==============================================================
@@ -436,7 +465,8 @@ class Table extends RawTable {
   private isExpanded: boolean = true;
   private selType: SelectType;
   private selectedIDs: number[];
-  private defaultValues = {}; // Default Values in Create-Form
+  private defaultValues = {}; // Default Values in Create-Form TODO: Remove
+  private diffFormCreateObject: any = {};
   public GUIOptions = {
     maxCellLength: 30,
     showControlColumn: true,
@@ -479,6 +509,10 @@ class Table extends RawTable {
         // Save Form Data
         me.TableConfig = resp['config'];
         me.actRowCount = resp['count'];
+        me.diffFormCreateObject = JSON.parse(resp['formcreate']);
+        //console.log('init', me.diffFormCreateObject);
+        //console.log(resp['formcreate']);
+
         me.Columns = me.TableConfig.columns;
         me.ReadOnly = me.TableConfig.is_read_only;
         me.TableType = me.TableConfig.table_type;
@@ -643,7 +677,6 @@ class Table extends RawTable {
   }
   //-------------------- /Remove
 
-
   private renderEditForm(RowID: number, diffObject: any, nextStates: any, ExistingModal: Modal = undefined) {
     let t = this
     let TheRow = null
@@ -652,30 +685,6 @@ class Table extends RawTable {
       if (row[t.PrimaryColumn] == RowID)
         TheRow = row
     });
-
-    //--- Special Object merge functions
-    function isObject(item) {
-      return (item && typeof item === 'object' && !Array.isArray(item));
-    }    
-    function mergeDeep(target, ...sources) {
-      if (!sources.length) return target;
-      const source = sources.shift();    
-      if (isObject(target) && isObject(source)) {    
-        for (const key in source) {
-          if (isObject(source[key])) {
-            if (!target[key]) { 
-              Object.assign(target, { [key]: {} });
-            }else{          
-              target[key] = Object.assign({}, target[key])
-            }
-            mergeDeep(target[key], source[key]);
-          } else {
-            Object.assign(target, { [key]: source[key] });
-          }
-        }
-      }
-      return mergeDeep(target, ...sources);
-    }    
     //--- Overwrite and merge the differences from diffObject
     let defaultFormObj = this.getDefaultFormObject();
     const newObj = mergeDeep(defaultFormObj, diffObject);
@@ -685,7 +694,7 @@ class Table extends RawTable {
     const htmlForm = newForm.getHTML();
 
     // create Modal if not exists
-    console.log('RenderEditForm', ExistingModal);
+    //console.log('RenderEditForm', ExistingModal);
     const TableAlias = 'in <i class="'+this.TableConfig.table_icon+'"></i> ' + this.TableConfig.table_alias;
     const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+RowID+')</span><span class="text-muted ml-3">'+ TableAlias +'</span>';
     let M: Modal = ExistingModal || new Modal(ModalTitle, '', '', true);
@@ -901,11 +910,6 @@ class Table extends RawTable {
     }
     return FormObj;
   }
-  private getDefaultForm(): FormGenerator {
-    const FormObj = this.getDefaultFormObject();
-    let form = new FormGenerator(FormObj);
-    return form;
-  }
 
   //-------------------------------------------------- PUBLIC METHODS
   public createEntry(): void {
@@ -921,7 +925,14 @@ class Table extends RawTable {
   </button>
 </div>`;
     
-    let fCreate = this.getDefaultForm();
+    //--- Overwrite and merge the differences from diffObject
+    let defaultFormObj = this.getDefaultFormObject();
+    const newObj = mergeDeep(defaultFormObj, me.diffFormCreateObject);
+    console.log(me.tablename);
+    console.log('---> Orig', defaultFormObj);
+    console.log('---> Diff', me.diffFormCreateObject);
+    const fCreate = new FormGenerator(newObj);
+
     // Create Modal
     let M = new Modal(ModalTitle, fCreate.getHTML(), CreateBtns, true);
     M.options.btnTextClose = me.GUIOptions.modalButtonTextModifyClose;
@@ -1056,9 +1067,9 @@ class Table extends RawTable {
       } else {
         //-------- EDIT-Modal WITHOUT StateMachine
         const tblTxt = 'in '+ this.getTableIcon() +' ' + this.getTableAlias();
-        const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+id+')</span><span class="text-muted ml-3">'+tblTxt+'</span>';        
+        const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+id+')</span><span class="text-muted ml-3">'+tblTxt+'</span>';
         
-        let fModify = this.getDefaultForm();
+        let fModify = new FormGenerator(this.getDefaultFormObject());
         let M: Modal = ExistingModal || new Modal(ModalTitle, fModify.getHTML(), '', true);
         M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
         // Save origin Table in all FKeys
@@ -1069,19 +1080,15 @@ class Table extends RawTable {
           <button class="btn btn-primary btnSave" type="button">
             <i class="fa fa-floppy-o"></i> ${this.GUIOptions.modalButtonTextModifySave}
           </button>
-          <button class="btn btn-outline-primary btnSaveAndClose" type="button">
+          <button class="btn btn-outline-primary btnSave andClose" type="button">
             ${this.GUIOptions.modalButtonTextModifySaveAndClose}
           </button>
         </div>`);
-
         // Bind functions to Save Buttons
         $('#' + M.getDOMID() + ' .btnSave').click(function(e){
           e.preventDefault();
-          me.saveEntry(M, fModify.getValues(), false)
-        })
-        $('#' + M.getDOMID() + ' .btnSaveAndClose').click(function(e){
-          e.preventDefault();
-          me.saveEntry(M, fModify.getValues())
+          const closeModal = $(this).hasClass('andClose');
+          me.saveEntry(M, fModify.getValues(), closeModal);
         })
         // Add the Primary RowID
         $('#' + M.getDOMID() + ' .modal-body form').append(
@@ -1094,7 +1101,6 @@ class Table extends RawTable {
             r = row
         });
         this.writeDataToForm('#' + M.getDOMID(), r);
-
         // Finally show Modal if none existed
         if (M) M.show()
       }
@@ -1698,7 +1704,7 @@ class FormGenerator {
     // Switch
     else if (el.field_type == 'switch') {
       result = '';
-      result += `<div class="custom-control custom-switch">
+      result += `<div class="custom-control custom-switch mt-2">
       <input name="${key}" type="checkbox" class="custom-control-input${el.mode_form == 'rw' ? ' rwInput' : ''}" id="inp_${key}"${el.mode_form == 'ro' ? ' disabled' : ''}${el.value == 1 ? ' checked' : ''}>
       <label class="custom-control-label" for="inp_${key}">${el.label}</label>
     </div>`;
@@ -1707,7 +1713,7 @@ class FormGenerator {
     result = 
     `<div class="form-group row">
       ${form_label}
-      <div class="col-sm-10">
+      <div class="col-sm-10 align-middle">
         ${result}
       </div>
     </div>`;
