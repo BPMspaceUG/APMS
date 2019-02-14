@@ -350,7 +350,6 @@ class RawTable {
         let me = this;
         let data = {
             table: this.tablename,
-            select: 'COUNT(*) AS cnt',
             where: this.Where,
             filter: this.Filter
         };
@@ -851,15 +850,18 @@ class Table extends RawTable {
         const me = this;
         let FormObj = {};
         // Generate the Form via Config -> Loop all columns from this table
-        for (const col of Object.keys(me.Columns)) {
-            FormObj[col] = {
-                field_type: me.Columns[col].field_type,
-                label: me.Columns[col].column_alias,
-                mode_form: me.Columns[col].mode_form,
-            };
+        for (const colname of Object.keys(me.Columns)) {
+            const ColObj = me.Columns[colname];
+            // Do not add virtual columns
+            if (!ColObj.is_virtual)
+                FormObj[colname] = {
+                    field_type: ColObj.field_type,
+                    label: ColObj.column_alias,
+                    mode_form: ColObj.mode_form,
+                };
             // Add foreign key -> Table
-            if (me.Columns[col].field_type == 'foreignkey')
-                FormObj[col]['fk_table'] = me.Columns[col].foreignKey.table;
+            if (ColObj.field_type == 'foreignkey')
+                FormObj[colname]['fk_table'] = ColObj.foreignKey.table;
         }
         return FormObj;
     }
