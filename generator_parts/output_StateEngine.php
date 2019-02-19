@@ -14,14 +14,14 @@
       if ($this->table != "")
       	$this->ID = $this->getSMIDByTablename($tablename);
     }
-
+    //-------- Logging
     private function log($text) {
       $this->query_log .= $text."\n\n";
     }
     public function getQueryLog() {
       return $this->query_log;
     }
-
+    //-------- General
     private function getSMIDByTablename($tablename) {
       $result = -1; //NULL;
       $stmt = $this->db->prepare("SELECT MIN(id) AS 'id' FROM state_machines WHERE tablename = ?");
@@ -40,9 +40,7 @@
       }
       return $result;
     }
-
-
-
+    //-------- Database Structure and Template-Scripts
     public function createDatabaseStructure() {
     	// ------------------------------- T A B L E S
     	//---- Create Table 'state_machines'
@@ -148,9 +146,6 @@
       $this->log($query); 
 		  // TODO: Foreign Key for [state <-> state_machines]
     }
-
-
-
     private function createNewState($statename, $isEP) {
       $result = -1;
       $query = "INSERT INTO state (name, form_data, statemachine_id, entrypoint) VALUES (?,?,?,?)";
@@ -243,75 +238,10 @@
     }
 
     // [START]   FORM - Elements
-    private function getTempl($isVisible, $label, $content, $fk = '') {
-      return "<div class=\"form-group row".($isVisible ? '' : ' collapse')."\">$fk\n\t".
-        "<label class=\"col-sm-3 col-form-label\">".$label."</label>\n\t".
-        "<div class=\"col-sm-9\">\n\t\t".$content."\n\t".
-        "</div>\n</div>\n";
-    }
-
-
-
-    private function getFormElement($isVisible, $key, $alias, $default, $data_type, $FKTable, $substCol) {
-      if ($FKTable != '') {
-        // FOREIGN KEY
-        $content = '<div>
-          <input type="hidden" name="'.$key.'" value="'.$default.'" class="inputFK"/>
-          <div class="external-table">
-            <div class="input-group">
-              <input type="text" class="form-control-plaintext mr-1 filterText" placeholder="Nothing selected" disabled>
-              <button class="btn btn-primary btnLinkFK" onclick="test(this)" data-tablename="'.$FKTable.'" title="Link Element" type="button">
-                <i class="fa fa-chain-broken"></i>
-              </button>
-            </div>
-          </div>
-        </div>';
-        return $this->getTempl($isVisible, $alias, $content);
-      }
-      else if (strtolower($data_type) == 'number') {
-        // Number
-        return $this->getTempl($isVisible, $alias, '<input type="number" class="form-control" name="'.$key.'">');
-      }
-      else if (strtolower($data_type) == 'tinyint') {
-        // Boolean
-        return $this->getTempl($isVisible, $alias, '<div class="custom-control custom-checkbox mt-1">'.
-          '<input type="checkbox" class="custom-control-input" id="customCheck1" name="'.$key.'">'.
-          '<label class="custom-control-label" for="customCheck1">&nbsp;</label></div>');
-      }
-      else if (strtolower($data_type) == 'textarea') {
-        // TextEditor (Code)
-        return $this->getTempl($isVisible, $alias, '<textarea rows="4" class="form-control editor" name="'.$key.'">'.$default.'</textarea>');
-      }
-      else if (strtolower($data_type) == 'time') {
-        // TIME
-        return $this->getTempl($isVisible, $alias, '<input type="time" class="form-control" name="'.$key.'">');
-      }
-      else if (strtolower($data_type) == 'date') {
-        // DATE
-        return $this->getTempl($isVisible, $alias, '<input type="date" class="form-control" name="'.$key.'">');
-      }
-      else if (strtolower($data_type) == 'datetime') {        
-        // DATETIME
-        return $this->getTempl($isVisible, $alias, "<div class=\"row\">\n".
-        "  <div class=\"col-7\"><input type=\"date\" class=\"form-control\" name=\"".$key."\"></div>\n". // DATE
-        "  <div class=\"col-5\"><input type=\"time\" class=\"form-control\" name=\"".$key."\"></div>\n". // TIME
-        "</div>");
-      }
-      else if (strtolower($data_type) == 'table') {
-        // TABLE
-        return $this->getTempl($isVisible, $alias, '<div class="extern_table'.$key.'"></div>');
-      }
-      // Standard
-      return $this->getTempl($isVisible, $alias, '<input type="text" class="form-control" name="'.$key.'" value="'.$default.'">');
-    }
-
-/*
-    public function getBasicFormDataByColumns($tablename, $config, $colData, $excludeKeys, $withoutReverseFKs = false) {
-      $header = "<form>\n";
-      $footer = "</form>";
+    /*
+    public function ___getBasicFormDataByColumns($tablename, $config, $colData, $excludeKeys, $withoutReverseFKs = false) {
       $content = '';
-      $config = json_decode($config, true);
-      
+      $config = json_decode($config, true);      
       if (!$withoutReverseFKs) {
         // Here, all foreign keys are looped and saved in reverse order [FK -> Table] for later (see below)
 
@@ -325,11 +255,8 @@
             foreach ($cols as $colname => $col) {
               $src = $col['foreignKey']['table'];
               $srcCol = $col['foreignKey']['col_id'];
-
               $dest = $tbl;
-              $destCol = $colname;
-
-              
+              $destCol = $colname;             
               // Add to map
               if (strlen($src) > 0 && strlen($srcCol) > 0 && strlen($dest) > 0 && strlen($destCol) > 0) {                
                 // echo "$src.$srcCol -> $dest.$destCol\n"; // for Debug
@@ -341,7 +268,6 @@
           }
         }
       }
-
       // Loop every column
       foreach ($colData as $colname => $value) {
         $key = $colname;
@@ -357,30 +283,23 @@
           $content .= $this->getFormElement($visible, $key, $alias, $default, $data_type, $FKTable, $substCol);
         }
       }
-
       if (!$withoutReverseFKs) {
         foreach ($reverseFKs as $link) {          
           $src = $link[0];
           $srcCol = $link[1];
           $dest = $link[2];
           $destCol = $link[3];
-
           //echo $src . ' -> ' . $dest.'<br>';
-
           // Add extra column for reverse N:M
           if ($tablename == $src) {
             $nm_table = $dest;
-
             // TODO: optimize, get primary column
             //$array = $config[$tablename]['columns'];
-
             $this_primary = $srcCol; //  array_keys($array)[0];
             $foreignPrimaryColname = $destCol;
-
             // Generate Alias
             $nm_table_alias = $config[$dest]['columns'][$destCol]['rel_caption'];    //$config[$nm_table]['rel_caption_forward'];
             $unique_table_name = $src.$srcCol.$dest.$destCol;
-
             $content .= $this->getFormElement(true, $unique_table_name, $nm_table_alias, $nm_table, 'table', null, null);
             $content .= '
   <script>
@@ -402,13 +321,11 @@
           }
         }
       }
-
       // OUTPUT
-      return $header.$content.$footer;
+      return $content;
     }
     // [END]   FORM - Elements
-*/
-
+    */    
     public function getFormDataByStateID($StateID) {
       if (!($this->ID > 0)) return "";
       $result = '';

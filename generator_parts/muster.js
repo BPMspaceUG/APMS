@@ -467,8 +467,6 @@ class Table extends RawTable {
                 me.TableConfig = resp['config'];
                 me.actRowCount = resp['count'];
                 me.diffFormCreateObject = JSON.parse(resp['formcreate']);
-                //console.log('init', me.diffFormCreateObject);
-                //console.log(resp['formcreate']);
                 me.Columns = me.TableConfig.columns;
                 me.ReadOnly = me.TableConfig.is_read_only;
                 me.TableType = me.TableConfig.table_type;
@@ -631,7 +629,7 @@ class Table extends RawTable {
                             }
                             e.val(value);
                         }
-                        else if (DataType == 'tinyint') {
+                        else if (DataType == 'switch') {
                             // Checkbox
                             e.prop('checked', parseInt(value) !== 0); // Boolean
                         }
@@ -654,9 +652,8 @@ class Table extends RawTable {
         //--- Overwrite and merge the differences from diffObject
         let defaultFormObj = this.getDefaultFormObject();
         const newObj = mergeDeep(defaultFormObj, diffObject);
-        //console.log('default', defaultFormObj);
-        //console.log('new', newObj);
-        const newForm = new FormGenerator(newObj);
+        // Generate a Modify-Form
+        const newForm = new FormGenerator(t, RowID, newObj);
         const htmlForm = newForm.getHTML();
         // create Modal if not exists
         //console.log('RenderEditForm', ExistingModal);
@@ -856,13 +853,7 @@ class Table extends RawTable {
         // Generate the Form via Config -> Loop all columns from this table
         for (const colname of Object.keys(me.Columns)) {
             const ColObj = me.Columns[colname];
-            // Do not add virtual columns
-            if (!ColObj.is_virtual)
-                FormObj[colname] = {
-                    field_type: ColObj.field_type,
-                    label: ColObj.column_alias,
-                    mode_form: ColObj.mode_form,
-                };
+            FormObj[colname] = ColObj;
             // Add foreign key -> Table
             if (ColObj.field_type == 'foreignkey')
                 FormObj[colname]['fk_table'] = ColObj.foreignKey.table;
@@ -884,10 +875,13 @@ class Table extends RawTable {
         //--- Overwrite and merge the differences from diffObject
         let defaultFormObj = this.getDefaultFormObject();
         const newObj = mergeDeep(defaultFormObj, me.diffFormCreateObject);
-        console.log(me.tablename);
-        console.log('---> Orig', defaultFormObj);
-        console.log('---> Diff', me.diffFormCreateObject);
-        const fCreate = new FormGenerator(newObj);
+        // set default values
+        for (const key of Object.keys(me.defaultValues)) {
+            newObj[key].value = me.defaultValues[key]; // overwrite value
+            newObj[key].mode_form = 'ro'; // and also set to read-only
+        }
+        // Create a new Create-Form
+        const fCreate = new FormGenerator(me, undefined, newObj);
         // Create Modal
         let M = new Modal(ModalTitle, fCreate.getHTML(), CreateBtns, true);
         M.options.btnTextClose = me.GUIOptions.modalButtonTextModifyClose;
@@ -1004,7 +998,6 @@ class Table extends RawTable {
                 me.getFormModify(data, function (r) {
                     if (r.length > 0) {
                         let diffJSON = JSON.parse(r);
-                        //console.log('---Diff to Default Form Object--->', diffJSON);
                         me.getNextStates(data, function (re) {
                             if (re.length > 0) {
                                 let nextstates = JSON.parse(re);
@@ -1018,7 +1011,7 @@ class Table extends RawTable {
                 //-------- EDIT-Modal WITHOUT StateMachine
                 const tblTxt = 'in ' + this.getTableIcon() + ' ' + this.getTableAlias();
                 const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">(' + id + ')</span><span class="text-muted ml-3">' + tblTxt + '</span>';
-                let fModify = new FormGenerator(this.getDefaultFormObject());
+                let fModify = new FormGenerator(me, id, this.getDefaultFormObject());
                 let M = ExistingModal || new Modal(ModalTitle, fModify.getHTML(), '', true);
                 M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
                 // Save origin Table in all FKeys
@@ -1118,7 +1111,6 @@ class Table extends RawTable {
                         content += '<td class="border-0" style="width: ' + split + '%">' + JSON.stringify(val) + '</td>';
                 }
                 else {
-                    //console.log('-', val);
                     if (val)
                         content += '<td class="border-0" style="width: ' + split + '%">' + escapeHtml(val) + '</td>';
                     else
@@ -1174,7 +1166,7 @@ class Table extends RawTable {
                 value = '';
             return value;
         }
-        else if (t.Columns[col].field_type == 'tinyint') {
+        else if (t.Columns[col].field_type == 'switch') {
             //--- BOOLEAN
             return (parseInt(value) !== 0 ?
                 '<i class="fa fa-check text-success text-center"></i>&nbsp;' :
@@ -1249,7 +1241,6 @@ class Table extends RawTable {
                                 });
                             });
                             const res = yield getSubHeaders;
-                            //console.log(res);
                             th += `<table class="w-100 border-0"><tr>${res}</tr></table>`;
                         }
                         //-------------------
@@ -1566,27 +1557,29 @@ class Table extends RawTable {
 // Class: FormGenerator (Generates HTML-Bootstrap4 Forms from JSON)
 //==============================================================
 class FormGenerator {
-    constructor(Input) {
+    constructor(originTable, originRowID, Input) {
         this.GUID = GUI.ID();
         /*
         // Tests
         const testForm1 = {
-          column_name_1: {field_type: 'text', label: '', mode_form: 'ro', value: 'standard-value'},
-          column_name_2: {field_type: 'number', label: 'Number of Questions', mode_form: 'rw'},
-          column_name_3: {field_type: 'textarea', label: 'Description', mode_form: 'ro'},
-          column_name_7: {field_type: 'date', label: 'Date', mode_form: 'rw', value: '2019-01-01'},
-          column_name_8: {field_type: 'time', label: 'Time', mode_form: 'ro', value: "13:37"},
-          column_name_6: {field_type: 'foreignkey', label: 'Select a ForeignKey', mode_form: 'rw'},
-          column_name_4: {field_type: 'switch', label: 'Correct', mode_form: 'rw', value: 1},
-          column_name_5: {field_type: 'switch', label: 'Just another Switch', mode_form: 'ro', value: 0},
+          column_name_1: {field_type: 'text', column_alias: '', mode_form: 'ro', value: 'standard-value'},
+          column_name_2: {field_type: 'number', column_alias: 'Number of Questions', mode_form: 'rw'},
+          column_name_3: {field_type: 'textarea', column_alias: 'Description', mode_form: 'ro'},
+          column_name_7: {field_type: 'date', column_alias: 'Date', mode_form: 'rw', value: '2019-01-01'},
+          column_name_8: {field_type: 'time', column_alias: 'Time', mode_form: 'ro', value: "13:37"},
+          column_name_6: {field_type: 'foreignkey', column_alias: 'Select a ForeignKey', mode_form: 'rw'},
+          column_name_4: {field_type: 'switch', column_alias: 'Correct', mode_form: 'rw', value: 1},
+          column_name_5: {field_type: 'switch', column_alias: 'Just another Switch', mode_form: 'ro', value: 0},
         };
         const testForm2 = {
-          column_n: {field_type: 'foreignkey', label: 'First element', mode_form: 'rw'},
-          column_m: {field_type: 'foreignkey', label: 'Second element', mode_form: 'rw'},
+          column_n: {field_type: 'foreignkey', column_alias: 'First element', mode_form: 'rw'},
+          column_m: {field_type: 'foreignkey', column_alias: 'Second element', mode_form: 'rw'},
         };
         */
         //if (!Input) Input = testForm1;
         // Save data internally
+        this.oTable = originTable;
+        this.oRowID = originRowID;
         this.data = Input;
     }
     getElement(key, el) {
@@ -1594,47 +1587,48 @@ class FormGenerator {
         if (el.mode_form == 'hi')
             return '';
         // Label?
-        const form_label = el.label ? `<label class="col-sm-2 col-form-label" for="inp_${key}">${el.label}</label>` : '';
-        // Textarea
+        const form_label = el.column_alias ? `<label class="col-sm-2 col-form-label" for="inp_${key}">${el.column_alias}</label>` : '';
+        //--- Textarea
         if (el.field_type == 'textarea') {
             result += `<textarea name="${key}" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}" ${el.mode_form == 'ro' ? ' readonly' : ''}>${el.value ? el.value : ''}</textarea>`;
         }
-        // Text
+        //--- Text
         else if (el.field_type == 'text') {
             result += `<input name="${key}" type="text" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
         }
-        // Number
+        //--- Number
         else if (el.field_type == 'number') {
             result += `<input name="${key}" type="number" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
         }
-        // Time
+        //--- Time
         else if (el.field_type == 'time') {
             result += `<input name="${key}" type="time" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
         }
-        // Date
+        //--- Date
         else if (el.field_type == 'date') {
             result += `<input name="${key}" type="date" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
         }
-        // Datetime
+        //--- Datetime
         else if (el.field_type == 'datetime') {
             result += `<div class="input-group">
-          <input name="${key}" type="date" id="inp_${key}" class="dtm form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
-          value="${el.value ? el.value.split(' ')[0] : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>
-          <input name="${key}" type="time" id="inp_${key}_time" class="dtm form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
-          value="${el.value ? el.value.split(' ')[1] : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>
-        </div>`;
+        <input name="${key}" type="date" id="inp_${key}" class="dtm form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
+        value="${el.value ? el.value.split(' ')[0] : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>
+        <input name="${key}" type="time" id="inp_${key}_time" class="dtm form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
+        value="${el.value ? el.value.split(' ')[1] : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>
+      </div>`;
         }
-        // Foreignkey
+        //--- Foreignkey
         else if (el.field_type == 'foreignkey') {
+            // rwInput ====> Special case!
             result += `
-        <input type="hidden" name="${key}" value="${el.value ? el.value : ''}" class="inputFK${el.mode_form == 'rw' ? ' rwInput' : ''}">
+        <input type="hidden" name="${key}" value="${el.value ? el.value : ''}" class="inputFK${el.mode_form != 'hi' ? ' rwInput' : ''}">
         <div class="external-table">
           <div class="input-group">
-            <input type="text" class="form-control filterText${el.mode_form == 'rw' ? ' bg-white' : ''}" placeholder="Nothing selected" disabled>
+            <input type="text" class="form-control filterText${el.mode_form == 'rw' ? ' bg-white' : ''}" ${el.value ? 'value="' + el.value + '"' : ''} placeholder="Nothing selected" disabled>
             <div class="input-group-append">
               <button class="btn btn-primary btnLinkFK" onclick="test(this)" data-tablename="${el.fk_table}" title="Link Element" type="button"${el.mode_form == 'ro' ? ' disabled' : ''}>
                 <i class="fa fa-chain-broken"></i>
@@ -1643,15 +1637,40 @@ class FormGenerator {
           </div>
         </div>`;
         }
-        // Switch
+        //--- Reverse Foreign Key
+        else if (el.field_type == 'reversefk') {
+            const tmpGUID = GUI.ID();
+            const ext_tablename = el.revfk_tablename;
+            const hideCol = el.revfk_colname;
+            const OriginRowID = this.oRowID;
+            // Default values
+            let defValues = {};
+            defValues[hideCol] = OriginRowID;
+            result += `<div class="${tmpGUID}"></div>`; // Container for Table
+            //--- Create new Table
+            let tmp = new Table(ext_tablename, SelectType.NoSelect, function () {
+                tmp.Columns[hideCol].show_in_grid = false; // Hide the origin column
+                tmp.ReadOnly = (el.mode_form == 'ro');
+                tmp.loadRows(function () {
+                    tmp.renderHTML('.' + tmpGUID);
+                });
+            }, 'a.' + hideCol + ' = ' + OriginRowID, // Where-filter
+            defValues // Default Values
+            );
+        }
+        //--- Pure HTML (not working yet)
+        else if (el.field_type == 'rawhtml') {
+            result += el.value;
+        }
+        //--- Switch
         else if (el.field_type == 'switch') {
             result = '';
             result += `<div class="custom-control custom-switch mt-2">
       <input name="${key}" type="checkbox" class="custom-control-input${el.mode_form == 'rw' ? ' rwInput' : ''}" id="inp_${key}"${el.mode_form == 'ro' ? ' disabled' : ''}${el.value == 1 ? ' checked' : ''}>
-      <label class="custom-control-label" for="inp_${key}">${el.label}</label>
+      <label class="custom-control-label" for="inp_${key}">${el.column_alias}</label>
     </div>`;
         }
-        // Output
+        // ===> HTML Output
         result =
             `<div class="form-group row">
       ${form_label}
@@ -1701,14 +1720,6 @@ class FormGenerator {
         return html + '</form>';
     }
 }
-/*
-let x = new FormGenerator(undefined);
-let m = new Modal('Form-Test', x.getHTML(), '<button onclick="readVals()">ReadVals</button>');
-m.show();
-function readVals() {
-  x.getValues();
-}
-*/
 //-------------------------------------------
 // Bootstrap-Helper-Method: Overlay of many Modal windows (newest on top)
 $(document).on('show.bs.modal', '.modal', function () {

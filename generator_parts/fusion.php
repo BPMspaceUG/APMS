@@ -1,5 +1,7 @@
 <?php
-
+  function getStateCSS($id, $bgcolor, $color = "white", $border = "none") {
+    return ".state$id {background-color: $bgcolor; color: $color; border: $border;}\n";
+  }
   function loadFile($fname) {
     $fh = fopen($fname, "r");
     $content = stream_get_contents($fh);
@@ -71,7 +73,6 @@
     "  <div id=\"dashboardcontent\"></div>".
     "</div>\n";
 
-
   $con = DB::getInstance()->getConnection();
   //$tablePrefix = $db_name;  
   //--------------------------------- create RoleManagement
@@ -109,7 +110,6 @@
       PRIMARY KEY (`History_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8;');
   }
-
 
   foreach ($data as $table) {
     // Get Data
@@ -168,9 +168,9 @@
 
     foreach ($colnames as $colname) {
       $fk = $table["columns"][$colname]["foreignKey"];
+      $ft = $fk["table"];
 
       // -- Foreign Key
-      $ft = $fk["table"];
       if ($ft != "") {
         $fkey = $fk["col_id"];
         $fsub = $fk["col_subst"];
@@ -218,11 +218,12 @@
 
       // -- Virtual Column
       $isVc = $table["columns"][$colname]["is_virtual"];
-      if ($isVc) {
-        $virtualcols[] = addslashes($table["columns"][$colname]["virtual_select"]).' AS '.$colname;
-        $allcolnames[] = addslashes($table["columns"][$colname]["virtual_select"]);
+      $virtSelect = $table["columns"][$colname]["virtual_select"];
+      if ($isVc && (strlen($virtSelect) > 0)) {
+        $virtualcols[] = addslashes($virtSelect).' AS '.$colname;
+        $allcolnames[] = addslashes($virtSelect);
       }
-      else {
+      elseif (!$isVc) {
         $stdcols[] = "a.".$colname;
         $allcolnames[] = "a.".$colname;
       }
@@ -306,14 +307,6 @@ END";
         $excludeKeys[] = $vc;
       }
       
-      // Default Form Data
-      /*
-      $form_data_default = $SM->getBasicFormDataByColumns($tablename, json_encode($data), $colData, $excludeKeys);
-      $query = "UPDATE state_machines SET form_data_default = ? WHERE tablename = ? AND NULLIF(form_data_default, '') IS NULL";
-      $stmt = $con->prepare($query);
-      $stmt->execute(array($form_data_default, $tablename));
-      */
-
       $queries1 = '';
       $queries1 = $SM->getQueryLog();
       // Clean up
@@ -336,11 +329,13 @@ END";
         $tmpStateID = $state['id'];
         if ($table_type == 'obj') {
           // Generate color
-          $state_css = ".state$tmpStateID {background-color: hsl($initColorHue, 50%, $v%);}\n";
+          $state_css = getStateCSS($tmpStateID, "hsl($initColorHue, 50%, $v%)");
         } else {
           // NM Table
-          if ($v == 20) $state_css = ".state$tmpStateID {background-color: #328332;}\n"; // Selected
-          else $state_css = ".state$tmpStateID {background-color: #8b0000;}\n";
+          if ($v == 20) //$state_css = ".state$tmpStateID {background-color: #328332;}\n"; // Selected
+            $state_css = getStateCSS($tmpStateID, "#328332");
+          else
+            $state_css = getStateCSS($tmpStateID, "#8b0000"); //".state$tmpStateID {background-color: #8b0000;}\n";
         }
         $content_css_statecolors .= $state_css;
       }

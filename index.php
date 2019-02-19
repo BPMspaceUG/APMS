@@ -241,21 +241,21 @@
                         <option value="date">Date</option>
                         <option value="time">Time</option>
                         <option value="foreignkey">ForeignKey</option>
+                        <option value="reversefk">Reverse Foreign Key</option>
                         <option value="datetime">DateTime</option>
                         <option value="password">Passwordfield</option>
                         <option value="htmleditor">HTML-Editor</option>
+                        <option value="rawhtml">Raw HTML</option>
                       </select>
                     </td>
 
                     <!-- Alias(es) -->
                     <td class="align-middle">
-                      <input type="text" class="form-control form-control-sm" ng-model="col.column_alias">
-                      <input type="text" class="form-control form-control-sm" ng-if="(tbl.table_type != 'obj' && col.foreignKey.table != '')" ng-model="col.rel_caption">    
+                      <input type="text" class="form-control form-control-sm" ng-model="col.column_alias"> 
                     </td>
 
                     <!-- Visibility / Mode -->
-                    <td colspan="2" class="align-middle" ng-if="!col.is_virtual">
-                      <!--<label class="m-0"><input type="checkbox" class="mr-1" ng-model="col.is_in_menu">Form</label>-->
+                    <td colspan="2" class="align-middle">
                       <select class="custom-select custom-select-sm" ng-model="col.mode_form">
                         <option value="rw">RW</option>
                         <option value="ro">RO</option>
@@ -265,7 +265,7 @@
                     </td>
 
                     <!-- Show FK Menu if it is no Primary column -->
-                    <td class="align-middle" colspan="2" ng-if="(col.EXTRA != 'auto_increment')">
+                    <td class="align-middle" colspan="2" ng-if="col.EXTRA != 'auto_increment' && !col.is_virtual">
                       <b>ForeignKey:</b>
                       <select class="custom-select custom-select-sm" style="width: 100px; display: inline !important;" ng-model="col.foreignKey.table">
                         <option value="" selected></option>
@@ -279,9 +279,24 @@
 
                     <!-- VIRTUAL GRID COLUMN -->
                     <td colspan="4" ng-if="col.is_virtual">
-                      <span>SELECT ( i.e. CONCAT(a, b) ): </span>
-                      <input type="text" ng-model="col.virtual_select" style="width: 300px" placeholder="CONCAT(id, col1, col2)">
-                      <button class="btn btn-sm btn-danger" ng-click="del_virtCol(tbl, col)">delete</button>
+                      <div class="row">
+                        <div class="col-10">
+                          <!-- Virtual Select -->
+                          <div ng-if="col.field_type != 'reversefk'">
+                            <span>SELECT ( i.e. CONCAT(a, b) ): </span>
+                            <input type="text" ng-model="col.virtual_select" style="width: 300px" placeholder="CONCAT(id, col1, col2)">
+                          </div>
+                          <!-- Reverse Foreign Key -->
+                          <div ng-if="col.field_type == 'reversefk'">
+                            <input type="text" ng-model="col.revfk_tablename" style="width: 300px" placeholder="External Table">
+                            <input type="text" ng-model="col.revfk_colname" style="width: 300px" placeholder="Columnname">
+                          </div>
+                        </div>
+                        <div class="col-2">
+                          <!-- Delete Virtual column -->
+                          <button class="btn btn-sm btn-danger" title="Delete virtual Column" ng-click="del_virtCol(tbl, col)">X</button>
+                        </div>
+                      </div>
                     </td>
 
                   </tr>

@@ -144,7 +144,6 @@
             "column_alias" => ucfirst($column_name),
             "mode_form" => ($column_name == "state_id" || $col_isPrimary) ? 'hi' : 'ro',
             "show_in_grid" => true,
-            "rel_caption" => '',
             "field_type" => getFieldType($col_datatype),
             "foreignKey" => $fk,
             "col_order" => (int)$column_counter,
@@ -152,7 +151,7 @@
             "virtual_select" => ""
           );
           // Filter columns array
-          $allowed  = ['COLUMN_NAME', /*'DATA_TYPE',*/ 'COLUMN_TYPE', 'COLUMN_KEY', 'EXTRA'];
+          $allowed  = ['COLUMN_NAME', 'COLUMN_TYPE', 'COLUMN_KEY', 'EXTRA'];
           $filtered = array_filter(
             $column_info,
             function ($key) use ($allowed) { return in_array($key, $allowed); },
@@ -177,8 +176,6 @@
             'COLUMN_KEY' => "",
             'EXTRA' => "",
             'column_alias' => "SM",
-            'is_in_menu' => true,
-            'read_only' => false,
             'foreignKey' => array(
               'table' => "",
               'col_id' => "",
