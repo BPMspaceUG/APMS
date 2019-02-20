@@ -250,7 +250,7 @@ APMS.controller('APMScontrol', function ($scope, $http) {
   // GUI------------------------------------
 
   $scope.add_virtCol = function(tbl){
-    console.log("Add virtual Column", tbl);
+    //console.log("Add virtual Column", tbl);
     const cols = $scope.tables[tbl.table_name].columns;    
     let new_virt_colname = 'virtualCol';
     // TODO: Improve Name generation i.e. with Hash
@@ -264,8 +264,8 @@ APMS.controller('APMScontrol', function ($scope, $http) {
       COLUMN_KEY: "",
       EXTRA: "",
       column_alias: "Virtual Column",
-      read_only: false,
       show_in_grid: true,
+      mode_form: 'hi',
       foreignKey: {
           table: "",
           col_id: "",
@@ -273,21 +273,23 @@ APMS.controller('APMScontrol', function ($scope, $http) {
       },
       col_order: 3,
       is_virtual: true,
-      virtual_select: "CONCAT('This is a virtual', ' column')"
+      virtual_select: ""
     }
     return
   }
   $scope.del_virtCol = function(tbl, col){
+    /*
     console.log('Deleted virtual column');
     console.log(tbl);
     console.log(col);
     console.log($scope.tables[tbl.table_name].columns[col.COLUMN_NAME]);
+    */
     delete tbl.columns[col.COLUMN_NAME]
   }
   $scope.changeSortOrder = function(col, inc) {
     //const oldIndex = parseInt(col.col_order); // can be overwritten
     const newIndex = parseInt(col.col_order) + inc;
-    console.log('change Col Order', col, inc)
+    //console.log('change Col Order', col, inc)
     col.col_order = newIndex
   }
 

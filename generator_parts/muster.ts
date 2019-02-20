@@ -200,13 +200,16 @@ class StateMachine {
 
           const isExitNode = me.isExitNode(nodes[i].id, smLinks);
           const cssClass = 'state' + (nodes[i].id - idOffset);
-          const _color = $('<div class="'+cssClass+' delete-this-div"></div>').appendTo('html').css("background-color");
+
+          const element = $('<div class="' + cssClass + ' delete-this-div"></div>').appendTo('html');
+          const colBG = element.css("background-color");
+          const colFont = element.css("color");
           $('.delete-this-div').remove(); // Delete the divs
 
           
           if (isExitNode) {
             // Exit Node
-            nodes[i]['color'] = _color;
+            nodes[i]['color'] = colBG;
             nodes[i]['shape'] = 'dot';
             nodes[i]['size'] = 10;
             nodes[i]['font'] = { multi: 'html', color: 'black'};
@@ -215,8 +218,8 @@ class StateMachine {
           // every node, except 0 node
           if (nodes[i].id >= idOffset && !isExitNode) {
             // Get color
-            nodes[i]['font'] = { multi: 'html', color: 'white'};
-            nodes[i]['color'] = _color;
+            nodes[i]['font'] = { multi: 'html', color: colFont};
+            nodes[i]['color'] = colBG;
             nodes[i]['title'] = 'StateID: ' + (nodes[i].id - idOffset);
           }
         }
@@ -922,6 +925,11 @@ class Table extends RawTable {
       newObj[key].value = me.defaultValues[key]; // overwrite value
       newObj[key].mode_form = 'ro'; // and also set to read-only
     }
+    // In the create form do not use reverse foreign keys
+    for (const key of Object.keys(newObj)) {
+      if (newObj[key].field_type == 'reversefk')
+        newObj[key].mode_form = 'hi';
+    }
     // Create a new Create-Form
     const fCreate = new FormGenerator(me, undefined, newObj);
 
@@ -1225,7 +1233,7 @@ class Table extends RawTable {
     }
     else if (col == 'state_id' && t.tablename != 'state') {
       //--- STATE
-      return t.renderStateButton(value['state_id'], value['name'], true);
+      return t.renderStateButton(value['state_id'], value['name'], !t.ReadOnly);
     }
     else if (
       (t.tablename == 'state' && col == 'name') || (t.tablename == 'state_rules' && (col == 'state_id_FROM' || col == 'state_id_TO'))
@@ -1486,17 +1494,17 @@ class Table extends RawTable {
     const output = await t.getContent();
     $('.'+t.GUID).replaceWith(output);
     //---------------------- Link jquery
-    // Edit Row
-    $('.'+t.GUID+' .modRow').off('click').on('click', function(e){
-      e.preventDefault();
-      let RowID = $(this).data('rowid');
-      t.modifyRow(RowID);
-    })
     // Table-Header - Sort
     $('.'+t.GUID+' .datatbl_header').off('click').on('click', function(e){
       e.preventDefault();
       let colname = $(this).data('colname');
       t.toggleSort(colname)
+    })
+    // Edit Row
+    $('.'+t.GUID+' .modRow').off('click').on('click', function(e){
+      e.preventDefault();
+      let RowID = $(this).data('rowid');
+      t.modifyRow(RowID);
     })
     // State PopUp Menu
     $('.'+t.GUID+' .showNextStates').off('show.bs.dropdown').on('show.bs.dropdown', function(e){
@@ -1519,7 +1527,7 @@ class Table extends RawTable {
             });
             jQRow.find('.dropdown-menu').html(btns);
             // Bind function to StateButtons
-            $('.btnState').click(function(e){
+            $('.'+t.GUID+' .btnState').click(function(e){
               e.preventDefault();
               const RowID = $(this).data('rowid');
               const TargetStateID = $(this).data('targetstate');
@@ -1710,6 +1718,7 @@ class FormGenerator {
         function(){
           tmp.Columns[hideCol].show_in_grid = false; // Hide the origin column
           tmp.ReadOnly = (el.mode_form == 'ro');
+          tmp.GUIOptions.showControlColumn = !tmp.ReadOnly;
           tmp.loadRows(function(){
             tmp.renderHTML('.' + tmpGUID);
           })

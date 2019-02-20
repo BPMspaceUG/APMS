@@ -1,6 +1,6 @@
 <?php
   function getStateCSS($id, $bgcolor, $color = "white", $border = "none") {
-    return ".state$id {background-color: $bgcolor; color: $color; border: $border;}\n";
+    return ".state$id {background-color: $bgcolor; color: $color;}\n";
   }
   function loadFile($fname) {
     $fh = fopen($fname, "r");
