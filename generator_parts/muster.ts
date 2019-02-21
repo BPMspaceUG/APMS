@@ -427,34 +427,6 @@ class RawTable {
   }
 }
 
-
-
-  //--- Special Object merge functions
-  function isObject(item) {
-    return (item && typeof item === 'object' && !Array.isArray(item));
-  }    
-  function mergeDeep(target, ...sources) {
-    if (!sources.length) return target;
-    const source = sources.shift();    
-    if (isObject(target) && isObject(source)) {    
-      for (const key in source) {
-        if (isObject(source[key])) {
-          if (!target[key]) { 
-            Object.assign(target, { [key]: {} });
-          }else{          
-            target[key] = Object.assign({}, target[key])
-          }
-          mergeDeep(target[key], source[key]);
-        } else {
-          Object.assign(target, { [key]: source[key] });
-        }
-      }
-    }
-    return mergeDeep(target, ...sources);
-  }
-
-
-
 //==============================================================
 // Class: Table
 //==============================================================
@@ -687,8 +659,8 @@ class Table extends RawTable {
         TheRow = row
     });
     //--- Overwrite and merge the differences from diffObject
-    let defaultFormObj = this.getDefaultFormObject();
-    const newObj = mergeDeep(defaultFormObj, diffObject);
+    let defaultFormObj = t.getDefaultFormObject();
+    const newObj = mergeDeep({}, defaultFormObj, diffObject);
     // Generate a Modify-Form
     const newForm = new FormGenerator(t, RowID, newObj);
     const htmlForm = newForm.getHTML();
@@ -895,11 +867,13 @@ class Table extends RawTable {
     // Generate the Form via Config -> Loop all columns from this table
     for (const colname of Object.keys(me.Columns)) {
       const ColObj = me.Columns[colname];
-      FormObj[colname] = ColObj
+      console.log(colname, ColObj.mode_form);
+      FormObj[colname] = ColObj;
       // Add foreign key -> Table
       if (ColObj.field_type == 'foreignkey')
         FormObj[colname]['fk_table'] = ColObj.foreignKey.table;
     }
+    console.log('defaultFormObj', FormObj);
     return FormObj;
   }
 
@@ -916,10 +890,11 @@ class Table extends RawTable {
     ${this.GUIOptions.modalButtonTextCreate} &amp; Close
   </button>
 </div>`;
-    
+    console.log('createEntry');
     //--- Overwrite and merge the differences from diffObject
-    let defaultFormObj = this.getDefaultFormObject();
-    const newObj = mergeDeep(defaultFormObj, me.diffFormCreateObject);
+    let defFormObj = me.getDefaultFormObject();
+    const diffFormCreate = me.diffFormCreateObject;
+    let newObj = mergeDeep({}, defFormObj, diffFormCreate);
     // set default values
     for (const key of Object.keys(me.defaultValues)) {
       newObj[key].value = me.defaultValues[key]; // overwrite value
@@ -988,9 +963,11 @@ class Table extends RawTable {
                   me.onEntriesModified.trigger();
                   // TODO: Overwrite the new Content from Database
                   //me.modifyRow(msg.element_id, ModalID)
-                  $('#'+ModalID).modal('hide');
                   // Reopen Modal
-                  if (reOpenModal) me.modifyRow(me.lastModifiedRowID);
+                  if (reOpenModal)
+                    me.modifyRow(me.lastModifiedRowID, M);
+                  else
+                    $('#'+ModalID).modal('hide');
 
                 })
               })
@@ -1048,13 +1025,12 @@ class Table extends RawTable {
       // Set Form
       if (this.SM) {
         //-------- EDIT-Modal WITH StateMachine
-        let PrimaryColumn: string = this.PrimaryColumn;
         let data = {};
-        data[PrimaryColumn] = id;
+        data[me.PrimaryColumn] = id;
         // Get Forms
         me.getFormModify(data, function(r){
           if (r.length > 0) {
-            let diffJSON = JSON.parse(r);
+            const diffJSON = JSON.parse(r);
             me.getNextStates(data, function(re){
               if (re.length > 0) {
                 let nextstates = JSON.parse(re);
@@ -1068,7 +1044,7 @@ class Table extends RawTable {
         const tblTxt = 'in '+ this.getTableIcon() +' ' + this.getTableAlias();
         const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+id+')</span><span class="text-muted ml-3">'+tblTxt+'</span>';
         
-        let fModify = new FormGenerator(me, id, this.getDefaultFormObject());
+        let fModify = new FormGenerator(me, id, me.getDefaultFormObject());
         let M: Modal = ExistingModal || new Modal(ModalTitle, fModify.getHTML(), '', true);
         M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
         // Save origin Table in all FKeys
@@ -1648,6 +1624,7 @@ class FormGenerator {
     this.oTable = originTable;
     this.oRowID = originRowID;
     this.data = Input;
+    console.log('--- New Form was generated!');
   }
   private getElement(key: string, el): string {
     let result: string = '';
@@ -1838,7 +1815,30 @@ $(function(){
   });
 });
 //-------------------------------------------
-
+//--- Special Object merge functions
+function isObject(item) {
+  return (item && typeof item === 'object' && !Array.isArray(item));
+}    
+function mergeDeep(target, ...sources) {
+  if (!sources.length) return target;
+  const source = sources.shift();
+  if (isObject(target) && isObject(source)) {    
+    for (const key in source) {
+      if (isObject(source[key])) {
+        if (!target[key]) { 
+          Object.assign(target, { [key]: {} });
+        }else{          
+          target[key] = Object.assign({}, target[key])
+        }
+        mergeDeep(target[key], source[key]);
+      } else {
+        Object.assign(target, { [key]: source[key] });
+      }
+    }
+  }
+  return mergeDeep(target, ...sources);
+}
+//--- Expand foreign key
 function test(x): void {
   let me = $(x);
   const FKTable = me.data('tablename');
