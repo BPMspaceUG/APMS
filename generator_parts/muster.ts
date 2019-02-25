@@ -1,12 +1,12 @@
 // Plugins (only declared to remove TS Errors)
 declare var $: any;
 declare var vis: any;
+declare var Quill: any;
 
 // Enums
 enum SortOrder {ASC = 'ASC', DESC = 'DESC'}
 enum SelectType {NoSelect = 0, Single = 1}
 enum TableType {obj = 'obj', t1_1 = '1_1', t1_n = '1_n', tn_1 = 'n_1', tn_m = 'n_m'}
-
 
 // Events
 // see here: https://stackoverflow.com/questions/12881212/does-typescript-support-events-on-classes
@@ -580,7 +580,7 @@ class Table extends RawTable {
   }
 
   //-------------------- Remove
-  private writeDataToForm(MID: string, data: any): void {
+  private xxxwriteDataToForm(MID: string, data: any): void {
     let me = this
     let inputs = $(MID+' :input')
 
@@ -654,13 +654,16 @@ class Table extends RawTable {
     let t = this
     let TheRow = null
     // get The Row
-    this.Rows.forEach(row => {
-      if (row[t.PrimaryColumn] == RowID)
-        TheRow = row
-    });
+    this.Rows.forEach(row => { if (row[t.PrimaryColumn] == RowID) TheRow = row; });
+
+
     //--- Overwrite and merge the differences from diffObject
     let defaultFormObj = t.getDefaultFormObject();
-    const newObj = mergeDeep({}, defaultFormObj, diffObject);
+    let newObj = mergeDeep({}, defaultFormObj, diffObject);
+    for (const key of Object.keys(TheRow)) {
+      const value = TheRow[key];
+      newObj[key].value = value;
+    }
     // Generate a Modify-Form
     const newForm = new FormGenerator(t, RowID, newObj);
     const htmlForm = newForm.getHTML();
@@ -672,11 +675,12 @@ class Table extends RawTable {
     let M: Modal = ExistingModal || new Modal(ModalTitle, '', '', true);
     M.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose;
     M.setContent(htmlForm);
+    newForm.initEditors();
 
     let btns = '';
     let saveBtn = '';
-    let actStateID = TheRow.state_id['state_id'] // ID
-    let actStateName = TheRow.state_id['name'] // ID
+    let actStateID = TheRow.state_id['state_id']; // ID
+    let actStateName = TheRow.state_id['name']; // ID
     let cssClass = ' state' + actStateID;
     // Check States -> generate Footer HTML
     if (nextStates.length > 0) {
@@ -715,7 +719,6 @@ class Table extends RawTable {
     }
     btns += saveBtn;
 
-
     M.setFooter(btns);
 
     //--------------------- Bind function to StateButtons
@@ -729,10 +732,11 @@ class Table extends RawTable {
       t.setState(newForm.getValues(), RowID, {state_id: TargetStateID, name: TargetStateName}, M, closeModal);
     })
 
-    $('#' + M.getDOMID() + ' .label-state').addClass('state' + actStateID).text(TheRow.state_id[1]);
-    $('#' + M.getDOMID() + ' .inputFK').data('origintable', t.tablename); // Save origin Table in all FKeys
-    t.writeDataToForm('#' + M.getDOMID(), TheRow); // Load data from row and write to input fields with {key:value}    
-    $('#' + M.getDOMID() + ' .modal-body').append('<input type="hidden" name="'+t.PrimaryColumn+'" value="'+RowID+'">'); // Add PrimaryID in stored Data
+    //newForm.todo_setValues();
+    //$('#' + M.getDOMID() + ' .label-state').addClass('state' + actStateID).text(TheRow.state_id[1]);    
+    //$('#' + M.getDOMID() + ' .inputFK').data('origintable', t.tablename); // Save origin Table in all FKeys
+    //$('#' + M.getDOMID() + ' .modal-body').append('<input type="hidden" name="'+t.PrimaryColumn+'" value="'+RowID+'">'); // Add PrimaryID in stored Data
+    //t.writeDataToForm('#' + M.getDOMID(), TheRow); // Load data from row and write to input fields with {key:value}    
     //--- finally show Modal if it is a new one
     if (M) M.show()
   }
@@ -860,20 +864,17 @@ class Table extends RawTable {
     })
   }
 
-
   private getDefaultFormObject(): any {
     const me = this
     let FormObj = {};
     // Generate the Form via Config -> Loop all columns from this table
     for (const colname of Object.keys(me.Columns)) {
       const ColObj = me.Columns[colname];
-      console.log(colname, ColObj.mode_form);
       FormObj[colname] = ColObj;
       // Add foreign key -> Table
       if (ColObj.field_type == 'foreignkey')
         FormObj[colname]['fk_table'] = ColObj.foreignKey.table;
     }
-    console.log('defaultFormObj', FormObj);
     return FormObj;
   }
 
@@ -890,7 +891,7 @@ class Table extends RawTable {
     ${this.GUIOptions.modalButtonTextCreate} &amp; Close
   </button>
 </div>`;
-    console.log('createEntry');
+    //console.log('createEntry');
     //--- Overwrite and merge the differences from diffObject
     let defFormObj = me.getDefaultFormObject();
     const diffFormCreate = me.diffFormCreateObject;
@@ -1044,11 +1045,12 @@ class Table extends RawTable {
         const tblTxt = 'in '+ this.getTableIcon() +' ' + this.getTableAlias();
         const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+id+')</span><span class="text-muted ml-3">'+tblTxt+'</span>';
         
-        let fModify = new FormGenerator(me, id, me.getDefaultFormObject());
+        let fModify = new FormGenerator(me, id, me.getDefaultFormObject());        
         let M: Modal = ExistingModal || new Modal(ModalTitle, fModify.getHTML(), '', true);
         M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
         // Save origin Table in all FKeys
         //$('#'+ModalID+' .inputFK').data('origintable', this.tablename);
+        fModify.initEditors();
 
         // Save buttons
         M.setFooter(`<div class="ml-auto mr-0">
@@ -1075,9 +1077,9 @@ class Table extends RawTable {
           if (row[me.PrimaryColumn] == id)
             r = row
         });
-        this.writeDataToForm('#' + M.getDOMID(), r);
+        //this.writeDataToForm('#' + M.getDOMID(), r);
         // Finally show Modal if none existed
-        if (M) M.show()
+        if (M) M.show();
       }
     }
   }
@@ -1240,7 +1242,11 @@ class Table extends RawTable {
     // Pre fill with 1 because of selector
     if (t.GUIOptions.showControlColumn)
       th = `<th class="border-0 align-middle text-center text-muted" scope="col">
-        ${ (t.TableType != TableType.obj ? '<i class="fa fa-link"></i>' : '<i class="fa fa-cog"></i>') }
+        ${
+          t.selType == SelectType.Single ?
+          '<i class="fa fa-link"></i>' :
+          (t.TableType == TableType.obj ? '<i class="fa fa-cog"></i>' : '<i class="fa fa-link"></i>')
+        }
       </th>`;
 
     // Loop Columns
@@ -1598,8 +1604,9 @@ class FormGenerator {
   private GUID: string;
   private oTable: Table;
   private oRowID: number;
+  private editors = {};
 
-  constructor(originTable: Table, originRowID: number, Input: any) {
+  constructor(originTable: Table, originRowID: number, rowData: any) {
     this.GUID = GUI.ID();
     /*
     // Tests
@@ -1623,14 +1630,15 @@ class FormGenerator {
     // Save data internally
     this.oTable = originTable;
     this.oRowID = originRowID;
-    this.data = Input;
-    console.log('--- New Form was generated!');
+    this.data = rowData;
+    //console.log('--- New Form was generated!');
   }
   private getElement(key: string, el): string {
     let result: string = '';
     if (el.mode_form == 'hi') return '';
     // Label?
     const form_label: string = el.column_alias ? `<label class="col-sm-2 col-form-label" for="inp_${key}">${el.column_alias}</label>` : '';
+    
     //--- Textarea
     if (el.field_type == 'textarea') {
       result += `<textarea name="${key}" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}" ${el.mode_form == 'ro' ? ' readonly' : ''}>${el.value ? el.value : ''}</textarea>`;
@@ -1704,6 +1712,11 @@ class FormGenerator {
         defValues // Default Values
       )
     }
+    //--- Quill Editor
+    else if (el.field_type == 'htmleditor') {
+      this.editors[key] = el.mode_form; // reserve key
+      result += `<div><div class="htmleditor"></div></div>`;
+    }
     //--- Pure HTML (not working yet)
     else if (el.field_type == 'rawhtml') {
       result += el.value;
@@ -1734,8 +1747,10 @@ class FormGenerator {
       const type = inp.attr('type');
       let value = undefined;
       //--- Format different Types
-      if (type == 'checkbox')     // Checkbox
+      // Checkbox
+      if (type == 'checkbox')
         value = inp.is(':checked') ? 1 : 0;
+      // DateTime
       else if (type == 'time' && inp.hasClass('dtm')) {
         if (key in result) // if key already exists in result
           value = result[key] + ' ' + inp.val(); // append Time to Date
@@ -1743,17 +1758,18 @@ class FormGenerator {
         // Other
         value = inp.val();
       //----
-      // Check & Save result
+      // Only add to result object if value is valid
       if (!(value == '' && (type == 'number' || type == 'date' || type == 'time' || type == 'datetime')))
         result[key] = value;
     })
-    //console.log('read', result);
+    // Editors
+    let editors = this.editors;
+    for (const key of Object.keys(editors)) {
+      const edi = editors[key];
+      result[key] = edi.root.innerHTML; //edi.getContents();
+    }
+    // Output
     return result;
-  }
-  public todo_setValues() {
-    // TODO: (Maybe use function writeDataToForm)
-    console.log('Not yet implemented!');
-    return false;
   }
   public getHTML(){
     let html: string = `<form id="${this.GUID}">`;
@@ -1763,6 +1779,18 @@ class FormGenerator {
       html += this.getElement(key, data[key]);
     }
     return html + '</form>';
+  }
+  public initEditors() {
+    // HTML Editor
+    //console.log("Init HTML Editor");
+    let t = this;
+    for (const key of Object.keys(t.editors)) {
+      if (t.editors[key] == 'ro')
+        t.editors[key] = new Quill('.htmleditor', {theme: 'snow', modules: {toolbar: false}, readOnly: true});
+      else
+        t.editors[key] = new Quill('.htmleditor', {theme: 'snow'});
+      t.editors[key].root.innerHTML = t.data[key].value;
+    }
   }
 }
 
@@ -1776,7 +1804,7 @@ $(document).on('show.bs.modal', '.modal', function () {
     $('.modal-backdrop').not('.modal-stack').css('z-index', zIndex - 1).addClass('modal-stack');
   }, 0);
 });
-$(document).on('shown.bs.modal', function() {
+$(document).on('shown.bs.modal', function() { 
   // Focus first visible Input in Modal (Input, Textarea, or Select)
   $('.modal').find('input,textarea,select').filter(':visible:first').trigger('focus');
   // On keydown
@@ -1798,9 +1826,9 @@ $(document).on('shown.bs.modal', function() {
     if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
       e.preventDefault();
     }
-  });  
+  });
 });
-$(document).on('hidden.bs.modal', '.modal', function () {
+$(document).on('hidden.bs.modal', '.modal', function () {  
   $('.modal:visible').length && $(document.body).addClass('modal-open');
 });
 // Show the actual Tab in the URL and also open Tab by URL

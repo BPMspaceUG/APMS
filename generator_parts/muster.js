@@ -549,7 +549,7 @@ class Table extends RawTable {
         });
     }
     //-------------------- Remove
-    writeDataToForm(MID, data) {
+    xxxwriteDataToForm(MID, data) {
         let me = this;
         let inputs = $(MID + ' :input');
         inputs.each(function () {
@@ -621,13 +621,15 @@ class Table extends RawTable {
         let t = this;
         let TheRow = null;
         // get The Row
-        this.Rows.forEach(row => {
-            if (row[t.PrimaryColumn] == RowID)
-                TheRow = row;
-        });
+        this.Rows.forEach(row => { if (row[t.PrimaryColumn] == RowID)
+            TheRow = row; });
         //--- Overwrite and merge the differences from diffObject
         let defaultFormObj = t.getDefaultFormObject();
-        const newObj = mergeDeep({}, defaultFormObj, diffObject);
+        let newObj = mergeDeep({}, defaultFormObj, diffObject);
+        for (const key of Object.keys(TheRow)) {
+            const value = TheRow[key];
+            newObj[key].value = value;
+        }
         // Generate a Modify-Form
         const newForm = new FormGenerator(t, RowID, newObj);
         const htmlForm = newForm.getHTML();
@@ -638,6 +640,7 @@ class Table extends RawTable {
         let M = ExistingModal || new Modal(ModalTitle, '', '', true);
         M.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose;
         M.setContent(htmlForm);
+        newForm.initEditors();
         let btns = '';
         let saveBtn = '';
         let actStateID = TheRow.state_id['state_id']; // ID
@@ -692,10 +695,11 @@ class Table extends RawTable {
             // Set new State
             t.setState(newForm.getValues(), RowID, { state_id: TargetStateID, name: TargetStateName }, M, closeModal);
         });
-        $('#' + M.getDOMID() + ' .label-state').addClass('state' + actStateID).text(TheRow.state_id[1]);
-        $('#' + M.getDOMID() + ' .inputFK').data('origintable', t.tablename); // Save origin Table in all FKeys
-        t.writeDataToForm('#' + M.getDOMID(), TheRow); // Load data from row and write to input fields with {key:value}    
-        $('#' + M.getDOMID() + ' .modal-body').append('<input type="hidden" name="' + t.PrimaryColumn + '" value="' + RowID + '">'); // Add PrimaryID in stored Data
+        //newForm.todo_setValues();
+        //$('#' + M.getDOMID() + ' .label-state').addClass('state' + actStateID).text(TheRow.state_id[1]);    
+        //$('#' + M.getDOMID() + ' .inputFK').data('origintable', t.tablename); // Save origin Table in all FKeys
+        //$('#' + M.getDOMID() + ' .modal-body').append('<input type="hidden" name="'+t.PrimaryColumn+'" value="'+RowID+'">'); // Add PrimaryID in stored Data
+        //t.writeDataToForm('#' + M.getDOMID(), TheRow); // Load data from row and write to input fields with {key:value}    
         //--- finally show Modal if it is a new one
         if (M)
             M.show();
@@ -829,13 +833,11 @@ class Table extends RawTable {
         // Generate the Form via Config -> Loop all columns from this table
         for (const colname of Object.keys(me.Columns)) {
             const ColObj = me.Columns[colname];
-            console.log(colname, ColObj.mode_form);
             FormObj[colname] = ColObj;
             // Add foreign key -> Table
             if (ColObj.field_type == 'foreignkey')
                 FormObj[colname]['fk_table'] = ColObj.foreignKey.table;
         }
-        console.log('defaultFormObj', FormObj);
         return FormObj;
     }
     //-------------------------------------------------- PUBLIC METHODS
@@ -850,7 +852,7 @@ class Table extends RawTable {
     ${this.GUIOptions.modalButtonTextCreate} &amp; Close
   </button>
 </div>`;
-        console.log('createEntry');
+        //console.log('createEntry');
         //--- Overwrite and merge the differences from diffObject
         let defFormObj = me.getDefaultFormObject();
         const diffFormCreate = me.diffFormCreateObject;
@@ -1001,6 +1003,7 @@ class Table extends RawTable {
                 M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
                 // Save origin Table in all FKeys
                 //$('#'+ModalID+' .inputFK').data('origintable', this.tablename);
+                fModify.initEditors();
                 // Save buttons
                 M.setFooter(`<div class="ml-auto mr-0">
           <button class="btn btn-primary btnSave" type="button">
@@ -1024,7 +1027,7 @@ class Table extends RawTable {
                     if (row[me.PrimaryColumn] == id)
                         r = row;
                 });
-                this.writeDataToForm('#' + M.getDOMID(), r);
+                //this.writeDataToForm('#' + M.getDOMID(), r);
                 // Finally show Modal if none existed
                 if (M)
                     M.show();
@@ -1188,7 +1191,9 @@ class Table extends RawTable {
             // Pre fill with 1 because of selector
             if (t.GUIOptions.showControlColumn)
                 th = `<th class="border-0 align-middle text-center text-muted" scope="col">
-        ${(t.TableType != TableType.obj ? '<i class="fa fa-link"></i>' : '<i class="fa fa-cog"></i>')}
+        ${t.selType == SelectType.Single ?
+                    '<i class="fa fa-link"></i>' :
+                    (t.TableType == TableType.obj ? '<i class="fa fa-cog"></i>' : '<i class="fa fa-link"></i>')}
       </th>`;
             // Loop Columns
             for (const colname of colnames) {
@@ -1542,7 +1547,8 @@ class Table extends RawTable {
 // Class: FormGenerator (Generates HTML-Bootstrap4 Forms from JSON)
 //==============================================================
 class FormGenerator {
-    constructor(originTable, originRowID, Input) {
+    constructor(originTable, originRowID, rowData) {
+        this.editors = {};
         this.GUID = GUI.ID();
         /*
         // Tests
@@ -1565,8 +1571,8 @@ class FormGenerator {
         // Save data internally
         this.oTable = originTable;
         this.oRowID = originRowID;
-        this.data = Input;
-        console.log('--- New Form was generated!');
+        this.data = rowData;
+        //console.log('--- New Form was generated!');
     }
     getElement(key, el) {
         let result = '';
@@ -1645,6 +1651,11 @@ class FormGenerator {
             defValues // Default Values
             );
         }
+        //--- Quill Editor
+        else if (el.field_type == 'htmleditor') {
+            this.editors[key] = el.mode_form; // reserve key
+            result += `<div><div class="htmleditor"></div></div>`;
+        }
         //--- Pure HTML (not working yet)
         else if (el.field_type == 'rawhtml') {
             result += el.value;
@@ -1675,8 +1686,10 @@ class FormGenerator {
             const type = inp.attr('type');
             let value = undefined;
             //--- Format different Types
-            if (type == 'checkbox') // Checkbox
+            // Checkbox
+            if (type == 'checkbox')
                 value = inp.is(':checked') ? 1 : 0;
+            // DateTime
             else if (type == 'time' && inp.hasClass('dtm')) {
                 if (key in result) // if key already exists in result
                     value = result[key] + ' ' + inp.val(); // append Time to Date
@@ -1685,17 +1698,18 @@ class FormGenerator {
                 // Other
                 value = inp.val();
             //----
-            // Check & Save result
+            // Only add to result object if value is valid
             if (!(value == '' && (type == 'number' || type == 'date' || type == 'time' || type == 'datetime')))
                 result[key] = value;
         });
-        //console.log('read', result);
+        // Editors
+        let editors = this.editors;
+        for (const key of Object.keys(editors)) {
+            const edi = editors[key];
+            result[key] = edi.root.innerHTML; //edi.getContents();
+        }
+        // Output
         return result;
-    }
-    todo_setValues() {
-        // TODO: (Maybe use function writeDataToForm)
-        console.log('Not yet implemented!');
-        return false;
     }
     getHTML() {
         let html = `<form id="${this.GUID}">`;
@@ -1705,6 +1719,18 @@ class FormGenerator {
             html += this.getElement(key, data[key]);
         }
         return html + '</form>';
+    }
+    initEditors() {
+        // HTML Editor
+        //console.log("Init HTML Editor");
+        let t = this;
+        for (const key of Object.keys(t.editors)) {
+            if (t.editors[key] == 'ro')
+                t.editors[key] = new Quill('.htmleditor', { theme: 'snow', modules: { toolbar: false }, readOnly: true });
+            else
+                t.editors[key] = new Quill('.htmleditor', { theme: 'snow' });
+            t.editors[key].root.innerHTML = t.data[key].value;
+        }
     }
 }
 //-------------------------------------------
