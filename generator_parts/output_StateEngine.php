@@ -64,12 +64,6 @@
         $this->db->query($query);
         $this->log($query);
       }
-      // Column [form_data_default] does not yet exist
-      if (strpos($columnstr, "form_data_default") === FALSE) {
-        $query = "ALTER TABLE `state_machines` ADD COLUMN `form_data_default` LONGTEXT NULL AFTER `tablename`;";
-        $this->db->query($query);
-        $this->log($query);
-      }
       // Column [form_data] does not yet exist
       if (strpos($columnstr, "transition_script") === FALSE) {
         $query = "ALTER TABLE `state_machines` ADD COLUMN `transition_script` LONGTEXT NULL AFTER `tablename`;";
@@ -235,104 +229,13 @@
       }
       $this->log("-- [END] StateMachine created for Table '$tablename'");
       return $ID;
-    }
-
-    // [START]   FORM - Elements
-    /*
-    public function ___getBasicFormDataByColumns($tablename, $config, $colData, $excludeKeys, $withoutReverseFKs = false) {
-      $content = '';
-      $config = json_decode($config, true);      
-      if (!$withoutReverseFKs) {
-        // Here, all foreign keys are looped and saved in reverse order [FK -> Table] for later (see below)
-
-        // check for N:M Tables
-        // REVERSE FOREIGN KEYS
-        $reverseFKs = array();
-        foreach ($config as $tbl => $tbl_content) {
-          if ($config[$tbl]['table_type'] != 'obj') {
-            // Save linked tables, except state_id
-            $cols = $config[$tbl]['columns'];
-            foreach ($cols as $colname => $col) {
-              $src = $col['foreignKey']['table'];
-              $srcCol = $col['foreignKey']['col_id'];
-              $dest = $tbl;
-              $destCol = $colname;             
-              // Add to map
-              if (strlen($src) > 0 && strlen($srcCol) > 0 && strlen($dest) > 0 && strlen($destCol) > 0) {                
-                // echo "$src.$srcCol -> $dest.$destCol\n"; // for Debug
-                // Check if already exists in array -> No Double Foreign Keys
-                if (!in_array(array($src, $srcCol, $dest, $destCol), $reverseFKs))
-                  $reverseFKs[] = array($src, $srcCol, $dest, $destCol);
-              }
-            }
-          }
-        }
-      }
-      // Loop every column
-      foreach ($colData as $colname => $value) {
-        $key = $colname;
-        $visible = $value['is_in_menu'];
-        $alias = $value['column_alias'];
-        $data_type = $value['field_type'];
-        $FKTable = $value['foreignKey']['table'];
-        $substCol = $value['foreignKey']['col_subst'];
-        $default = '';
-        // Check if exclude
-        if (!in_array($key, $excludeKeys)) {
-          // Check if not visible
-          $content .= $this->getFormElement($visible, $key, $alias, $default, $data_type, $FKTable, $substCol);
-        }
-      }
-      if (!$withoutReverseFKs) {
-        foreach ($reverseFKs as $link) {          
-          $src = $link[0];
-          $srcCol = $link[1];
-          $dest = $link[2];
-          $destCol = $link[3];
-          //echo $src . ' -> ' . $dest.'<br>';
-          // Add extra column for reverse N:M
-          if ($tablename == $src) {
-            $nm_table = $dest;
-            // TODO: optimize, get primary column
-            //$array = $config[$tablename]['columns'];
-            $this_primary = $srcCol; //  array_keys($array)[0];
-            $foreignPrimaryColname = $destCol;
-            // Generate Alias
-            $nm_table_alias = $config[$dest]['columns'][$destCol]['rel_caption'];    //$config[$nm_table]['rel_caption_forward'];
-            $unique_table_name = $src.$srcCol.$dest.$destCol;
-            $content .= $this->getFormElement(true, $unique_table_name, $nm_table_alias, $nm_table, 'table', null, null);
-            $content .= '
-  <script>
-    // Wait for element to exist.
-    function elLoaded(el, cb) {if ($(el).length) {cb($(el));} else {setTimeout(function(){ elLoaded(el, cb) }, 100);}};
-
-    (function(){
-      elLoaded(\'input[name='.$this_primary.']\', function(el) {
-        let PrimID = $(\'input[name='.$this_primary.']\').val();
-        let x = new Table(\''.$nm_table.'\', \'.extern_table'.$unique_table_name.'\', 0, function(){
-          x.Columns[\''.$foreignPrimaryColname.'\'].show_in_grid = false;
-          x.loadRows(function(){
-            x.renderHTML();
-          })
-        }, \'a.'.$foreignPrimaryColname.' = \'+PrimID, {'.$foreignPrimaryColname.': [PrimID, \'Already selected\']});
-      });
-    })();
-  </script>';
-          }
-        }
-      }
-      // OUTPUT
-      return $content;
-    }
-    // [END]   FORM - Elements
-    */    
+    } 
     public function getFormDataByStateID($StateID) {
       if (!($this->ID > 0)) return "";
       $result = '';
-      $sql = 'SELECT IF(form_data IS NULL OR form_data = \'\', (SELECT form_data_default FROM state_machines WHERE id = :SMID), form_data) AS fd'.
-        ' FROM state WHERE statemachine_id = :SMID AND state_id = :SID';
+      $sql = 'SELECT form_data AS fd FROM state WHERE state_id = ?';
       $stmt = $this->db->prepare($sql);
-      $stmt->execute(array(':SMID' => $this->ID, ':SID' => $StateID));
+      $stmt->execute(array($StateID));
       while($row = $stmt->fetch()) {
         $result = $row['fd'];
       }

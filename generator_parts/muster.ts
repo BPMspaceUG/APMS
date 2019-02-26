@@ -580,6 +580,7 @@ class Table extends RawTable {
   }
 
   //-------------------- Remove
+  /*
   private xxxwriteDataToForm(MID: string, data: any): void {
     let me = this
     let inputs = $(MID+' :input')
@@ -648,28 +649,28 @@ class Table extends RawTable {
       }
     })
   }
+  */
   //-------------------- /Remove
 
   private renderEditForm(RowID: number, diffObject: any, nextStates: any, ExistingModal: Modal = undefined) {
-    let t = this
-    let TheRow = null
+    let t = this;
+    let TheRow = null;
     // get The Row
     this.Rows.forEach(row => { if (row[t.PrimaryColumn] == RowID) TheRow = row; });
-
 
     //--- Overwrite and merge the differences from diffObject
     let defaultFormObj = t.getDefaultFormObject();
     let newObj = mergeDeep({}, defaultFormObj, diffObject);
     for (const key of Object.keys(TheRow)) {
       const value = TheRow[key];
-      newObj[key].value = value;
+      newObj[key].value = isObject(value) ? value[Object.keys(value)[0]] : value;
     }
+
     // Generate a Modify-Form
     const newForm = new FormGenerator(t, RowID, newObj);
     const htmlForm = newForm.getHTML();
 
     // create Modal if not exists
-    //console.log('RenderEditForm', ExistingModal);
     const TableAlias = 'in <i class="'+this.TableConfig.table_icon+'"></i> ' + this.TableConfig.table_alias;
     const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+RowID+')</span><span class="text-muted ml-3">'+ TableAlias +'</span>';
     let M: Modal = ExistingModal || new Modal(ModalTitle, '', '', true);
@@ -748,10 +749,9 @@ class Table extends RawTable {
     // REQUEST
     t.updateRow(data[t.PrimaryColumn], data, function(r){
       if (r.length > 0) {
-        if (r != "0") {
+        if (r == "1") {
           // Success
-          if (closeModal)
-            SaveModal.close();
+          if (closeModal) SaveModal.close();
           t.lastModifiedRowID = data[t.PrimaryColumn]
           t.loadRows(function(){
             t.renderContent();
@@ -759,8 +759,8 @@ class Table extends RawTable {
           })
         } else {
           // Fail
-          const m = new Modal('Error', 'Element could not be updated!');
-          m.show();
+          const ErrorModal = new Modal('Error', '<b class="text-danger">Element could not be updated!</b><br><pre>' + r + '</pre>');
+          ErrorModal.show();
         }
       }
     })
@@ -891,7 +891,7 @@ class Table extends RawTable {
     ${this.GUIOptions.modalButtonTextCreate} &amp; Close
   </button>
 </div>`;
-    //console.log('createEntry');
+
     //--- Overwrite and merge the differences from diffObject
     let defFormObj = me.getDefaultFormObject();
     const diffFormCreate = me.diffFormCreateObject;
@@ -913,12 +913,13 @@ class Table extends RawTable {
     let M = new Modal(ModalTitle, fCreate.getHTML(), CreateBtns, true);
     M.options.btnTextClose = me.GUIOptions.modalButtonTextModifyClose;
     const ModalID = M.getDOMID();
+    fCreate.initEditors();
   
     // Bind Buttonclick
     $('#'+ModalID+' .btnCreateEntry').click(function(e){
       e.preventDefault();
       // Read out all input fields with {key:value}
-      let data = fCreate.getValues(); //me.readDataFromForm('#'+ModalID);
+      let data = fCreate.getValues();
       const reOpenModal = $(this).hasClass('andReopen');
 
       me.createRow(data, function(r){
@@ -962,14 +963,11 @@ class Table extends RawTable {
                   me.renderFooter();
                   me.renderHeader();
                   me.onEntriesModified.trigger();
-                  // TODO: Overwrite the new Content from Database
-                  //me.modifyRow(msg.element_id, ModalID)
                   // Reopen Modal
                   if (reOpenModal)
                     me.modifyRow(me.lastModifiedRowID, M);
                   else
-                    $('#'+ModalID).modal('hide');
-
+                    M.close();
                 })
               })
             }
@@ -980,7 +978,6 @@ class Table extends RawTable {
               )
             }
           }
-
           // Special Case for Relations (reactivate them)
           if (counter == 0 && !msg.show_message && msg.message == 'RelationActivationCompleteCloseTheModal') {
             // Reload Data from Table
@@ -992,17 +989,16 @@ class Table extends RawTable {
                 me.renderFooter();
                 me.renderHeader();
                 me.onEntriesModified.trigger();
-                $('#'+ModalID).modal('hide')
+                M.close();
               })
             })
           }
-
           counter++;
         });
       });
     })
-
-    M.show()
+    // Show Modal
+    M.show();
   }
   public modifyRow(id: number, ExistingModal: Modal = undefined) {
     let me = this
@@ -1044,14 +1040,21 @@ class Table extends RawTable {
         //-------- EDIT-Modal WITHOUT StateMachine
         const tblTxt = 'in '+ this.getTableIcon() +' ' + this.getTableAlias();
         const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+id+')</span><span class="text-muted ml-3">'+tblTxt+'</span>';
-        
-        let fModify = new FormGenerator(me, id, me.getDefaultFormObject());        
+        let t = this;
+        let TheRow = null;
+        // get The Row
+        this.Rows.forEach(row => { if (row[t.PrimaryColumn] == id) TheRow = row; });
+        //--- Overwrite and merge the differences from diffObject
+        let FormObj = mergeDeep({}, t.getDefaultFormObject());
+        for (const key of Object.keys(TheRow)) {
+          const value = TheRow[key];
+          FormObj[key].value = isObject(value) ? value[Object.keys(value)[0]] : value;
+        }    
+        let fModify = new FormGenerator(me, id, FormObj);        
         let M: Modal = ExistingModal || new Modal(ModalTitle, fModify.getHTML(), '', true);
         M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
-        // Save origin Table in all FKeys
-        //$('#'+ModalID+' .inputFK').data('origintable', this.tablename);
         fModify.initEditors();
-
+        
         // Save buttons
         M.setFooter(`<div class="ml-auto mr-0">
           <button class="btn btn-primary btnSave" type="button">
@@ -1071,13 +1074,6 @@ class Table extends RawTable {
         $('#' + M.getDOMID() + ' .modal-body form').append(
           '<input type="hidden" class="rwInput" name="' + this.PrimaryColumn + '" value="' + id + '">'
         );
-        // Write all input fields with {key:value}
-        let r = null
-        me.Rows.forEach(row => {
-          if (row[me.PrimaryColumn] == id)
-            r = row
-        });
-        //this.writeDataToForm('#' + M.getDOMID(), r);
         // Finally show Modal if none existed
         if (M) M.show();
       }
@@ -1782,14 +1778,13 @@ class FormGenerator {
   }
   public initEditors() {
     // HTML Editor
-    //console.log("Init HTML Editor");
     let t = this;
     for (const key of Object.keys(t.editors)) {
       if (t.editors[key] == 'ro')
         t.editors[key] = new Quill('.htmleditor', {theme: 'snow', modules: {toolbar: false}, readOnly: true});
       else
         t.editors[key] = new Quill('.htmleditor', {theme: 'snow'});
-      t.editors[key].root.innerHTML = t.data[key].value;
+      t.editors[key].root.innerHTML = t.data[key].value || '';
     }
   }
 }

@@ -549,73 +549,76 @@ class Table extends RawTable {
         });
     }
     //-------------------- Remove
-    xxxwriteDataToForm(MID, data) {
-        let me = this;
-        let inputs = $(MID + ' :input');
-        inputs.each(function () {
-            let e = $(this);
-            let col = e.attr('name');
-            let value = data[col];
-            // isFK?
-            if (value) {
-                if ((typeof value === "object") && (value !== null)) {
-                    //--- ForeignKey
-                    // -> Hidden input!!
-                    const keys = Object.keys(value);
-                    let vals = keys.map(key => {
-                        return value[key];
-                    });
-                    let str = vals.join(' - ');
-                    const primCol = keys[0];
-                    const val = value[primCol];
-                    if (e.attr("type") == "hidden") {
-                        e.val(val); // Normal value
-                        e.parent().find('.filterText').val(str); // FK Formatted Value
-                    }
-                    if (value[1] == 'Already selected') {
-                        // Change 
-                        e.parent().find('.filterText').addClass("text-muted");
-                        e.parent().find('.btnLinkFK').prop("disabled", true);
-                    }
-                }
-                else {
-                    //--- Normal
-                    if (col) {
-                        const DataType = me.Columns[col].field_type;
-                        if (DataType == 'datetime') {
-                            // DateTime -> combine vals
-                            if (e.attr('type') == 'date')
-                                e.val(value.split(" ")[0]);
-                            else if (e.attr('type') == 'time') {
-                                // Remove seconds from TimeString
-                                if (me.GUIOptions.smallestTimeUnitMins) {
-                                    var timeArr = value.split(':');
-                                    timeArr.pop();
-                                    value = timeArr.join(':');
-                                }
-                                e.val(value.split(" ")[1]);
-                            }
-                        }
-                        else if (DataType == 'time') {
-                            // Remove seconds from TimeString
-                            if (me.GUIOptions.smallestTimeUnitMins) {
-                                var timeArr = value.split(':');
-                                timeArr.pop();
-                                value = timeArr.join(':');
-                            }
-                            e.val(value);
-                        }
-                        else if (DataType == 'switch') {
-                            // Checkbox
-                            e.prop('checked', parseInt(value) !== 0); // Boolean
-                        }
-                        else
-                            e.val(value);
-                    }
-                }
+    /*
+    private xxxwriteDataToForm(MID: string, data: any): void {
+      let me = this
+      let inputs = $(MID+' :input')
+  
+      inputs.each(function(){
+        let e = $(this);
+        let col = e.attr('name');
+        let value = data[col];
+        // isFK?
+        if (value) {
+          if ((typeof value === "object") && (value !== null)) {
+            //--- ForeignKey
+            // -> Hidden input!!
+            const keys = Object.keys(value);
+            let vals = keys.map(key => {
+              return value[key];
+            })
+            let str = vals.join(' - ');
+            const primCol = keys[0];
+            const val = value[primCol];
+            if (e.attr("type") == "hidden") {
+              e.val(val); // Normal value
+              e.parent().find('.filterText').val(str); // FK Formatted Value
             }
-        });
+            if (value[1] == 'Already selected') {
+              // Change
+              e.parent().find('.filterText').addClass("text-muted");
+              e.parent().find('.btnLinkFK').prop("disabled", true);
+            }
+          }
+          else {
+            //--- Normal
+            if (col) {
+              const DataType = me.Columns[col].field_type;
+    
+              if (DataType == 'datetime') {
+                // DateTime -> combine vals
+                if (e.attr('type') == 'date')
+                  e.val(value.split(" ")[0])
+                else if (e.attr('type') == 'time') {
+                  // Remove seconds from TimeString
+                  if (me.GUIOptions.smallestTimeUnitMins) {
+                    var timeArr = value.split(':');
+                    timeArr.pop();
+                    value = timeArr.join(':')
+                  }
+                  e.val(value.split(" ")[1])
+                }
+              }
+              else if (DataType == 'time') {
+                // Remove seconds from TimeString
+                if (me.GUIOptions.smallestTimeUnitMins) {
+                  var timeArr = value.split(':');
+                  timeArr.pop();
+                  value = timeArr.join(':')
+                }
+                e.val(value)
+              }
+              else if (DataType == 'switch') {
+                // Checkbox
+                e.prop('checked', parseInt(value) !== 0); // Boolean
+              } else
+                e.val(value)
+            }
+          }
+        }
+      })
     }
+    */
     //-------------------- /Remove
     renderEditForm(RowID, diffObject, nextStates, ExistingModal = undefined) {
         let t = this;
@@ -628,13 +631,12 @@ class Table extends RawTable {
         let newObj = mergeDeep({}, defaultFormObj, diffObject);
         for (const key of Object.keys(TheRow)) {
             const value = TheRow[key];
-            newObj[key].value = value;
+            newObj[key].value = isObject(value) ? value[Object.keys(value)[0]] : value;
         }
         // Generate a Modify-Form
         const newForm = new FormGenerator(t, RowID, newObj);
         const htmlForm = newForm.getHTML();
         // create Modal if not exists
-        //console.log('RenderEditForm', ExistingModal);
         const TableAlias = 'in <i class="' + this.TableConfig.table_icon + '"></i> ' + this.TableConfig.table_alias;
         const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">(' + RowID + ')</span><span class="text-muted ml-3">' + TableAlias + '</span>';
         let M = ExistingModal || new Modal(ModalTitle, '', '', true);
@@ -709,7 +711,7 @@ class Table extends RawTable {
         // REQUEST
         t.updateRow(data[t.PrimaryColumn], data, function (r) {
             if (r.length > 0) {
-                if (r != "0") {
+                if (r == "1") {
                     // Success
                     if (closeModal)
                         SaveModal.close();
@@ -721,8 +723,8 @@ class Table extends RawTable {
                 }
                 else {
                     // Fail
-                    const m = new Modal('Error', 'Element could not be updated!');
-                    m.show();
+                    const ErrorModal = new Modal('Error', '<b class="text-danger">Element could not be updated!</b><br><pre>' + r + '</pre>');
+                    ErrorModal.show();
                 }
             }
         });
@@ -852,7 +854,6 @@ class Table extends RawTable {
     ${this.GUIOptions.modalButtonTextCreate} &amp; Close
   </button>
 </div>`;
-        //console.log('createEntry');
         //--- Overwrite and merge the differences from diffObject
         let defFormObj = me.getDefaultFormObject();
         const diffFormCreate = me.diffFormCreateObject;
@@ -873,11 +874,12 @@ class Table extends RawTable {
         let M = new Modal(ModalTitle, fCreate.getHTML(), CreateBtns, true);
         M.options.btnTextClose = me.GUIOptions.modalButtonTextModifyClose;
         const ModalID = M.getDOMID();
+        fCreate.initEditors();
         // Bind Buttonclick
         $('#' + ModalID + ' .btnCreateEntry').click(function (e) {
             e.preventDefault();
             // Read out all input fields with {key:value}
-            let data = fCreate.getValues(); //me.readDataFromForm('#'+ModalID);
+            let data = fCreate.getValues();
             const reOpenModal = $(this).hasClass('andReopen');
             me.createRow(data, function (r) {
                 let msgs = [];
@@ -920,13 +922,11 @@ class Table extends RawTable {
                                     me.renderFooter();
                                     me.renderHeader();
                                     me.onEntriesModified.trigger();
-                                    // TODO: Overwrite the new Content from Database
-                                    //me.modifyRow(msg.element_id, ModalID)
                                     // Reopen Modal
                                     if (reOpenModal)
                                         me.modifyRow(me.lastModifiedRowID, M);
                                     else
-                                        $('#' + ModalID).modal('hide');
+                                        M.close();
                                 });
                             });
                         }
@@ -946,7 +946,7 @@ class Table extends RawTable {
                                 me.renderFooter();
                                 me.renderHeader();
                                 me.onEntriesModified.trigger();
-                                $('#' + ModalID).modal('hide');
+                                M.close();
                             });
                         });
                     }
@@ -954,6 +954,7 @@ class Table extends RawTable {
                 });
             });
         });
+        // Show Modal
         M.show();
     }
     modifyRow(id, ExistingModal = undefined) {
@@ -998,11 +999,20 @@ class Table extends RawTable {
                 //-------- EDIT-Modal WITHOUT StateMachine
                 const tblTxt = 'in ' + this.getTableIcon() + ' ' + this.getTableAlias();
                 const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">(' + id + ')</span><span class="text-muted ml-3">' + tblTxt + '</span>';
-                let fModify = new FormGenerator(me, id, me.getDefaultFormObject());
+                let t = this;
+                let TheRow = null;
+                // get The Row
+                this.Rows.forEach(row => { if (row[t.PrimaryColumn] == id)
+                    TheRow = row; });
+                //--- Overwrite and merge the differences from diffObject
+                let FormObj = mergeDeep({}, t.getDefaultFormObject());
+                for (const key of Object.keys(TheRow)) {
+                    const value = TheRow[key];
+                    FormObj[key].value = isObject(value) ? value[Object.keys(value)[0]] : value;
+                }
+                let fModify = new FormGenerator(me, id, FormObj);
                 let M = ExistingModal || new Modal(ModalTitle, fModify.getHTML(), '', true);
                 M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
-                // Save origin Table in all FKeys
-                //$('#'+ModalID+' .inputFK').data('origintable', this.tablename);
                 fModify.initEditors();
                 // Save buttons
                 M.setFooter(`<div class="ml-auto mr-0">
@@ -1021,13 +1031,6 @@ class Table extends RawTable {
                 });
                 // Add the Primary RowID
                 $('#' + M.getDOMID() + ' .modal-body form').append('<input type="hidden" class="rwInput" name="' + this.PrimaryColumn + '" value="' + id + '">');
-                // Write all input fields with {key:value}
-                let r = null;
-                me.Rows.forEach(row => {
-                    if (row[me.PrimaryColumn] == id)
-                        r = row;
-                });
-                //this.writeDataToForm('#' + M.getDOMID(), r);
                 // Finally show Modal if none existed
                 if (M)
                     M.show();
@@ -1722,14 +1725,13 @@ class FormGenerator {
     }
     initEditors() {
         // HTML Editor
-        //console.log("Init HTML Editor");
         let t = this;
         for (const key of Object.keys(t.editors)) {
             if (t.editors[key] == 'ro')
                 t.editors[key] = new Quill('.htmleditor', { theme: 'snow', modules: { toolbar: false }, readOnly: true });
             else
                 t.editors[key] = new Quill('.htmleditor', { theme: 'snow' });
-            t.editors[key].root.innerHTML = t.data[key].value;
+            t.editors[key].root.innerHTML = t.data[key].value || '';
         }
     }
 }
