@@ -17,6 +17,7 @@ body {margin-bottom: 60px;}
 .datatbl .sorted {color: steelblue;}
 .datatbl .datarow:hover {cursor: auto;}
 .datatbl .editFullRow:hover {cursor: pointer;}
+.external-table input {cursor: pointer;}
 
 /* Modal */
 .modal-content .form-group {margin: 0; padding: 0; padding-bottom: 5px;}

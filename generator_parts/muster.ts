@@ -34,7 +34,7 @@ class LiteEvent<T> implements ILiteEvent<T> {
 
 // Generates GUID for jQuery DOM Handling
 abstract class GUI {
-  public static ID = function () {
+  public static getID = function () {
     // Math.random should be unique because of its seeding algorithm.
     // Convert it to base 36 (numbers + letters), and grab the first 9 characters
     // after the decimal.
@@ -91,7 +91,7 @@ class Modal {
   }
 
   public constructor(heading: string, content: string, footer: string = '', isBig: boolean = false) {
-    this.DOM_ID = GUI.ID()
+    this.DOM_ID = GUI.getID()
     // Set Params
     this.heading = heading
     this.content = content
@@ -439,7 +439,7 @@ class Table extends RawTable {
   private isExpanded: boolean = true;
   private selType: SelectType;
   public ReadOnly: boolean;
-  private selectedIDs: number[];
+  private selectedRow: any;
   private defaultValues = {}; // Default Values in Create-Form TODO: Remove
   private diffFormCreateObject: any = {};
   public GUIOptions = {
@@ -465,7 +465,7 @@ class Table extends RawTable {
     super(tablename); // Call parent constructor
 
     let me = this;
-    this.GUID = GUI.ID();
+    this.GUID = GUI.getID();
     // Check this values
     this.defaultValues = defaultObj;
     this.selType = SelType;
@@ -473,7 +473,7 @@ class Table extends RawTable {
     // Inherited
     this.PageIndex = 0;
     this.PageLimit = 10;
-    this.selectedIDs = []; // empty array
+    this.selectedRow = undefined;
     this.tablename = tablename
     this.Filter = '';
     this.OrderBy = '';
@@ -578,80 +578,6 @@ class Table extends RawTable {
       callback(response)
     })
   }
-
-  //-------------------- Remove
-  /*
-  private xxxwriteDataToForm(MID: string, data: any): void {
-    let me = this
-    let inputs = $(MID+' :input')
-
-    inputs.each(function(){
-      let e = $(this);
-      let col = e.attr('name');
-      let value = data[col];
-      // isFK?
-      if (value) {
-        if ((typeof value === "object") && (value !== null)) {
-          //--- ForeignKey
-          // -> Hidden input!!
-          const keys = Object.keys(value);
-          let vals = keys.map(key => {
-            return value[key];
-          })
-          let str = vals.join(' - ');
-          const primCol = keys[0];
-          const val = value[primCol];
-          if (e.attr("type") == "hidden") {
-            e.val(val); // Normal value
-            e.parent().find('.filterText').val(str); // FK Formatted Value
-          }
-          if (value[1] == 'Already selected') {
-            // Change 
-            e.parent().find('.filterText').addClass("text-muted");
-            e.parent().find('.btnLinkFK').prop("disabled", true);
-          }
-        }
-        else {
-          //--- Normal
-          if (col) {
-            const DataType = me.Columns[col].field_type;
-  
-            if (DataType == 'datetime') {
-              // DateTime -> combine vals
-              if (e.attr('type') == 'date')
-                e.val(value.split(" ")[0])
-              else if (e.attr('type') == 'time') {
-                // Remove seconds from TimeString
-                if (me.GUIOptions.smallestTimeUnitMins) {
-                  var timeArr = value.split(':');
-                  timeArr.pop();
-                  value = timeArr.join(':')
-                }
-                e.val(value.split(" ")[1])
-              }
-            }
-            else if (DataType == 'time') {
-              // Remove seconds from TimeString
-              if (me.GUIOptions.smallestTimeUnitMins) {
-                var timeArr = value.split(':');
-                timeArr.pop();
-                value = timeArr.join(':')
-              }
-              e.val(value)
-            }
-            else if (DataType == 'switch') {
-              // Checkbox
-              e.prop('checked', parseInt(value) !== 0); // Boolean
-            } else
-              e.val(value)
-          }
-        }
-      }
-    })
-  }
-  */
-  //-------------------- /Remove
-
   private renderEditForm(RowID: number, diffObject: any, nextStates: any, ExistingModal: Modal = undefined) {
     let t = this;
     let TheRow = null;
@@ -662,8 +588,9 @@ class Table extends RawTable {
     let defaultFormObj = t.getDefaultFormObject();
     let newObj = mergeDeep({}, defaultFormObj, diffObject);
     for (const key of Object.keys(TheRow)) {
-      const value = TheRow[key];
-      newObj[key].value = isObject(value) ? value[Object.keys(value)[0]] : value;
+      //const value = TheRow[key];
+      //newObj[key].value = isObject(value) ? value[Object.keys(value)[0]] : value;
+      newObj[key].value = TheRow[key];
     }
 
     // Generate a Modify-Form
@@ -1005,8 +932,13 @@ class Table extends RawTable {
     // Check Selection-Type
     if (this.selType == SelectType.Single) {
       //------------------------------------ SINGLE SELECT
-      this.selectedIDs = []
-      this.selectedIDs.push(id);
+      me.selectedRow = me.Rows[id];
+      for (const row of me.Rows) {
+        if (row[me.PrimaryColumn] == id) {
+          me.selectedRow = row;
+          break;
+        }          
+      }
       this.isExpanded = false;
       // Render HTML
       this.renderContent();
@@ -1080,13 +1012,8 @@ class Table extends RawTable {
     }
   }
 
-
-  public getSelectedRows(): Array<number> {
-    return this.selectedIDs
-  }
-  public setSelectedRows(selRows: Array<number>) {
-    this.selectedIDs = selRows;
-    this.renderContent();
+  public getSelectedRowID(): number {
+    return this.selectedRow[this.PrimaryColumn];
   }
   private renderStateButton(ID: number, name: string, withDropdown: boolean = false) {
     const cssClass = 'state' + ID;
@@ -1227,7 +1154,7 @@ class Table extends RawTable {
       return t.renderStateButton(stateID, text);
     }
     //--- OTHER
-    let isHTML = t.Columns[col].is_virtual;
+    const isHTML = t.Columns[col].is_virtual || t.Columns[col].field_type == 'htmleditor';
     value = t.formatCell(value, isHTML);
     return value;
   }  
@@ -1301,13 +1228,10 @@ class Table extends RawTable {
 
     // TODO: 
     // Pre-Selected Row
-    if (t.selectedIDs.length > 0) {
-      if (t.selectedIDs[0] != null) {
+    if (t.selectedRow) {
         // Set the selected text -> concat foreign keys
-        t.FilterText = '' + t.selectedIDs[0];
-      }
-      else
-        t.FilterText = '';
+        const vals = recflattenObj(t.selectedRow);
+        t.FilterText = '' + vals.join('  |  ');
     } else {
       // Filter was set
       t.FilterText = t.Filter;
@@ -1374,12 +1298,6 @@ class Table extends RawTable {
       e.preventDefault();
       t.SM.openSEPopup();
     })
-    // Reset Selection Button clicked
-    /*
-    $(t.jQSelector+' .resetSelection').off('click').on('click', function(e){
-      e.preventDefault();
-      t.modifyRow(null);
-    })*/
     // Create Button clicked
     $('.'+t.GUID).parent().find('.btnCreateEntry').off('click').on('click', function(e){
       e.preventDefault();
@@ -1415,12 +1333,8 @@ class Table extends RawTable {
       let isSelected: boolean = false;
 
       // Check if selected
-      if (t.selectedIDs) {
-        if (t.selectedIDs.length > 0) {
-          t.selectedIDs.forEach(selRowID => {
-            if (selRowID == RowID) isSelected = true;
-          });
-        }
+      if (t.selectedRow) {
+        isSelected = (t.selectedRow[t.PrimaryColumn] == RowID);
       }
 
       // [Control Column] is set then Add one before each row
@@ -1603,7 +1517,7 @@ class FormGenerator {
   private editors = {};
 
   constructor(originTable: Table, originRowID: number, rowData: any) {
-    this.GUID = GUI.ID();
+    this.GUID = GUI.getID();
     /*
     // Tests
     const testForm1 = {
@@ -1634,7 +1548,6 @@ class FormGenerator {
     if (el.mode_form == 'hi') return '';
     // Label?
     const form_label: string = el.column_alias ? `<label class="col-sm-2 col-form-label" for="inp_${key}">${el.column_alias}</label>` : '';
-    
     //--- Textarea
     if (el.field_type == 'textarea') {
       result += `<textarea name="${key}" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}" ${el.mode_form == 'ro' ? ' readonly' : ''}>${el.value ? el.value : ''}</textarea>`;
@@ -1659,6 +1572,11 @@ class FormGenerator {
       result += `<input name="${key}" type="date" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
     }
+    //--- Password
+    else if (el.field_type == 'password') {
+      result += `<input name="${key}" type="password" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
+        value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
+    }
     //--- Datetime
     else if (el.field_type == 'datetime') {
       result += `<div class="input-group">
@@ -1671,13 +1589,26 @@ class FormGenerator {
     //--- Foreignkey
     else if (el.field_type == 'foreignkey') {
       // rwInput ====> Special case!
+
+      // Concat value if is object
+      let ID = 0;
+      const x = el.value;
+      if (x){
+        ID = x
+        if (isObject(x)) {
+          ID = x[Object.keys(x)[0]];
+          const vals = recflattenObj(x);
+          el.value = vals.join('  |  ');
+        }
+      }
+
       result += `
-        <input type="hidden" name="${key}" value="${el.value ? el.value : ''}" class="inputFK${el.mode_form != 'hi' ? ' rwInput' : ''}">
+        <input type="hidden" name="${key}" value="${ID != 0 ? ID : ''}" class="inputFK${el.mode_form != 'hi' ? ' rwInput' : ''}">
         <div class="external-table">
-          <div class="input-group">
-            <input type="text" class="form-control filterText${el.mode_form == 'rw' ? ' bg-white' : ''}" ${el.value ? 'value="'+el.value+'"' : ''} placeholder="Nothing selected" disabled>
+          <div class="input-group" ${el.mode_form == 'rw' ? 'onclick="test(this)"' : ''} data-tablename="${el.fk_table}">
+            <input type="text" class="form-control filterText${el.mode_form == 'rw' ? ' bg-white' : ''}" ${el.value ? 'value="'+el.value+'"' : ''} placeholder="Nothing selected" readonly>
             <div class="input-group-append">
-              <button class="btn btn-primary btnLinkFK" onclick="test(this)" data-tablename="${el.fk_table}" title="Link Element" type="button"${el.mode_form == 'ro' ? ' disabled' : ''}>
+              <button class="btn btn-primary btnLinkFK" title="Link Element" type="button"${el.mode_form == 'ro' ? ' disabled' : ''}>
                 <i class="fa fa-chain-broken"></i>
               </button>
             </div>
@@ -1686,7 +1617,7 @@ class FormGenerator {
     }
     //--- Reverse Foreign Key
     else if (el.field_type == 'reversefk') {
-      const tmpGUID = GUI.ID();
+      const tmpGUID = GUI.getID();
       const ext_tablename = el.revfk_tablename;
       const hideCol = el.revfk_colname;
       const OriginRowID = this.oRowID;
@@ -1791,6 +1722,7 @@ class FormGenerator {
 
 //-------------------------------------------
 // Bootstrap-Helper-Method: Overlay of many Modal windows (newest on top)
+
 $(document).on('show.bs.modal', '.modal', function () {
   //-- Stack modals correctly
   let zIndex = 2040 + (10 * $('.modal:visible').length);
@@ -1801,7 +1733,11 @@ $(document).on('show.bs.modal', '.modal', function () {
 });
 $(document).on('shown.bs.modal', function() { 
   // Focus first visible Input in Modal (Input, Textarea, or Select)
-  $('.modal').find('input,textarea,select').filter(':visible:first').trigger('focus');
+  let el = $('.modal').find('input,textarea,select').filter(':visible:first');
+  el.trigger('focus');
+  const val = el.val();
+  el.val('');
+  el.val(val);
   // On keydown
   // Restrict input to digits and '.' by using a regular expression filter.
   $("input[type=number]").keydown(function (e) {
@@ -1812,6 +1748,8 @@ $(document).on('shown.bs.modal', function() {
     if ($.inArray(e.keyCode, [46, 8, 9, 27, 13, 109, 110, 173, 190, 188]) !== -1 ||
         // Allow: Ctrl+A, Command+A
         (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) || 
+        (e.keyCode === 67 && e.ctrlKey === true ) || // Ctrl + C
+        (e.keyCode === 86 && e.ctrlKey === true ) || // Ctrl + V (!)
         // Allow: home, end, left, right, down, up
         (e.keyCode >= 35 && e.keyCode <= 40)) {
           // let it happen, don't do anything
@@ -1861,15 +1799,23 @@ function mergeDeep(target, ...sources) {
   }
   return mergeDeep(target, ...sources);
 }
+function recflattenObj(x) {
+  if (isObject(x)) {
+    let res = Object.keys(x).map(
+      e => { return isObject(x[e]) ? recflattenObj(x[e]) : x[e]; }
+    );
+    return res;
+  }
+}
 //--- Expand foreign key
 function test(x): void {
   let me = $(x);
+  const randID = GUI.getID();
   const FKTable = me.data('tablename');
-  const randID = GUI.ID();
-  let fkInput = me.parent().parent().parent().parent().find('.inputFK');
-  fkInput.val(''); // Reset Selection
 
-  me.parent().parent().parent().parent().find('.external-table').replaceWith('<div class="'+randID+'"></div>');
+  let fkInput = me.parent().parent().parent().find('.inputFK');
+  fkInput.val(''); // Reset Selection
+  me.parent().parent().parent().find('.external-table').replaceWith('<div class="'+randID+'"></div>');
 
   let tmpTable = new Table(FKTable, 1, function(){
     tmpTable.loadRows(async function(){
@@ -1878,7 +1824,8 @@ function test(x): void {
     });
   });
   tmpTable.SelectionHasChanged.on(function(){
-    const selRow = tmpTable.getSelectedRows()[0];
-    if (selRow) fkInput.val(selRow); else fkInput.val("");
+    const selRowID = tmpTable.getSelectedRowID();
+    console.log('---->', selRowID);
+    if (selRowID) fkInput.val(selRowID); else fkInput.val("");
   })
 }
