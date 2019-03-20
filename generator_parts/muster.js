@@ -219,12 +219,7 @@ class StateMachine {
                         arrows: 'to',
                         arrowStrikethrough: true,
                         dashes: false,
-                        smooth: {
-                        //'enabled': true,
-                        //"type": "cubicBezier",
-                        //"forceDirection": "horizontal"
-                        //"roundness": 1// 0.2
-                        }
+                        smooth: {}
                     },
                     nodes: {
                         shape: 'box',
@@ -268,11 +263,7 @@ class StateMachine {
                     physics: {
                         enabled: false
                     },
-                    interaction: {
-                    /*zoomView:false,*/
-                    //dragNodes:false
-                    /*dragView: false*/
-                    }
+                    interaction: {}
                 };
                 let network = new vis.Network(container, data, options);
                 M.show();
@@ -525,12 +516,10 @@ class Table extends RawTable {
             if (this.PageIndex < Math.floor(pages.length / 2))
                 for (var i = 0; i < pages.length; i++)
                     pages[i] = i - this.PageIndex;
-            // Display middle
             else if ((this.PageIndex >= Math.floor(pages.length / 2))
                 && (this.PageIndex < (NrOfPages - Math.floor(pages.length / 2))))
                 for (var i = 0; i < pages.length; i++)
                     pages[i] = -Math.floor(pages.length / 2) + i;
-            // Display end edge
             else if (this.PageIndex >= NrOfPages - Math.floor(pages.length / 2)) {
                 for (var i = 0; i < pages.length; i++)
                     pages[i] = NrOfPages - this.PageIndex + i - pages.length;
@@ -1188,11 +1177,14 @@ class Table extends RawTable {
             t.FilterText = t.Filter;
         }
         const hasEntries = t.Rows && (t.Rows.length > 0);
+        let NoText = 'No Objects';
+        if (t.TableType != TableType.obj)
+            NoText = 'No Relations';
         return `<form class="tbl_header form-inline">
     <div class="form-group m-0 p-0">
       <input type="text" ${(!hasEntries ? 'readonly disabled ' : '')}class="form-control${(!hasEntries ? '-plaintext' : '')} mr-1 filterText"
         ${(t.FilterText != '' ? ' value="' + t.FilterText + '"' : '')}
-        placeholder="${(!hasEntries ? 'No Entries' : t.GUIOptions.filterPlaceholderText)}">
+        placeholder="${(!hasEntries ? NoText : t.GUIOptions.filterPlaceholderText)}">
     </div>
     ${(t.ReadOnly ? '' :
             `<!-- Create Button -->
@@ -1395,7 +1387,7 @@ class Table extends RawTable {
         // Only Display Buttons if more than one Button exists
         if (PaginationButtons.length > 1) {
             PaginationButtons.forEach(btnIndex => {
-                if (t.PageIndex == t.PageIndex + btnIndex) { // Active
+                if (t.PageIndex == t.PageIndex + btnIndex) {
                     pgntn += `<li class="page-item active"><span class="page-link">${t.PageIndex + 1 + btnIndex}</span></li>`;
                 }
                 else {
@@ -1501,32 +1493,26 @@ class FormGenerator {
         if (el.field_type == 'textarea') {
             result += `<textarea name="${key}" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}" ${el.mode_form == 'ro' ? ' readonly' : ''}>${el.value ? el.value : ''}</textarea>`;
         }
-        //--- Text
         else if (el.field_type == 'text') {
             result += `<input name="${key}" type="text" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
         }
-        //--- Number
         else if (el.field_type == 'number') {
             result += `<input name="${key}" type="number" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
         }
-        //--- Time
         else if (el.field_type == 'time') {
             result += `<input name="${key}" type="time" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
         }
-        //--- Date
         else if (el.field_type == 'date') {
             result += `<input name="${key}" type="date" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
         }
-        //--- Password
         else if (el.field_type == 'password') {
             result += `<input name="${key}" type="password" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
         }
-        //--- Datetime
         else if (el.field_type == 'datetime') {
             result += `<div class="input-group">
         <input name="${key}" type="date" id="inp_${key}" class="dtm form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
@@ -1535,7 +1521,6 @@ class FormGenerator {
         value="${el.value ? el.value.split(' ')[1] : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>
       </div>`;
         }
-        //--- Foreignkey
         else if (el.field_type == 'foreignkey') {
             // rwInput ====> Special case!
             // Concat value if is object
@@ -1562,7 +1547,6 @@ class FormGenerator {
           </div>
         </div>`;
         }
-        //--- Reverse Foreign Key
         else if (el.field_type == 'reversefk') {
             const tmpGUID = GUI.getID();
             const ext_tablename = el.revfk_tablename;
@@ -1584,16 +1568,13 @@ class FormGenerator {
             defValues // Default Values
             );
         }
-        //--- Quill Editor
         else if (el.field_type == 'htmleditor') {
             this.editors[key] = el.mode_form; // reserve key
             result += `<div><div class="htmleditor"></div></div>`;
         }
-        //--- Pure HTML (not working yet)
         else if (el.field_type == 'rawhtml') {
             result += el.value;
         }
-        //--- Switch
         else if (el.field_type == 'switch') {
             result = '';
             result += `<div class="custom-control custom-switch mt-2">
@@ -1623,9 +1604,8 @@ class FormGenerator {
             // Checkbox
             if (type == 'checkbox')
                 value = inp.is(':checked') ? 1 : 0;
-            // DateTime
             else if (type == 'time' && inp.hasClass('dtm')) {
-                if (key in result) // if key already exists in result
+                if (key in result)
                     value = result[key] + ' ' + inp.val(); // append Time to Date
             }
             else

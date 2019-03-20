@@ -1236,12 +1236,14 @@ class Table extends RawTable {
     }
 
     const hasEntries = t.Rows && (t.Rows.length > 0);
+    let NoText: string = 'No Objects';
+    if (t.TableType != TableType.obj) NoText = 'No Relations';
 
     return `<form class="tbl_header form-inline">
     <div class="form-group m-0 p-0">
       <input type="text" ${ (!hasEntries ? 'readonly disabled ' : '') }class="form-control${ (!hasEntries ? '-plaintext' : '') } mr-1 filterText"
         ${ (t.FilterText != '' ? ' value="'+t.FilterText+'"' : '') }
-        placeholder="${ (!hasEntries ? 'No Entries' : t.GUIOptions.filterPlaceholderText) }">
+        placeholder="${ (!hasEntries ? NoText : t.GUIOptions.filterPlaceholderText) }">
     </div>
     ${
     (t.ReadOnly ? '' : 
