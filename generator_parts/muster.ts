@@ -133,6 +133,9 @@ class Modal {
       $(this).remove();
     });
   }
+  public setHeader(html: string) {
+    $('#'+this.DOM_ID+' .modal-title').html(html);
+  }
   public setFooter(html: string) {
     $('#'+this.DOM_ID+' .customfooter').html(html);
   }
@@ -341,17 +344,10 @@ class RawTable {
     this.actRowCount = 0;
   }
   public getNextStates(data: any, callback) {
-    DB.request('getNextStates', {table: this.tablename, row: data}, function(response) {
-      callback(response)
-    })
+    DB.request('getNextStates', {table: this.tablename, row: data}, function(r) { callback(r); });
   }
   public createRow(data: any, callback) {
-    let me = this;
-    DB.request('create', {table: this.tablename, row: data}, function(r){
-      me.countRows(function(){
-        callback(r)
-      })
-    })
+    DB.request('create', {table: this.tablename, row: data}, function(r){ callback(r); });
   }
   public deleteRow(RowID: number, callback) {
     let me = this;
@@ -391,11 +387,11 @@ class RawTable {
     }
     DB.request('count', data, function(r){
       if (r.length > 0) {
-        let resp = JSON.parse(r);
+        const resp = JSON.parse(r);
         if (resp.length > 0) {
           me.actRowCount = parseInt(resp[0].cnt);
           // Callback method
-          callback()
+          callback();
         }
       }
     })
@@ -668,8 +664,6 @@ class Table extends RawTable {
     //--- finally show Modal if it is a new one
     if (M) M.show()
   }
-
-
 
   private saveEntry(SaveModal: Modal, data: any, closeModal: boolean = true){
     let t = this
@@ -983,10 +977,13 @@ class Table extends RawTable {
           FormObj[key].value = isObject(value) ? value[Object.keys(value)[0]] : value;
         }    
         let fModify = new FormGenerator(me, id, FormObj);        
-        let M: Modal = ExistingModal || new Modal(ModalTitle, fModify.getHTML(), '', true);
+        let M: Modal = ExistingModal || new Modal('', fModify.getHTML(), '', true);
         M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
         fModify.initEditors();
         
+        // Set Modal Header
+        M.setHeader(ModalTitle);
+
         // Save buttons
         M.setFooter(`<div class="ml-auto mr-0">
           <button class="btn btn-primary btnSave" type="button">
@@ -996,6 +993,7 @@ class Table extends RawTable {
             ${this.GUIOptions.modalButtonTextModifySaveAndClose}
           </button>
         </div>`);
+
         // Bind functions to Save Buttons
         $('#' + M.getDOMID() + ' .btnSave').click(function(e){
           e.preventDefault();
@@ -1664,6 +1662,7 @@ class FormGenerator {
         ${result}
       </div>
     </div>`;
+    // Return
     return result;
   }
   public getValues() {
@@ -1721,8 +1720,7 @@ class FormGenerator {
 }
 
 //-------------------------------------------
-// Bootstrap-Helper-Method: Overlay of many Modal windows (newest on top)
-
+// Bootstrap-Helper-Method: Overlay of many Modal windows (newest Modal on top)
 $(document).on('show.bs.modal', '.modal', function () {
   //-- Stack modals correctly
   let zIndex = 2040 + (10 * $('.modal:visible').length);
@@ -1825,7 +1823,6 @@ function test(x): void {
   });
   tmpTable.SelectionHasChanged.on(function(){
     const selRowID = tmpTable.getSelectedRowID();
-    console.log('---->', selRowID);
     if (selRowID) fkInput.val(selRowID); else fkInput.val("");
   })
 }

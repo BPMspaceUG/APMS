@@ -130,6 +130,9 @@ class Modal {
             $(this).remove();
         });
     }
+    setHeader(html) {
+        $('#' + this.DOM_ID + ' .modal-title').html(html);
+    }
     setFooter(html) {
         $('#' + this.DOM_ID + ' .customfooter').html(html);
     }
@@ -306,17 +309,10 @@ class RawTable {
         this.actRowCount = 0;
     }
     getNextStates(data, callback) {
-        DB.request('getNextStates', { table: this.tablename, row: data }, function (response) {
-            callback(response);
-        });
+        DB.request('getNextStates', { table: this.tablename, row: data }, function (r) { callback(r); });
     }
     createRow(data, callback) {
-        let me = this;
-        DB.request('create', { table: this.tablename, row: data }, function (r) {
-            me.countRows(function () {
-                callback(r);
-            });
-        });
+        DB.request('create', { table: this.tablename, row: data }, function (r) { callback(r); });
     }
     deleteRow(RowID, callback) {
         let me = this;
@@ -357,7 +353,7 @@ class RawTable {
         };
         DB.request('count', data, function (r) {
             if (r.length > 0) {
-                let resp = JSON.parse(r);
+                const resp = JSON.parse(r);
                 if (resp.length > 0) {
                     me.actRowCount = parseInt(resp[0].cnt);
                     // Callback method
@@ -945,9 +941,11 @@ class Table extends RawTable {
                     FormObj[key].value = isObject(value) ? value[Object.keys(value)[0]] : value;
                 }
                 let fModify = new FormGenerator(me, id, FormObj);
-                let M = ExistingModal || new Modal(ModalTitle, fModify.getHTML(), '', true);
+                let M = ExistingModal || new Modal('', fModify.getHTML(), '', true);
                 M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
                 fModify.initEditors();
+                // Set Modal Header
+                M.setHeader(ModalTitle);
                 // Save buttons
                 M.setFooter(`<div class="ml-auto mr-0">
           <button class="btn btn-primary btnSave" type="button">
@@ -1611,6 +1609,7 @@ class FormGenerator {
         ${result}
       </div>
     </div>`;
+        // Return
         return result;
     }
     getValues() {
@@ -1668,7 +1667,7 @@ class FormGenerator {
     }
 }
 //-------------------------------------------
-// Bootstrap-Helper-Method: Overlay of many Modal windows (newest on top)
+// Bootstrap-Helper-Method: Overlay of many Modal windows (newest Modal on top)
 $(document).on('show.bs.modal', '.modal', function () {
     //-- Stack modals correctly
     let zIndex = 2040 + (10 * $('.modal:visible').length);
@@ -1772,7 +1771,6 @@ function test(x) {
     });
     tmpTable.SelectionHasChanged.on(function () {
         const selRowID = tmpTable.getSelectedRowID();
-        console.log('---->', selRowID);
         if (selRowID)
             fkInput.val(selRowID);
         else

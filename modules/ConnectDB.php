@@ -61,7 +61,7 @@
     return $res;
   }
 
-  function getFieldType($datatype) {
+  function getDefaultFieldType($datatype) {
     $datatype = strtolower($datatype);
     // Numbers
     if ($datatype == 'bigint') return 'number';
@@ -142,9 +142,9 @@
           ------------------------------*/
           $additional_info = array(
             "column_alias" => ucfirst($column_name),
-            "mode_form" => ($column_name == "state_id" || $col_isPrimary) ? 'hi' : 'ro',
+            "mode_form" => ($column_name == "state_id" || $col_isPrimary) ? 'hi' : 'rw',
             "show_in_grid" => true,
-            "field_type" => getFieldType($col_datatype),
+            "field_type" => getDefaultFieldType($col_datatype),
             "foreignKey" => $fk,
             "col_order" => (int)$column_counter,
             "is_virtual" => false,
@@ -236,7 +236,7 @@
       $res[$table] = array(
         "table_name" => $table,
         "table_alias" => $table_alias,
-        "table_type" => 'obj',
+        "table_type" => 'obj', // Default --> Everything is a Object-Table
         "is_in_menu" => true,
         "is_read_only" => false,
         "se_active" => $TableHasStateMachine,
