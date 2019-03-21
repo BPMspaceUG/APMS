@@ -453,7 +453,7 @@ class Table extends RawTable {
                     // Get Primary and SortColumn
                     if (me.Columns[col].show_in_grid && me.OrderBy == '') {
                         // DEFAULT: Sort by first visible Col
-                        if (me.Columns[col].foreignKey['table'] != '')
+                        if (me.Columns[col].field_type == 'foreignkey')
                             me.OrderBy = 'a.' + col;
                         else
                             me.OrderBy = col;
@@ -466,6 +466,9 @@ class Table extends RawTable {
             }
         });
     }
+    getPrimaryColname() {
+        return this.PrimaryColumn;
+    }
     getTableIcon() {
         return `<i class="${this.TableConfig.table_icon}"></i>`;
     }
@@ -476,7 +479,7 @@ class Table extends RawTable {
         let me = this;
         this.AscDesc = (this.AscDesc == SortOrder.DESC) ? SortOrder.ASC : SortOrder.DESC;
         // Check if column is a foreign key
-        if (me.Columns[ColumnName].foreignKey['table'] != '')
+        if (me.Columns[ColumnName].field_type == 'foreignkey')
             this.OrderBy = 'a.' + ColumnName;
         else
             this.OrderBy = ColumnName;
@@ -1085,7 +1088,7 @@ class Table extends RawTable {
                 value = '';
             return value;
         }
-        else if (t.Columns[col].field_type == 'switch') {
+        else if (t.Columns[col].field_type == 'switch' || t.Columns[col].field_type == 'checkbox') {
             //--- BOOLEAN
             return (parseInt(value) !== 0 ?
                 '<i class="fa fa-check text-success text-center"></i>&nbsp;' :
@@ -1137,7 +1140,7 @@ class Table extends RawTable {
                         // Sorting
                         '<div class="float-right pr-3">' + (colname == ordercol ? '&nbsp;' + (t.AscDesc == SortOrder.ASC ? '<i class="fa fa-sort-asc">' : (t.AscDesc == SortOrder.DESC ? '<i class="fa fa-sort-desc">' : '')) + '' : '') + '</div>';
                     //---- Foreign Key Column
-                    if (t.Columns[colname].foreignKey.table != '') {
+                    if (t.Columns[colname].field_type == 'foreignkey') {
                         let cols = {};
                         try {
                             cols = JSON.parse(t.Columns[colname].foreignKey.col_subst);
@@ -1577,9 +1580,12 @@ class FormGenerator {
             result += `<div class="${tmpGUID}"></div>`; // Container for Table
             //--- Create new Table
             let tmp = new Table(ext_tablename, SelectType.NoSelect, function () {
-                tmp.Columns[hideCol].show_in_grid = false; // Hide the origin column
+                // Hide this columns
+                tmp.Columns[hideCol].show_in_grid = false; // Hide the primary column
+                tmp.Columns[tmp.getPrimaryColname()].show_in_grid = false; // Hide the origin column
                 tmp.ReadOnly = (el.mode_form == 'ro');
                 tmp.GUIOptions.showControlColumn = !tmp.ReadOnly;
+                // Load Rows
                 tmp.loadRows(function () {
                     tmp.renderHTML('.' + tmpGUID);
                 });
@@ -1603,6 +1609,13 @@ class FormGenerator {
       <input name="${key}" type="checkbox" class="custom-control-input${el.mode_form == 'rw' ? ' rwInput' : ''}" id="inp_${key}"${el.mode_form == 'ro' ? ' disabled' : ''}${el.value == 1 ? ' checked' : ''}>
       <label class="custom-control-label" for="inp_${key}">${el.column_alias}</label>
     </div>`;
+        }
+        else if (el.field_type == 'checkbox') {
+            result = '';
+            result += `<div class="custom-control custom-checkbox mt-2">
+        <input name="${key}" type="checkbox" class="custom-control-input${el.mode_form == 'rw' ? ' rwInput' : ''}" id="inp_${key}"${el.mode_form == 'ro' ? ' disabled' : ''}${el.value == 1 ? ' checked' : ''}>
+        <label class="custom-control-label" for="inp_${key}">${el.column_alias}</label>
+      </div>`;
         }
         // ===> HTML Output
         result =

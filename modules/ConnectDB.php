@@ -61,6 +61,16 @@
     return $res;
   }
 
+  function beautifyName($rawname) {
+    $arr = explode('_', $rawname);
+    $alias = end($arr);
+    if (strlen($alias) <= 3) { // if too short
+      $newarr = array_slice($arr, -2, 2); // last 2 elements
+      $alias = implode(' ', $newarr);
+    }
+    return ucfirst($alias);
+  }
+
   function getDefaultFieldType($datatype) {
     $datatype = strtolower($datatype);
     // Numbers
@@ -108,6 +118,7 @@
           $column_name = $row2["COLUMN_NAME"];
           $col_datatype = $row2["DATA_TYPE"];
           $col_isPrimary = ($row2['EXTRA'] == 'auto_increment');
+          $col_isFK = false;
 
           // Additional information
           //------------------------------------------------------
@@ -117,19 +128,22 @@
           $fk = array("table" => "", "col_id" => "", "col_subst" => "");
 
           if ($table == 'state' && $column_name == "statemachine_id") {
+            $col_isFK = true;
             $fk = array("table" => "state_machines", "col_id" => "id", "col_subst" => "{\"tablename\": 1}");
           }
           else if ($table == 'state_rules' && $column_name == "state_id_FROM") {
+            $col_isFK = true;
             $fk = array("table" => "state", "col_id" => "state_id", "col_subst" => "{\"name\": 1}");
           }
           else if ($table == 'state_rules' && $column_name == "state_id_TO") {
+            $col_isFK = true;
             $fk = array("table" => "state", "col_id" => "state_id", "col_subst" => "{\"name\": 1}");
           }
           else if ($column_name == "state_id" && $table != 'state'){            
-            // every other state column            
+            // every other state column
+            $col_isFK = true;
             $fk = array("table" => "state", "col_id" => "state_id", "col_subst" => "name");
           }
-
           // Table Has StateMachine?
           if ($column_name == "state_id" && $table != "state")
             $TableHasStateMachine = true;
@@ -138,18 +152,21 @@
           /*------------------------------
                    C O L U M N S
           ------------------------------*/
+          // Generate Beautiful alias
+          $alias = beautifyName($column_name);
+
           $additional_info = array(
-            "column_alias" => ucfirst($column_name),
+            "column_alias" => $alias,
             "is_primary" => $col_isPrimary,
             "is_virtual" => false,
             "show_in_grid" => true,
             "col_order" => (int)$column_counter,
             "mode_form" => ($column_name == "state_id" || $col_isPrimary) ? 'hi' : 'rw',
-            "field_type" => getDefaultFieldType($col_datatype),
-            // Additional information columns (remove them if not used):
-            "foreignKey" => $fk,
-            "virtual_select" => ""
+            "field_type" => $col_isFK ? 'foreignkey' : getDefaultFieldType($col_datatype)
           );
+          // Additional information columns (remove them if not used):
+          if ($fk["table"] != '') $additional_info["foreignKey"] = $fk;
+
           $columns[$column_name] = $additional_info;
           $column_counter++;
         }
@@ -216,7 +233,8 @@
       // TODO: Check if is a View => then ReadOnly = true
 
       // Generate a nice TableAlias
-      $table_alias = str_replace("_", "", ucfirst($table));
+      $table_alias = beautifyName($table);
+
       /*------------------------------
         T A B L E S
       ------------------------------*/

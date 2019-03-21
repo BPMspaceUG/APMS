@@ -232,19 +232,29 @@
                         ng-if="!(col.is_primary || colname == 'state_id')"
                         ng-model="col.field_type"
                       >
-                        <option value="text">Text</option>
-                        <option value="textarea">Textarea</option>
-                        <option value="number">Number</option>
-                        <option value="switch">Switch (Yes/No)</option>
-                        <option value="checkbox">Checkbox (Yes/No)</option>
-                        <option value="date">Date</option>
-                        <option value="time">Time</option>
-                        <option value="foreignkey">ForeignKey</option>
-                        <option value="reversefk">Reverse Foreign Key</option>
-                        <option value="datetime">DateTime</option>
-                        <option value="password">Passwordfield</option>
-                        <option value="htmleditor">HTML-Editor</option>
-                        <option value="rawhtml">Raw HTML</option>
+                        <optgroup label="Strings">
+                          <option value="text">Text</option>
+                          <option value="textarea">Textarea</option>
+                          <option value="password">Password</option>
+                        </optgroup>
+                        <optgroup label="Numbers">
+                          <option value="number">Number (Integer)</option>
+                        </optgroup>
+                        <optgroup label="Boolean">
+                          <option value="switch">Switch</option>
+                          <option value="checkbox">Checkbox</option>
+                        </optgroup>
+                        <optgroup label="Date & Time">
+                          <option value="date">Date</option>
+                          <option value="time">Time</option>
+                          <option value="datetime">DateTime</option>
+                        </optgroup>
+                        <optgroup label="Special">
+                          <option value="foreignkey">ForeignKey</option>
+                          <option value="reversefk">Virtual-Table</option>
+                          <option value="htmleditor">HTML-Editor</option>
+                          <option value="rawhtml">RawHTML (for Links in Grid etc.)</option>
+                        </optgroup>
                       </select>
                     </td>
 
@@ -265,15 +275,17 @@
 
                     <!-- Show FK Menu if it is no Primary column -->
                     <td class="align-middle" colspan="2" ng-if="!col.is_primary && !col.is_virtual">
-                      <b>ForeignKey:</b>
-                      <select class="custom-select custom-select-sm" style="width: 100px; display: inline !important;" ng-model="col.foreignKey.table">
-                        <option value="" selected></option>
-                        <option ng-repeat="tbl in tables" value="{{tbl.table_name}}">{{tbl.table_name}}</option>
-                      </select>
-                      <input ng-if="(col.foreignKey.table != '')" type="text" class="form-control form-control-sm" style="width: 80px; display: inline !important;" ng-model="col.foreignKey.col_id" placeholder="JoinID">
-                      <span>
-                        <input ng-if="(col.foreignKey.table != '')" type="text" class="form-control form-control-sm w-100" ng-model="col.foreignKey.col_subst" placeholder="ReplacedCloumn">
-                      </span>
+                      <div ng-if="col.field_type == 'foreignkey'">
+                        <b>ForeignKey:</b>
+                        <select class="custom-select custom-select-sm" style="width: 100px; display: inline !important;" ng-model="col.foreignKey.table">
+                          <option value="" selected></option>
+                          <option ng-repeat="tbl in tables" value="{{tbl.table_name}}">{{tbl.table_name}}</option>
+                        </select>
+                        <input ng-if="(col.foreignKey.table != '')" type="text" class="form-control form-control-sm" style="width: 80px; display: inline !important;" ng-model="col.foreignKey.col_id" placeholder="JoinID">
+                        <span>
+                          <input ng-if="(col.foreignKey.table != '')" type="text" class="form-control form-control-sm w-100" ng-model="col.foreignKey.col_subst" placeholder="ReplacedCloumn">
+                        </span>
+                      </div>
                     </td>
 
                     <!-- VIRTUAL GRID COLUMN -->

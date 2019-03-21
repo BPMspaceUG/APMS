@@ -11,10 +11,9 @@ body {margin-bottom: 60px;}
 .datatbl .controllcoulm {text-align: center; min-width: 50px; width: 50px;}
 .datatbl .controllcoulm:hover {color: steelblue; cursor: pointer;}
 .datatbl .controllcoulm i {margin-top: 3px;}
-.datatbl th, tr td {/*white-space: nowrap;*/}
 .datatbl td {color: #333; height: 34px;}
 .datatbl .datatbl_header:hover {background-color: #ddd; color: steelblue;}
-.datatbl .sorted {color: steelblue;}
+.datatbl .sorted {color: steelblue; min-width: 100px; white-space: nowrap;}
 .datatbl .datarow:hover {cursor: auto;}
 .datatbl .editFullRow:hover {cursor: pointer;}
 .external-table input {cursor: pointer;}

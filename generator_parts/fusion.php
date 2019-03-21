@@ -167,11 +167,11 @@
     $seperator = '_____';
 
     foreach ($colnames as $colname) {
-      $fk = $table["columns"][$colname]["foreignKey"];
-      $ft = $fk["table"];
-
+      $has_FK = ($table["columns"][$colname]["field_type"] == 'foreignkey');      
       // -- Foreign Key
-      if ($ft != "") {
+      if ($has_FK) {
+        $fk = $table["columns"][$colname]["foreignKey"];
+        $ft = $fk["table"];
         $fkey = $fk["col_id"];
         $fsub = $fk["col_subst"];
         // Template: ' LEFT JOIN [fktable] AS a___[0] ON a.[stdkey] = a____[0].[fkey] '
@@ -218,10 +218,12 @@
 
       // -- Virtual Column
       $isVc = $table["columns"][$colname]["is_virtual"];
-      $virtSelect = $table["columns"][$colname]["virtual_select"];
-      if ($isVc && (strlen($virtSelect) > 0)) {
-        $virtualcols[] = addslashes($virtSelect).' AS '.$colname;
-        $allcolnames[] = addslashes($virtSelect);
+      if ($isVc) {
+        $virtSelect = $table["columns"][$colname]["virtual_select"];
+        if (strlen($virtSelect) > 0) {
+          $virtualcols[] = addslashes($virtSelect).' AS '.$colname;
+          $allcolnames[] = addslashes($virtSelect);
+        }
       }
       elseif (!$isVc) {
         $stdcols[] = "a.".$colname;

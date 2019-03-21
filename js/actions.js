@@ -258,17 +258,13 @@ APMS.controller('APMScontrol', function ($scope, $http) {
       new_virt_colname = new_virt_colname + 'x';
     }
     $scope.tables[tbl.table_name].columns[new_virt_colname] = {
-      field_type: 'textarea',
-      column_alias: "Virtual-Column",
-      show_in_grid: true,
-      mode_form: 'ro',
-      foreignKey: {
-          table: "",
-          col_id: "",
-          col_subst: ""
-      },
+      field_type: 'reversefk',
+      column_alias: "Table",
+      show_in_grid: false,
+      mode_form: 'rw',
       col_order: 3,
       is_virtual: true,
+      is_primary: false,
       virtual_select: ""
     }
     return
@@ -280,7 +276,7 @@ APMS.controller('APMScontrol', function ($scope, $http) {
     console.log(col);
     console.log($scope.tables[tbl.table_name].columns[col.COLUMN_NAME]);
     */
-    delete tbl.columns[col.COLUMN_NAME]
+    delete tbl.columns[Object.keys(col)[0]];
   }
   $scope.changeSortOrder = function(col, inc) {
     //const oldIndex = parseInt(col.col_order); // can be overwritten
