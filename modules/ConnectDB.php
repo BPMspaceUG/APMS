@@ -98,10 +98,8 @@
       $res2 = mysqli_query($con, $query);
       $columns = array();
       $TableHasStateMachine = false;
-
       // has columns ?
       if ($res2) {
-
         // Loop Columns
         $column_counter = 1;
         while ($row2 = $res2->fetch_assoc()) {
@@ -142,26 +140,17 @@
           ------------------------------*/
           $additional_info = array(
             "column_alias" => ucfirst($column_name),
-            "mode_form" => ($column_name == "state_id" || $col_isPrimary) ? 'hi' : 'rw',
-            "show_in_grid" => true,
-            "field_type" => getDefaultFieldType($col_datatype),
-            "foreignKey" => $fk,
-            "col_order" => (int)$column_counter,
+            "is_primary" => $col_isPrimary,
             "is_virtual" => false,
+            "show_in_grid" => true,
+            "col_order" => (int)$column_counter,
+            "mode_form" => ($column_name == "state_id" || $col_isPrimary) ? 'hi' : 'rw',
+            "field_type" => getDefaultFieldType($col_datatype),
+            // Additional information columns (remove them if not used):
+            "foreignKey" => $fk,
             "virtual_select" => ""
           );
-          // Filter columns array
-          $allowed  = ['COLUMN_NAME', 'COLUMN_TYPE', 'COLUMN_KEY', 'EXTRA'];
-          $filtered = array_filter(
-            $column_info,
-            function ($key) use ($allowed) { return in_array($key, $allowed); },
-            ARRAY_FILTER_USE_KEY
-          );
-          // Merge arrays
-          $merged = array_merge($filtered, $additional_info);
-          $colname = $merged['COLUMN_NAME'];
-          $columns[$colname] = $merged;
-
+          $columns[$column_name] = $additional_info;
           $column_counter++;
         }
 
@@ -170,11 +159,7 @@
         if ($table == 'state_rules') {
           // Add a virtual column
           $columns['virtualColx'] = array(
-            'COLUMN_NAME' => 'virtualColx',
             'field_type' => "textarea",
-            'COLUMN_TYPE' => "longtext",
-            'COLUMN_KEY' => "",
-            'EXTRA' => "",
             'column_alias' => "SM",
             'foreignKey' => array(
               'table' => "",
@@ -219,6 +204,8 @@
                 $columns[$colname]["foreignKey"]["table"] = $fKeys[$colname]["refeTable"];
                 $columns[$colname]["foreignKey"]["col_id"] = $fKeys[$colname]["colID"];
                 $columns[$colname]["foreignKey"]["col_subst"] = $fKeys[$colname]["colID"];
+                // Set field type to foreign-key
+                $columns[$colname]["field_type"] = 'foreignkey';
               }
             }
           }

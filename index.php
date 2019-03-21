@@ -210,7 +210,7 @@
                   <!-- C O L U M N S -->
                   <!-- Columns START -->
 
-                  <tr ng-repeat="col in convertObjToArr(tbl.columns) | orderBy: 'col_order'" ng-show="tbl.showKids" ng-class="{'bg-warning' : col.is_virtual}" style="font-size: .8em;">
+                  <tr ng-repeat="(colname, col) in tbl.columns" ng-show="tbl.showKids" ng-class="{'bg-warning' : col.is_virtual}" style="font-size: .8em;">
                     <!-- Column Order -->
                     <td class="align-middle">
                       <div style="white-space:nowrap;overflow:hidden;">
@@ -222,15 +222,14 @@
                     <!-- Column Name and Type -->
                     <td class="align-middle">
                       <div>
-                          <b>{{col.COLUMN_NAME}}</b><br>
-                          <small class="float-left">{{col.COLUMN_TYPE}} {{col.EXTRA}}</small>
+                          <b>{{colname}}</b>
                       </div>
                     </td>
 
                     <td class="align-middle">
                       <select
                         class="custom-select custom-select-sm"
-                        ng-if="(col.EXTRA != 'auto_increment' && col.COLUMN_NAME != 'state_id')"
+                        ng-if="!(col.is_primary || colname == 'state_id')"
                         ng-model="col.field_type"
                       >
                         <option value="text">Text</option>
@@ -265,7 +264,7 @@
                     </td>
 
                     <!-- Show FK Menu if it is no Primary column -->
-                    <td class="align-middle" colspan="2" ng-if="col.EXTRA != 'auto_increment' && !col.is_virtual">
+                    <td class="align-middle" colspan="2" ng-if="!col.is_primary && !col.is_virtual">
                       <b>ForeignKey:</b>
                       <select class="custom-select custom-select-sm" style="width: 100px; display: inline !important;" ng-model="col.foreignKey.table">
                         <option value="" selected></option>

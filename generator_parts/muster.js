@@ -219,7 +219,12 @@ class StateMachine {
                         arrows: 'to',
                         arrowStrikethrough: true,
                         dashes: false,
-                        smooth: {}
+                        smooth: {
+                        //'enabled': true,
+                        //"type": "cubicBezier",
+                        //"forceDirection": "horizontal"
+                        //"roundness": 1// 0.2
+                        }
                     },
                     nodes: {
                         shape: 'box',
@@ -263,7 +268,11 @@ class StateMachine {
                     physics: {
                         enabled: false
                     },
-                    interaction: {}
+                    interaction: {
+                    /*zoomView:false,*/
+                    //dragNodes:false
+                    /*dragView: false*/
+                    }
                 };
                 let network = new vis.Network(container, data, options);
                 M.show();
@@ -362,7 +371,7 @@ class RawTable {
             orderby: this.OrderBy,
             ascdesc: this.AscDesc
         };
-        // Append extra
+        // Append filtering
         if (this.Filter)
             data['filter'] = this.Filter;
         if (this.Where)
@@ -449,7 +458,7 @@ class Table extends RawTable {
                         else
                             me.OrderBy = col;
                     }
-                    if (me.Columns[col].EXTRA == 'auto_increment')
+                    if (me.Columns[col].is_primary)
                         me.PrimaryColumn = col;
                 }
                 // Initializing finished
@@ -516,10 +525,12 @@ class Table extends RawTable {
             if (this.PageIndex < Math.floor(pages.length / 2))
                 for (var i = 0; i < pages.length; i++)
                     pages[i] = i - this.PageIndex;
+            // Display middle
             else if ((this.PageIndex >= Math.floor(pages.length / 2))
                 && (this.PageIndex < (NrOfPages - Math.floor(pages.length / 2))))
                 for (var i = 0; i < pages.length; i++)
                     pages[i] = -Math.floor(pages.length / 2) + i;
+            // Display end edge
             else if (this.PageIndex >= NrOfPages - Math.floor(pages.length / 2)) {
                 for (var i = 0; i < pages.length; i++)
                     pages[i] = NrOfPages - this.PageIndex + i - pages.length;
@@ -762,7 +773,7 @@ class Table extends RawTable {
         const ModalTitle = this.GUIOptions.modalHeaderTextCreate + '<span class="text-muted ml-3">in ' + this.getTableIcon() + ' ' + this.getTableAlias() + '</span>';
         const CreateBtns = `<div class="ml-auto mr-0">
   <button class="btn btn-success btnCreateEntry andReopen" type="button">
-    <i class="fa fa-plus"></i>&nbsp;${this.GUIOptions.modalButtonTextCreate}
+    </i>&nbsp;${this.GUIOptions.modalButtonTextCreate}
   </button>
   <button class="btn btn-outline-success btnCreateEntry ml-1" type="button">
     ${this.GUIOptions.modalButtonTextCreate} &amp; Close
@@ -1189,7 +1200,7 @@ class Table extends RawTable {
     ${(t.ReadOnly ? '' :
             `<!-- Create Button -->
       <button class="btn btn-success btnCreateEntry mr-1">
-        ${t.TableType != TableType.obj ? '<i class="fa fa-link"></i> Add Relation' : `<i class="fa fa-plus"></i> ${t.GUIOptions.modalButtonTextCreate} ${t.getTableAlias()}`}
+        ${t.TableType != TableType.obj ? '<i class="fa fa-link"></i> Add Relation' : `</i> ${t.GUIOptions.modalButtonTextCreate} ${t.getTableAlias()}`}
       </button>`) +
             ((t.SM && t.GUIOptions.showWorkflowButton) ?
                 `<!-- Workflow Button -->
@@ -1387,7 +1398,7 @@ class Table extends RawTable {
         // Only Display Buttons if more than one Button exists
         if (PaginationButtons.length > 1) {
             PaginationButtons.forEach(btnIndex => {
-                if (t.PageIndex == t.PageIndex + btnIndex) {
+                if (t.PageIndex == t.PageIndex + btnIndex) { // Active
                     pgntn += `<li class="page-item active"><span class="page-link">${t.PageIndex + 1 + btnIndex}</span></li>`;
                 }
                 else {
@@ -1493,26 +1504,32 @@ class FormGenerator {
         if (el.field_type == 'textarea') {
             result += `<textarea name="${key}" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}" ${el.mode_form == 'ro' ? ' readonly' : ''}>${el.value ? el.value : ''}</textarea>`;
         }
+        //--- Text
         else if (el.field_type == 'text') {
             result += `<input name="${key}" type="text" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
         }
+        //--- Number
         else if (el.field_type == 'number') {
             result += `<input name="${key}" type="number" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
         }
+        //--- Time
         else if (el.field_type == 'time') {
             result += `<input name="${key}" type="time" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
         }
+        //--- Date
         else if (el.field_type == 'date') {
             result += `<input name="${key}" type="date" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
         }
+        //--- Password
         else if (el.field_type == 'password') {
             result += `<input name="${key}" type="password" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
         }
+        //--- Datetime
         else if (el.field_type == 'datetime') {
             result += `<div class="input-group">
         <input name="${key}" type="date" id="inp_${key}" class="dtm form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
@@ -1521,6 +1538,7 @@ class FormGenerator {
         value="${el.value ? el.value.split(' ')[1] : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>
       </div>`;
         }
+        //--- Foreignkey
         else if (el.field_type == 'foreignkey') {
             // rwInput ====> Special case!
             // Concat value if is object
@@ -1547,6 +1565,7 @@ class FormGenerator {
           </div>
         </div>`;
         }
+        //--- Reverse Foreign Key
         else if (el.field_type == 'reversefk') {
             const tmpGUID = GUI.getID();
             const ext_tablename = el.revfk_tablename;
@@ -1568,13 +1587,16 @@ class FormGenerator {
             defValues // Default Values
             );
         }
+        //--- Quill Editor
         else if (el.field_type == 'htmleditor') {
             this.editors[key] = el.mode_form; // reserve key
             result += `<div><div class="htmleditor"></div></div>`;
         }
+        //--- Pure HTML (not working yet)
         else if (el.field_type == 'rawhtml') {
             result += el.value;
         }
+        //--- Switch
         else if (el.field_type == 'switch') {
             result = '';
             result += `<div class="custom-control custom-switch mt-2">
@@ -1604,8 +1626,9 @@ class FormGenerator {
             // Checkbox
             if (type == 'checkbox')
                 value = inp.is(':checked') ? 1 : 0;
+            // DateTime
             else if (type == 'time' && inp.hasClass('dtm')) {
-                if (key in result)
+                if (key in result) // if key already exists in result
                     value = result[key] + ' ' + inp.val(); // append Time to Date
             }
             else

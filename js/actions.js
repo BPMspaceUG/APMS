@@ -258,14 +258,10 @@ APMS.controller('APMScontrol', function ($scope, $http) {
       new_virt_colname = new_virt_colname + 'x';
     }
     $scope.tables[tbl.table_name].columns[new_virt_colname] = {
-      COLUMN_NAME: new_virt_colname,
       field_type: 'textarea',
-      COLUMN_TYPE: "longtext",
-      COLUMN_KEY: "",
-      EXTRA: "",
-      column_alias: "Virtual Column",
+      column_alias: "Virtual-Column",
       show_in_grid: true,
-      mode_form: 'hi',
+      mode_form: 'ro',
       foreignKey: {
           table: "",
           col_id: "",
@@ -312,12 +308,13 @@ APMS.controller('APMScontrol', function ($scope, $http) {
   $scope.cntTables = function() {
     return Object.keys($scope.tables).length;
   }
-
+  /*
   $scope.convertObjToArr = function(myObj) {
     return Object.keys(myObj).map(function(key) {
       return myObj[key];
     });
   }
+  */
 
 });/*End Controller*/
 

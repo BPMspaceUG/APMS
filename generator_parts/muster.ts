@@ -405,7 +405,7 @@ class RawTable {
       orderby: this.OrderBy,
       ascdesc: this.AscDesc
     }
-    // Append extra
+    // Append filtering
     if (this.Filter) data['filter'] = this.Filter;
     if (this.Where) data['where'] = this.Where;
     // HTTP Request
@@ -499,7 +499,7 @@ class Table extends RawTable {
             else
               me.OrderBy = col;
           }
-          if (me.Columns[col].EXTRA == 'auto_increment') me.PrimaryColumn = col;
+          if (me.Columns[col].is_primary) me.PrimaryColumn = col;
         }
         // Initializing finished
         callback();
@@ -806,7 +806,7 @@ class Table extends RawTable {
     const ModalTitle = this.GUIOptions.modalHeaderTextCreate + '<span class="text-muted ml-3">in ' + this.getTableIcon() + ' ' + this.getTableAlias()+'</span>';
     const CreateBtns = `<div class="ml-auto mr-0">
   <button class="btn btn-success btnCreateEntry andReopen" type="button">
-    <i class="fa fa-plus"></i>&nbsp;${this.GUIOptions.modalButtonTextCreate}
+    </i>&nbsp;${this.GUIOptions.modalButtonTextCreate}
   </button>
   <button class="btn btn-outline-success btnCreateEntry ml-1" type="button">
     ${this.GUIOptions.modalButtonTextCreate} &amp; Close
@@ -1249,7 +1249,7 @@ class Table extends RawTable {
     (t.ReadOnly ? '' : 
       `<!-- Create Button -->
       <button class="btn btn-success btnCreateEntry mr-1">
-        ${ t.TableType != TableType.obj ? '<i class="fa fa-link"></i> Add Relation' : `<i class="fa fa-plus"></i> ${t.GUIOptions.modalButtonTextCreate} ${t.getTableAlias()}`}
+        ${ t.TableType != TableType.obj ? '<i class="fa fa-link"></i> Add Relation' : `</i> ${t.GUIOptions.modalButtonTextCreate} ${t.getTableAlias()}`}
       </button>`) +
     ( (t.SM && t.GUIOptions.showWorkflowButton) ? 
       `<!-- Workflow Button -->

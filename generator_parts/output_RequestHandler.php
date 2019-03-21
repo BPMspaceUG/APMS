@@ -49,9 +49,9 @@
       $res = array();
       $cols = Config::getColsByTablename($tablename, $data);
       // Find primary columns
-      foreach ($cols as $col) {
-        if ($col["COLUMN_KEY"] == "PRI")
-          $res[] = $col["COLUMN_NAME"];
+      foreach ($cols as $colname => $col) {
+        if ($col["is_primary"])
+          $res[] = $colname;
       }
       return $res;
     }
@@ -90,9 +90,9 @@
       $res = array();
       $cols = Config::getColsByTablename($tablename, $data);
       // Collect only virtual Columns
-      foreach ($cols as $col) {
+      foreach ($cols as $colname => $col) {
         if ($col["is_virtual"])
-          $res[] = $col["COLUMN_NAME"];
+          $res[] = $colname;
       }
       return $res;
     }
@@ -100,11 +100,11 @@
       $res = array();
       $cols = Config::getColsByTablename($tablename);
       // Collect only real columns
-      foreach ($cols as $col) {
+      foreach ($cols as $colname => $col) {
         if ($col["is_virtual"])
           continue;
         else
-          $res[] = $col["COLUMN_NAME"];
+          $res[] = $colname;
       }
       return $res;
     }
@@ -112,13 +112,13 @@
       $res = array();
       $cols = Config::getColsByTablename($tablename);
       // Find primary columns
-      foreach ($cols as $col) {
+      foreach ($cols as $colname => $col) {
         if ($col["foreignKey"]['table'] != '')
           $res[] = array(
             'table' => $col["foreignKey"]['table'],
             'col_id' => $col["foreignKey"]['col_id'],
             'col_subst' => $col["foreignKey"]['col_subst'],
-            'replace' => $col["COLUMN_NAME"]
+            'replace' => $colname
           );
       }
       return $res;
