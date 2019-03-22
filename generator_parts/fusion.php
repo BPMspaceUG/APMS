@@ -283,23 +283,50 @@ END";
       $SM = new StateMachine($con);
       $SM->createDatabaseStructure();
       $SM_ID = $SM->createBasicStateMachine($tablename, $table_type);
+      $cols = $table["columns"];
 
       if ($table_type != 'obj') {
+        //----------- RELATION Table
         echo "Create Relation Scripts ($table_type)\n";
-
         // Load Template
         $templateScript = loadFile("./../template_scripts/".$table_type.".php");
         $templateScript = str_replace("<?php", '', $templateScript); // Remove first chars ('<?php')
         $templateScript = substr($templateScript, 2); // Remove newline char
-
         $res = $SM->createRelationScripts($templateScript);
         echo "-----------------------------";
         echo ($res == 0 ? 'OK' : 'Fail');
         echo "\n\n";
+      } else {
+        //----------- OBJECT Table
+        // TODO: Create Basic form and set RO, RW
+        $rights_ro = [];
+        // for all columns and virtual-columns
+        foreach ($cols as $colname => $col) {
+          if (!($col['is_primary'] || $colname == 'state_id')) {
+            // Set the form data
+            $rights_ro[$colname] = ["mode_form" => "ro"];
+          }
+        }
+        // Update the inactive state with readonly
+        // TODO: get all states
+        $formDataRO = json_encode($rights_ro);
+        //var_dump($formDataRO);
+        //echo "-----------------------------";
+        $allstates = $SM->getStates();
+        //var_dump($allstates);
+        // TODO: loop states and check if they are empty
+          //-> if empty, create basic-form if name is (active => [ro] or inactive => [ro])
+        foreach ($allstates as $state) {
+          $formData = $SM->getFormDataByStateID($state["id"]);
+          if (strlen($formData) == 0) {
+            // check if statename contains the phrase "active"
+            if (strpos($state["name"], "active") !== FALSE) {
+              $SM->setFormDataByStateID($state["id"], $formDataRO);
+            }
+          }
+        }
       }
 
-      // Create a default form for statemachine
-      $colData = $table["columns"];
 
       // Exclude the following Columns:
       $excludeKeys = Config::getPrimaryColsByTablename($tablename, $data);

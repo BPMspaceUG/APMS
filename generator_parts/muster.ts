@@ -601,6 +601,8 @@ class Table extends RawTable {
     const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+RowID+')</span><span class="text-muted ml-3">'+ TableAlias +'</span>';
     let M: Modal = ExistingModal || new Modal(ModalTitle, '', '', true);
     M.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose;
+    // Set Modal Header
+    M.setHeader(ModalTitle);
     M.setContent(htmlForm);
     newForm.initEditors();
 
@@ -851,13 +853,11 @@ class Table extends RawTable {
         $('#'+ModalID+' .modal-body .alert').remove(); // Remove all Error Messages
         // Try to parse Result
         try {
-          msgs = JSON.parse(r)
+          msgs = JSON.parse(r);
         }
         catch(err) {
           // Show Error
-          $('#'+ModalID+' .modal-body').prepend(
-            `<div class="alert alert-danger" role="alert"><b>Script Error!</b>&nbsp;${r}</div>`
-          );
+          $('#'+ModalID+' .modal-body').prepend(`<div class="alert alert-danger" role="alert"><b>Script Error!</b>&nbsp;${r}</div>`);
           return
         }
         // Handle Transition Feedback
@@ -982,11 +982,9 @@ class Table extends RawTable {
         let fModify = new FormGenerator(me, id, FormObj);        
         let M: Modal = ExistingModal || new Modal('', fModify.getHTML(), '', true);
         M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
-        fModify.initEditors();
-        
+        fModify.initEditors();        
         // Set Modal Header
         M.setHeader(ModalTitle);
-
         // Save buttons
         M.setFooter(`<div class="ml-auto mr-0">
           <button class="btn btn-primary btnSave" type="button">
@@ -996,7 +994,6 @@ class Table extends RawTable {
             ${this.GUIOptions.modalButtonTextModifySaveAndClose}
           </button>
         </div>`);
-
         // Bind functions to Save Buttons
         $('#' + M.getDOMID() + ' .btnSave').click(function(e){
           e.preventDefault();

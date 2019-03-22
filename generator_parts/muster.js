@@ -569,6 +569,8 @@ class Table extends RawTable {
         const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">(' + RowID + ')</span><span class="text-muted ml-3">' + TableAlias + '</span>';
         let M = ExistingModal || new Modal(ModalTitle, '', '', true);
         M.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose;
+        // Set Modal Header
+        M.setHeader(ModalTitle);
         M.setContent(htmlForm);
         newForm.initEditors();
         let btns = '';

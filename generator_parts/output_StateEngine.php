@@ -191,7 +191,7 @@
 
       $this->log("-- [Start] Creating StateMachine for Table '$tablename'"); 
 
-      // Insert new statemachine for a table
+      // Insert new statemachine entry for a specific table
       $query = "INSERT INTO state_machines (tablename) VALUES (?)";
       $stmt = $this->db->prepare($query);
       $stmt->execute(array($tablename));
@@ -215,7 +215,7 @@
         $this->createTransition($ID_new, $ID_active);
         $this->createTransition($ID_active, $ID_update);
         $this->createTransition($ID_update, $ID_active);
-        $this->createTransition($ID_active, $ID_inactive);      
+        $this->createTransition($ID_active, $ID_inactive);
       } else {
         /*******************************************
          * RELATION                                *
@@ -240,6 +240,12 @@
         $result = $row['fd'];
       }
       return $result;
+    }
+    public function setFormDataByStateID($StateID, $formData) {
+      if (!($this->ID > 0)) return "";
+      $sql = 'UPDATE state SET form_data = ? WHERE state_id = ?';
+      $stmt = $this->db->prepare($sql);
+      return $stmt->execute(array($formData, $StateID)); // Returns True/False
     }
     public function getCreateFormByTablename() {
       if (!($this->ID > 0)) return "";
@@ -306,27 +312,13 @@
       }
       return $result;
     }
-    public function executeScript($script, &$param = null, $tablename = null) {
-      $standardResult = array("allow_transition" => true, "show_message" => false, "message" => "");
-      // Check if script is not empty
-      if (!empty($script)) {
-        // Execute Script (WARNING -> eval = evil)
-        eval($script);
-        // This parameter comes from the script itself
-        // check results, if no result => standard result
-        if (empty($script_result))
-          return $standardResult;
-        else
-          return $script_result;
-      }
-      return $standardResult;
-    }
     public function checkTransition($fromID, $toID) {
       $stmt = $this->db->prepare("SELECT * FROM state_rules WHERE state_id_FROM = ? AND state_id_TO = ?");
       $stmt->execute(array($fromID, $toID));
       $cnt = $stmt->rowCount();
       return ($cnt > 0);
     }
+    //--------- Scripts
     public function getTransitionScript($fromID, $toID) {
       $result = '';
       $stmt = $this->db->prepare("SELECT transition_script FROM state_rules WHERE state_id_FROM = ? AND state_id_TO = ?");
@@ -363,6 +355,21 @@
         $result = $row['script_OUT'];
       }
       return $result;
+    }
+    public function executeScript($script, &$param = null, $tablename = null) {
+      $standardResult = array("allow_transition" => true, "show_message" => false, "message" => "");
+      // Check if script is not empty
+      if (!empty($script)) {
+        // Execute Script (WARNING -> eval = evil)
+        eval($script);
+        // This parameter comes from the script itself
+        // check results, if no result => standard result
+        if (empty($script_result))
+          return $standardResult;
+        else
+          return $script_result;
+      }
+      return $standardResult;
     }
   }
 ?>
