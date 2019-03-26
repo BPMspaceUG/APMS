@@ -4,22 +4,28 @@
   include_once(__DIR__."/src/RequestHandler.inc.php");
   //========================================= Authentification
   // Check if authenticated via Token
-  $rawtoken = JWT::getBearerToken();
-  try {
-    $token = JWT::decode($rawtoken, AUTH_KEY);
-  }
-  catch (Exception $e) {
-    // Invalid Token!
-    http_response_code(401);
-    exit();
-  }
-  // Token is valid but expired?
-  if (property_exists($token, "exp")) {
-    if (($token->exp - time()) <= 0) {
+  if (Config::getLoginSystemURL() != '') {
+    // Has to be authenicated via a external token
+    $rawtoken = JWT::getBearerToken();
+    try {
+      $token = JWT::decode($rawtoken, AUTH_KEY);
+    }
+    catch (Exception $e) {
+      // Invalid Token!
       http_response_code(401);
       exit();
     }
-  }  
+    // Token is valid but expired?
+    if (property_exists($token, "exp")) {
+      if (($token->exp - time()) <= 0) {
+        http_response_code(401);
+        exit();
+      }
+    }
+  } else {
+    // Has no token
+    $token = null;
+  }
   //========================================= Parameter & Handling
   try {
     $paramData = json_decode(file_get_contents('php://input'), true);

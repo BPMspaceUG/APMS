@@ -21,6 +21,7 @@
   $data = $_REQUEST['data'];
   $createRoleManagement = $_REQUEST['create_RoleManagement'];
   $createHistoryTable = $_REQUEST['create_HistoryTable'];
+  $redirectToLoginURL = $_REQUEST['redirectToLogin'];
 
   // check if LIAM is present and create a Directory if not exists
   $content = "";
@@ -437,6 +438,7 @@ END";
   $url_host = explode('APMS', $actual_link)[0];
   $url_apiscript = '/APMS_test/'.$db_name.'/api.php';
   $API_url = $url_host.$url_apiscript;
+  $LOGIN_url = 'http://localhost/Authenticate/'; // default value
 
 
   // ---> ENCODE Data as JSON
@@ -457,7 +459,7 @@ END";
 
   // API-URL
   define("API_URL", "'.$API_url.'");
-  define("API_URL_LIAM", ""); // for Login
+  define("API_URL_LIAM", "'.$LOGIN_url.'"); // for Login
   // AuthKey
   define("AUTH_KEY", "'.$secretKey.'");
   // Machine-Token for internal API Calls
@@ -515,9 +517,57 @@ END";
     createFile($project_dir."/src/AuthHandler.inc.php", $output_AuthHandler);
     // Main Directory
     createFile($project_dir."/api.php", $output_API);
-    createFile($project_dir."/login.php", $output_LoginPage);
+    //createFile($project_dir."/login.php", $output_LoginPage);
     createFile($project_dir."/".$db_name.".html", $output_all);
     createFile($project_dir."/".$db_name."-config.inc.php", $output_config);
-    createFile($project_dir."/index.php", "<?php\n\tHeader(\"Location: ".$db_name.".html\");\n\texit();\n?>");
+
+    // Create Entrypoint (index)
+    if ($redirectToLoginURL) {
+      // Redirect to LIAM
+      $output_index = '<?php
+        // Includes
+        require_once(__DIR__."/src/AuthHandler.inc.php");
+        include_once(__DIR__."/src/RequestHandler.inc.php");
+
+        function gotoLogin() {
+          $actual_link = (isset($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] === "on" ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+          header("Location: ".Config::getLoginSystemURL()."?origin=".$actual_link);
+          exit();
+        }
+
+        $rawtoken = JWT::getBearerToken(); // Check Cookies
+        // Check GET Parameter (if has token -> then if valid save as cookie)
+        if (is_null($rawtoken) && isset($_GET["token"])) {
+          $rawtoken = $_GET["token"];
+        }
+        //========================================= Authentification
+        // Check if authenticated via Token
+        try {
+          $token = JWT::decode($rawtoken, AUTH_KEY);
+        }
+        catch (Exception $e) {
+          // Invalid Token!
+          gotoLogin();
+        }
+        // Token is valid but expired?
+        if (property_exists($token, "exp")) {
+          if (($token->exp - time()) <= 0) {
+            gotoLogin();
+          }
+        }
+        // If Token is not in Cookie -> save Token in a Cookie
+        if (is_null(JWT::getBearerToken())) {
+          // Save Cookie for 30 days
+          setcookie("token", $rawtoken, time()+(3600 * 24 * 30), "", "", false, true);
+          header("Location: ".dirname($_SERVER["PHP_SELF"])); // Redirect to remove ugly URL
+          exit();
+        }
+        // Success
+        require_once("'.$db_name.'.html");
+      ?>';
+    } else
+      $output_index = "<?php\n\trequire_once(\"".$db_name.".html\");\n?>";
+    
+    createFile($project_dir."/index.php", $output_index);
   }
 ?>

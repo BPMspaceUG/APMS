@@ -62,15 +62,7 @@ abstract class DB {
       method: "POST",
       url: me.API_URL,
       contentType: 'json',
-      data: JSON.stringify(data),
-      error: function(xhr, status) {
-        // Not Authorized
-        if (xhr.status == 401) {
-          document.location.assign('login.php') // Redirect to Login-Page
-        } else if (xhr.status == 403) {
-          alert("Sorry! You dont have the rights to do this.");
-        }
-      }
+      data: JSON.stringify(data)
     }).done(function(response) {
       callback(response)
     });

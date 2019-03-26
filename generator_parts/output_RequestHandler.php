@@ -64,6 +64,10 @@
       }
       return $res;
     }
+    public static function getLoginSystemURL() {
+      return API_URL_LIAM;
+    }
+    // Checks
     public static function doesTableExist($tablename) {
       $result = false;
       //$tablename = strtolower($tablename); // always lowercase
@@ -381,9 +385,12 @@
       }
       // Give all params to SP like (filter, orderBY, ASCDESC, LIMIT-start, LIMIT-size, [spare1, spare2, spare3, spare4, spare5])
 
-      //--- Token
+      // Identify
       global $token;
-      $token_uid = $token->uid;
+      $token_uid = -1;
+      if (property_exists($token, 'uid'))
+        $token_uid = $token->uid;
+
       //--- ASC/DESC
       $ascdesc = strtolower(trim($ascdesc));
       if ($ascdesc == "") $ascdesc == "ASC";
@@ -408,7 +415,10 @@
       $tablename = $param["table"];
       $where = $param["where"] ? $param["where"] : '';
       $filter = isset($param["filter"]) ? $param["filter"] : '';
-      $token_uid = $token->uid;
+      // Identify
+      $token_uid = -1;
+      if (property_exists($token, 'uid'))
+        $token_uid = $token->uid;
       $params = array(
         'table' => $tablename,
         'token' => $token_uid,

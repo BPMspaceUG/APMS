@@ -126,10 +126,15 @@
               <span class="text-muted">{{cntTables() + ' Table' + (cntTables() != 1 ? 's' : '')}}</span>
             </h5>
 
-            <div class="font-weight-bold my-3">
+            <!-- Meta Setting -->
+            <div class="font-weight-bold my-3 float-left">
+              <label class="m-0 mr-3"><input type="checkbox" ng-model="meta.redirectToLogin" class="mr-2">Redirect to Login-System</label>
+            </div>
+            <div class="font-weight-bold my-3 float-right">
               <label class="m-0 mr-3"><input type="checkbox" ng-model="meta.createRoles" class="mr-2">Create Role-Management</label>
               <label class="m-0"><input type="checkbox" ng-model="meta.createHistory" class="mr-2">Create History</label>
             </div>
+            <div class="clearfix"></div>
 
             <!-- Tables -->
             <div class="row">

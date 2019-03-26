@@ -18,7 +18,8 @@ APMS.controller('APMScontrol', function ($scope, $http) {
   $scope.GUI_generating = false;
   $scope.meta = {
     createRoles: false,
-    createHistory: false
+    createHistory: false,
+    redirectToLogin: true
   }
 
   
@@ -227,7 +228,8 @@ APMS.controller('APMScontrol', function ($scope, $http) {
       db_name: $scope.dbNames.model,
       data: $scope.tables,
       create_RoleManagement: $scope.meta.createRoles,
-      create_HistoryTable: $scope.meta.createHistory
+      create_HistoryTable: $scope.meta.createHistory,
+      redirectToLogin: $scope.meta.redirectToLogin
     }
     $http({
       url: 'generator_parts/fusion.php',
