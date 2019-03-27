@@ -1292,7 +1292,7 @@ class Table extends RawTable {
                 // [Control Column] is set then Add one before each row
                 if (t.GUIOptions.showControlColumn) {
                     data_string = `<td scope="row" class="controllcoulm modRow align-middle border-0" data-rowid="${row[t.PrimaryColumn]}">
-          ${(t.selType == SelectType.Single ? (isSelected ? '<i class="fa fa-dot-circle-o"></i>' : '<i class="fa fa-circle-o"></i>') : '<i class="fa fa-pencil"></i>')}
+          ${(t.selType == SelectType.Single ? (isSelected ? '<i class="far fa-check-circle"></i>' : '<i class="far fa-circle"></i>') : '<i class="far fa-edit"></i>')}
         </td>`;
                 }
                 // Generate HTML for Table-Data Cells sorted
@@ -1555,7 +1555,7 @@ class FormGenerator {
             <input type="text" class="form-control filterText${el.mode_form == 'rw' ? ' bg-white' : ''}" ${el.value ? 'value="' + el.value + '"' : ''} placeholder="Nothing selected" readonly>
             <div class="input-group-append">
               <button class="btn btn-primary btnLinkFK" title="Link Element" type="button"${el.mode_form == 'ro' ? ' disabled' : ''}>
-                <i class="fa fa-chain-broken"></i>
+                <i class="fa fa-unlink"></i>
               </button>
             </div>
           </div>

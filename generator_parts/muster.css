@@ -29,7 +29,7 @@ body {margin-bottom: 60px;}
 /* StateEngine */
 .btnGridState {padding: 3px 5px; font-size: .75em;}
 .btnGridState:hover {color: white;}
-.label-state {background-color: #333; color: white; border: none; }
+.label-state {background-color: #333; color: white; border: none; white-space: nowrap;}
 .btnStateChange {cursor: pointer; color: white !important;}
 .btnStateChange:hover{color: black !important;}
 
