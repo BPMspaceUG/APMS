@@ -19,11 +19,13 @@ APMS.controller('APMScontrol', function ($scope, $http) {
   $scope.meta = {
     createRoles: false,
     createHistory: false,
-    redirectToLogin: true
+    redirectToLogin: true,
+    login_url: ''
   }
 
   
   $scope.refreshConfig = function(data) {
+    $scope.meta.login_url = data.login_url;
     // Parse data
     let oldConfig = JSON.parse(data.data)
     let newConfig = $scope.tables
@@ -229,7 +231,8 @@ APMS.controller('APMScontrol', function ($scope, $http) {
       data: $scope.tables,
       create_RoleManagement: $scope.meta.createRoles,
       create_HistoryTable: $scope.meta.createHistory,
-      redirectToLogin: $scope.meta.redirectToLogin
+      redirectToLogin: $scope.meta.redirectToLogin,
+      login_URL: $scope.meta.login_url
     }
     $http({
       url: 'generator_parts/fusion.php',
@@ -286,6 +289,11 @@ APMS.controller('APMScontrol', function ($scope, $http) {
     //console.log('change Col Order', col, inc)
     col.col_order = newIndex
   }
+  $scope.changeSortOrderTable = function(tbl, inc) {
+    const newIndex = parseInt(tbl.order) + inc;
+    tbl.order = newIndex
+  }
+
 
   $scope.openProject = function(e){ // Build new URL and execute in new Tab
     url = window.location.href.replace("APMS", "APMS_test")

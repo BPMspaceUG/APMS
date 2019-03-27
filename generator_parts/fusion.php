@@ -22,6 +22,15 @@
   $createRoleManagement = $_REQUEST['create_RoleManagement'];
   $createHistoryTable = $_REQUEST['create_HistoryTable'];
   $redirectToLoginURL = $_REQUEST['redirectToLogin'];
+  $loginURL = $_REQUEST['login_URL'];
+
+  //--------------------------------------
+  // Sort Data-Array by subkey values
+  function cmp($a, $b) {
+    return ((int)$a['order']) - ((int)$b['order']);
+  }
+  uasort($data, "cmp");
+  //--------------------------------------
 
   // check if LIAM is present and create a Directory if not exists
   $content = "";
@@ -384,7 +393,6 @@ END";
   $output_DBHandler = loadFile("./output_DatabaseHandler.php");
   $output_AuthHandler = loadFile("./output_AuthHandler.php");
   $output_API = loadFile("./output_API.php");
-  $output_LoginPage = loadFile("./output_LoginPage.php");
   $output_css = loadFile("./muster.css");
   $output_JS = loadFile("./muster.js");
   $output_header = loadFile("./output_header.html");
@@ -438,7 +446,7 @@ END";
   $url_host = explode('APMS', $actual_link)[0];
   $url_apiscript = '/APMS_test/'.$db_name.'/api.php';
   $API_url = $url_host.$url_apiscript;
-  $LOGIN_url = 'http://localhost/Authenticate/'; // default value
+  $LOGIN_url = $loginURL == '' ? 'http://localhost/Authenticate/' : $loginURL; // default value
 
 
   // ---> ENCODE Data as JSON
@@ -517,7 +525,6 @@ END";
     createFile($project_dir."/src/AuthHandler.inc.php", $output_AuthHandler);
     // Main Directory
     createFile($project_dir."/api.php", $output_API);
-    //createFile($project_dir."/login.php", $output_LoginPage);
     createFile($project_dir."/".$db_name.".html", $output_all);
     createFile($project_dir."/".$db_name."-config.inc.php", $output_config);
 
@@ -529,10 +536,16 @@ END";
         require_once(__DIR__."/src/AuthHandler.inc.php");
         include_once(__DIR__."/src/RequestHandler.inc.php");
 
-        function gotoLogin() {
+        function gotoLogin($error = "") {
           $actual_link = (isset($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] === "on" ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
-          header("Location: ".Config::getLoginSystemURL()."?origin=".$actual_link);
-          exit();
+          if ($error == "") {
+            header("Location: ".Config::getLoginSystemURL()."?origin=".$actual_link);
+            exit();
+          } else {
+            echo $error;
+            echo "<br><a href=\"".Config::getLoginSystemURL()."?origin=$actual_link\">Goto Login</a>";
+            exit();
+          }
         }
 
         $rawtoken = JWT::getBearerToken(); // Check Cookies
@@ -541,18 +554,20 @@ END";
           $rawtoken = $_GET["token"];
         }
         //========================================= Authentification
+        // No token is set
+        if ($rawtoken == "") gotoLogin();
         // Check if authenticated via Token
         try {
           $token = JWT::decode($rawtoken, AUTH_KEY);
         }
         catch (Exception $e) {
           // Invalid Token!
-          gotoLogin();
+          gotoLogin("This Token is invalid!");
         }
         // Token is valid but expired?
         if (property_exists($token, "exp")) {
           if (($token->exp - time()) <= 0) {
-            gotoLogin();
+            gotoLogin("This Token is expired!");
           }
         }
         // If Token is not in Cookie -> save Token in a Cookie

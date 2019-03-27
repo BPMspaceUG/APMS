@@ -102,7 +102,8 @@
     while ($row = $result->fetch_assoc()) {
       $tables[] = $row[$nameParam];
     }    
-
+    // Loop Tables
+    $table_counter = 1;
     foreach ($tables as $table) {
       $query = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '$db' AND TABLE_NAME = '$table';";
       $res2 = mysqli_query($con, $query);
@@ -119,14 +120,13 @@
           $col_datatype = $row2["DATA_TYPE"];
           $col_isPrimary = ($row2['EXTRA'] == 'auto_increment');
           $col_isFK = false;
-
           // Additional information
           //------------------------------------------------------
           // Pre fill foreign keys
           //------------------------------------------------------
-          // default
+          // default Foreign Key Template
           $fk = array("table" => "", "col_id" => "", "col_subst" => "");
-
+          // Pre-fill (default) values for Statemachine Tables
           if ($table == 'state' && $column_name == "statemachine_id") {
             $col_isFK = true;
             $fk = array("table" => "state_machines", "col_id" => "id", "col_subst" => "{\"tablename\": 1}");
@@ -147,14 +147,12 @@
           // Table Has StateMachine?
           if ($column_name == "state_id" && $table != "state")
             $TableHasStateMachine = true;
-
           // enrich column info
           /*------------------------------
                    C O L U M N S
           ------------------------------*/
           // Generate Beautiful alias
           $alias = beautifyName($column_name);
-
           $additional_info = array(
             "column_alias" => $alias,
             "is_primary" => $col_isPrimary,
@@ -166,37 +164,14 @@
           );
           // Additional information columns (remove them if not used):
           if ($fk["table"] != '') $additional_info["foreignKey"] = $fk;
-
           $columns[$column_name] = $additional_info;
           $column_counter++;
         }
-
-        // ------- ADD a custom virtual column for Table state_rules (SM)
-        /*
-        if ($table == 'state_rules') {
-          // Add a virtual column
-          $columns['virtualColx'] = array(
-            'field_type' => "textarea",
-            'column_alias' => "SM",
-            'foreignKey' => array(
-              'table' => "",
-              'col_id' => "",
-              'col_subst' => ""
-            ),
-            'col_order' => 5,
-            'is_virtual' => true,
-            'virtual_select' => "CONCAT(a)"
-          );
-        }
-        */
-
-
         //------------------------------------------------ Auto Foreign Keys
         $fKeys = array();
         $query = "SELECT COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME ".
           "FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE REFERENCED_TABLE_SCHEMA = '$db' AND TABLE_NAME = '$table'";
         $resX = mysqli_query($con, $query);
-
         //echo "Table: $table\n";
         while ($row = $resX->fetch_assoc()) {
           $colname = $row["COLUMN_NAME"];
@@ -205,7 +180,6 @@
             "colID" => $row["REFERENCED_COLUMN_NAME"]
           );
         }
-
         // Columns and Foreign Keys exist
         if (count($columns) > 0 && count($fKeys)) {
           // make associative
@@ -227,14 +201,11 @@
             }
           }
         }
-
       } // Columns finished
 
       // TODO: Check if is a View => then ReadOnly = true
-
       // Generate a nice TableAlias
       $table_alias = beautifyName($table);
-
       /*------------------------------
         T A B L E S
       ------------------------------*/
@@ -242,11 +213,13 @@
         "table_name" => $table,
         "table_alias" => $table_alias,
         "table_type" => 'obj', // Default --> Everything is a Object-Table
+        "order" => (int)$table_counter,
         "is_in_menu" => true,
         "is_read_only" => false,
         "se_active" => $TableHasStateMachine,
         "columns" => $columns
       );
+      $table_counter++;
     }
     // Output
     return $res;

@@ -129,6 +129,9 @@
             <!-- Meta Setting -->
             <div class="font-weight-bold my-3 float-left">
               <label class="m-0 mr-3"><input type="checkbox" ng-model="meta.redirectToLogin" class="mr-2">Redirect to Login-System</label>
+              <div>
+                <input type="text" class="form-control form-control-sm" style="width: 300px;" ng-if="meta.redirectToLogin" ng-model="meta.login_url"/>
+              </div>
             </div>
             <div class="font-weight-bold my-3 float-right">
               <label class="m-0 mr-3"><input type="checkbox" ng-model="meta.createRoles" class="mr-2">Create Role-Management</label>
@@ -160,9 +163,9 @@
                     <!-- Order Tabs -->
                     <td>
                       <div style="white-space:nowrap;overflow:hidden;">
-                        <input type="text" style="width: 40px" ng-model="col.col_order">
-                        <a ng-click="changeSortOrder(col, 1)"><i class="fa fa-angle-down p-1 pl-2"></i></a>
-                        <a ng-click="changeSortOrder(col, -1)"><i class="fa fa-angle-up p-1"></i></a>
+                        <input type="text" class="form-control-plaintext d-inline" style="width: 30px" ng-model="tbl.order">
+                        <a ng-click="changeSortOrderTable(tbl, 1)"><i class="fa fa-angle-down p-1 pl-2"></i></a>
+                        <a ng-click="changeSortOrderTable(tbl, -1)"><i class="fa fa-angle-up p-1"></i></a>
                       </div>
                     </td>
                     <!-- Expand / Collapse -->
@@ -219,7 +222,7 @@
                     <!-- Column Order -->
                     <td class="align-middle">
                       <div style="white-space:nowrap;overflow:hidden;">
-                        <input type="text" style="width: 40px" ng-model="col.col_order">
+                        <input type="text" class="form-control-plaintext d-inline" style="width: 30px" ng-model="col.col_order">                        
                         <a ng-click="changeSortOrder(col, 1)"><i class="fa fa-angle-down p-1 pl-2"></i></a>
                         <a ng-click="changeSortOrder(col, -1)"><i class="fa fa-angle-up p-1"></i></a>
                       </div>

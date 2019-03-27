@@ -16,9 +16,10 @@
 		eval('?>' . $data . '<?php ');
 		// get data
 		$prjname = DB_NAME;
+		$login_url = API_URL_LIAM;
 		$jsvar = $config_tables_json;
 		// Return result
-		echo json_encode(array("DBName" => $prjname, "data" => $jsvar));
+		echo json_encode(array("DBName" => $prjname, "login_url" => $login_url, "data" => $jsvar));
 		exit();
 	}
 
@@ -34,8 +35,9 @@
 		if (file_exists($fname)) {
 			include_once($fname);
 			$prjname = DB_NAME;
+			$login_url = API_URL_LIAM;
 			$jsvar = $config_tables_json;
-			echo json_encode(array("DBName" => $prjname, "data" => $jsvar));
+			echo json_encode(array("DBName" => $prjname, "login_url" => $login_url, "data" => $jsvar));
 		}
 		exit();
 	}
