@@ -73,8 +73,7 @@
   $content_tabs .= "            ".
   "<li class=\"nav-item\">
     <a class=\"nav-link\" href=\"#dashboard\" data-toggle=\"tab\">
-      <i class=\"fa fa-dashboard\"></i>&nbsp;
-      <span class=\"table_alias\">Dashboard</span>
+      <i class=\"fas fa-tachometer-alt\"></i><span class=\"table_alias ml-2\">Dashboard</span>
     </a>
   </li>\n";
   // Add Pseudo Element for Dashboard
@@ -133,8 +132,7 @@
       $content_tabs .= "            ".
             "<li class=\"nav-item\">
               <a class=\"nav-link".( $tabCount == 0 ? ' active' : '')."\" href=\"#$tablename\" data-toggle=\"tab\">
-                <i class=\"".$table["table_icon"]."\"></i>&nbsp;
-                <span class=\"table_alias\">".$table["table_alias"]."</span>
+                ".$table["table_icon"]."<span class=\"table_alias ml-2\">".$table["table_alias"]."</span>
               </a>
             </li>\n";
 

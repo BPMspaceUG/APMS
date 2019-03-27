@@ -1,9 +1,7 @@
-/*
-AngularJS - Controller
-*/
-let APMS = angular.module('APMS', []);
+// AngularJS Module
+let APMS = angular.module('APMS', ['ngSanitize']);
+// AngularJS Controller
 APMS.controller('APMScontrol', function ($scope, $http) {
-
   // initial definitions
   $scope.path = 'modules/ConnectDB.php'
   $scope.pw = ''
@@ -22,8 +20,7 @@ APMS.controller('APMScontrol', function ($scope, $http) {
     redirectToLogin: true,
     login_url: ''
   }
-
-  
+    
   $scope.refreshConfig = function(data) {
     $scope.meta.login_url = data.login_url;
     // Parse data
@@ -386,9 +383,7 @@ var iconlist = ['address-book','address-book-o','address-card','address-card-o',
 'wifi','window-close','window-close-o','window-maximize','window-minimize','window-restore','wrench']
 
 function getRandomicon(){
-  //var index = Math.floor( Math.random()*iconlist.length )
-  return 'fa fa-square'; // default symbol
-  //return 'fa fa-'+iconlist[index]
+  return '<i class="fa fa-square"></i>'; // default symbol
 }
 
 /* set green checked icon for success */

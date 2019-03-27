@@ -502,7 +502,7 @@ class Table extends RawTable {
     return this.PrimaryColumn;
   }
   public getTableIcon(): string {
-    return `<i class="${this.TableConfig.table_icon}"></i>`;
+    return this.TableConfig.table_icon;
   }
   public getTableAlias(): string {
     return this.TableConfig.table_alias;
@@ -589,7 +589,7 @@ class Table extends RawTable {
     const htmlForm = newForm.getHTML();
 
     // create Modal if not exists
-    const TableAlias = 'in <i class="'+this.TableConfig.table_icon+'"></i> ' + this.TableConfig.table_alias;
+    const TableAlias = 'in '+this.getTableIcon()+' ' + this.getTableAlias();
     const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+RowID+')</span><span class="text-muted ml-3">'+ TableAlias +'</span>';
     let M: Modal = ExistingModal || new Modal(ModalTitle, '', '', true);
     M.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose;

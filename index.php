@@ -77,7 +77,7 @@
                 <option ng-repeat="name in dbNames.names" value="{{name}}">{{name}}</option>
               </select>
               <div class="input-group-append">
-                <button class="btn btn-outline-secondary" ng-click="changeSelection()" type="button"><i class="fa fa-refresh"></i> Refresh</button>
+                <button class="btn btn-outline-secondary" ng-click="changeSelection()" type="button"><i class="fas fa-sync"></i> Load DB</button>
               </div>
             </div>
           </div>
@@ -209,7 +209,9 @@
                     <!-- Table-Icon -->
                     <td class="align-middle">
                       <div class="row">
-                        <div class="col-3"><i class="{{tbl.table_icon}}"></i></div>
+                        <div class="col-3">
+                          <span ng-bind-html="tbl.table_icon"></span>
+                        </div>
                         <div class="col-9"><input type="text" class="form-control" ng-model="tbl.table_icon"/></div>
                       </div>
                     </td>
