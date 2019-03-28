@@ -18,11 +18,13 @@ APMS.controller('APMScontrol', function ($scope, $http) {
     createRoles: false,
     createHistory: false,
     redirectToLogin: true,
-    login_url: ''
+    login_url: '',
+    secretkey: ''
   }
     
   $scope.refreshConfig = function(data) {
     $scope.meta.login_url = data.login_url;
+    $scope.meta.secretkey = data.secret_key;
     // Parse data
     let oldConfig = JSON.parse(data.data)
     let newConfig = $scope.tables
@@ -216,9 +218,7 @@ APMS.controller('APMScontrol', function ($scope, $http) {
   */
   $scope.create_fkt = function(){
     $scope.GUI_generating = true;
-
-    console.log($scope.meta.createRoles, $scope.meta.createHistory);
-
+    //console.log($scope.meta.createRoles, $scope.meta.createHistory);
     var data = {
       host: $scope.sqlServer,
       port: $scope.sqlPort,
@@ -229,7 +229,8 @@ APMS.controller('APMScontrol', function ($scope, $http) {
       create_RoleManagement: $scope.meta.createRoles,
       create_HistoryTable: $scope.meta.createHistory,
       redirectToLogin: $scope.meta.redirectToLogin,
-      login_URL: $scope.meta.login_url
+      login_URL: $scope.meta.login_url,
+      secret_KEY: $scope.meta.secretkey
     }
     $http({
       url: 'generator_parts/fusion.php',

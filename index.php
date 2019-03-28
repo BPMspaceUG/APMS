@@ -127,15 +127,18 @@
             </h5>
 
             <!-- Meta Setting -->
-            <div class="font-weight-bold my-3 float-left">
-              <label class="m-0 mr-3"><input type="checkbox" ng-model="meta.redirectToLogin" class="mr-2">Redirect to Login-System</label>
-              <div>
-                <input type="text" class="form-control form-control-sm" style="width: 300px;" ng-if="meta.redirectToLogin" ng-model="meta.login_url"/>
+            <div class="my-3 float-left">
+              <label class="m-0 mr-3 font-weight-bold"><input type="checkbox" ng-model="meta.redirectToLogin" class="mr-2">Login-System</label>
+              <div ng-if="meta.redirectToLogin">
+                  <label class="d-inline">Login-URL:</label>
+                  <input type="text" class="form-control form-control-sm d-inline" style="width: 200px;" ng-model="meta.login_url"/>
+                  <label class="d-inline">SecretKey:</label>
+                  <input type="text" class="form-control form-control-sm d-inline" style="width: 200px;" ng-model="meta.secretkey"/>
               </div>
             </div>
             <div class="font-weight-bold my-3 float-right">
-              <label class="m-0 mr-3"><input type="checkbox" ng-model="meta.createRoles" class="mr-2">Create Role-Management</label>
-              <label class="m-0"><input type="checkbox" ng-model="meta.createHistory" class="mr-2">Create History</label>
+              <label class="m-0 mr-3"><input type="checkbox" ng-model="meta.createRoles" class="mr-2">Role-Management</label>
+              <label class="m-0"><input type="checkbox" ng-model="meta.createHistory" class="mr-2">History</label>
             </div>
             <div class="clearfix"></div>
 

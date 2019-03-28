@@ -14,12 +14,7 @@
 	// check
 	if ($data != "") {
 		eval('?>' . $data . '<?php ');
-		// get data
-		$prjname = DB_NAME;
-		$login_url = API_URL_LIAM;
-		$jsvar = $config_tables_json;
-		// Return result
-		echo json_encode(array("DBName" => $prjname, "login_url" => $login_url, "data" => $jsvar));
+		echo json_encode(array("DBName" => DB_NAME, "login_url" => API_URL_LIAM, "secret_key" => AUTH_KEY, "data" => $config_tables_json));
 		exit();
 	}
 
@@ -34,10 +29,7 @@
 		$fname = __DIR__ . "/../../APMS_test/".$data."/".$data."-config.inc.php";
 		if (file_exists($fname)) {
 			include_once($fname);
-			$prjname = DB_NAME;
-			$login_url = API_URL_LIAM;
-			$jsvar = $config_tables_json;
-			echo json_encode(array("DBName" => $prjname, "login_url" => $login_url, "data" => $jsvar));
+			echo json_encode(array("DBName" => DB_NAME, "login_url" => API_URL_LIAM, "secret_key" => AUTH_KEY, "data" => $config_tables_json));
 		}
 		exit();
 	}

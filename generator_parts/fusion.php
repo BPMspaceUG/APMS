@@ -23,6 +23,7 @@
   $createHistoryTable = $_REQUEST['create_HistoryTable'];
   $redirectToLoginURL = $_REQUEST['redirectToLogin'];
   $loginURL = $_REQUEST['login_URL'];
+  $secretKey = $_REQUEST['secret_KEY'];
 
   //--------------------------------------
   // Sort Data-Array by subkey values
@@ -430,7 +431,8 @@ END";
   // ------------------------------------ Generate Config File
 
   // Generate Secret Key
-  $secretKey = 'secretkey_'.sha1('test' . date("Y-m-d")); // Changes every day only
+  //$secretKey = 'secretkey_'.sha1('test' . date("Y-m-d")); // Changes every day only
+  //$secretKey =  $secretKey;
 
   // Generate a machine token
   $token_data = array();
@@ -535,13 +537,18 @@ END";
         include_once(__DIR__."/src/RequestHandler.inc.php");
 
         function gotoLogin($error = "") {
-          $actual_link = (isset($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] === "on" ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+          // Get origin
+          $thisHost = (isset($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] === "on" ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
+          $thisPath = parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH);
+          $actual_link = $thisHost.$thisPath;
+          //die($actual_link);
+
           if ($error == "") {
             header("Location: ".Config::getLoginSystemURL()."?origin=".$actual_link);
             exit();
           } else {
             echo $error;
-            echo "<br><a href=\"".Config::getLoginSystemURL()."?origin=$actual_link\">Goto Login</a>";
+            echo "<br><br><a style=\"color: white; text-decoration: none; display: inline-block; background: #33a; padding: 1em;\" href=\"".Config::getLoginSystemURL()."?origin=$actual_link\">Go to Login-Page</a>";
             exit();
           }
         }
