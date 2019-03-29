@@ -386,6 +386,21 @@ END";
     }
   }
 
+  // Generate a machine token
+  $token_data = array();
+  $token_data['uid'] = 1337;
+  $token_data['firstname'] = 'Machine';
+  $token_data['lastname'] = 'Machine';
+  $token = JWT::encode($token_data, $secretKey);
+  $machine_token = $token;
+
+  // Generate URLs
+  $actual_link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+  $url_host = explode('APMS', $actual_link)[0];
+  $url_apiscript = '/APMS_test/'.$db_name.'/api.php';
+  $API_url = $url_host.$url_apiscript;
+  $LOGIN_url = $loginURL == '' ? 'http://localhost/Authenticate/' : $loginURL; // default value
+
   // ------------------- Load complete Project
   $class_StateEngine = loadFile("./output_StateEngine.php");
   $output_RequestHandler = loadFile("./output_RequestHandler.php");  
@@ -399,56 +414,26 @@ END";
   $output_footer = loadFile("./output_footer.html");
 
   // Replace Names
+  $content_tabs = substr($content_tabs, 0, -1); // (Remove last \n)
+  $content_tabpanels = substr($content_tabpanels, 0, -1); // (Remove last \n)
+  //  ------------------- Insert Code into Templates
   $output_DBHandler = str_replace('replaceDBName', $db_name, $output_DBHandler); // For Config-Include
   $output_header = str_replace('replaceDBName', $db_name, $output_header); // For Title
   $output_footer = str_replace('replaceDBName', $db_name, $output_footer); // For Footer
-  
-  echo "Generated CSS State-Colors\n";
-  echo "----------------------------------\n";
-  echo $content_css_statecolors;
-  echo "----------------------------------\n\n";
-
-  // --- Content
-  // Modify HTML for later adaptions
-  // Insert Tabs in HTML (Remove last \n)
-  $content_tabs = substr($content_tabs, 0, -1);
-  $content_tabpanels = substr($content_tabpanels, 0, -1);
-  $output_content = str_replace('<!--###TABS###-->', $content_tabs, $output_content);
-  $output_content = str_replace('<!--###TAB_PANELS###-->', $content_tabpanels, $output_content);
-  $output_content = str_replace('replaceDBName', $db_name, $output_content);
-  // Write the init functions for the JS-Table Objects
-  $output_footer = str_replace('/*###JS_TABLE_OBJECTS###*/', $content_jsObjects, $output_footer);
-  // CSS
-  $output_css = str_replace('/*###CSS_STATES###*/', $content_css_statecolors, $output_css);
+  $output_content = str_replace('<!--###TABS###-->', $content_tabs, $output_content); // Tabs (Headers on Top)
+  $output_content = str_replace('<!--###TAB_PANELS###-->', $content_tabpanels, $output_content); // Tabs (Panels)
+  $output_content = str_replace('replaceDBName', $db_name, $output_content); // Project Name
+  $output_content = str_replace('replaceAuthLink', $LOGIN_url, $output_content); // Account-URL
+  $output_footer = str_replace('/*###JS_TABLE_OBJECTS###*/', $content_jsObjects, $output_footer); // Init functions for JS-Tables
+  $output_css = str_replace('/*###CSS_STATES###*/', $content_css_statecolors, $output_css); // CSS State Colors
+  $output_all = $output_header.$output_content.$output_footer; // Compose Main HTML File
 
   // ------------------------------------ Generate Core File
-  $output_all = $output_header.$output_content.$output_footer;
   // Output information
   echo "Generating-Time: ".date("Y-m-d H:i:s")."\n\n";
   echo $queries1;
-  echo $output_all;
 
   // ------------------------------------ Generate Config File
-
-  // Generate Secret Key
-  //$secretKey = 'secretkey_'.sha1('test' . date("Y-m-d")); // Changes every day only
-  //$secretKey =  $secretKey;
-
-  // Generate a machine token
-  $token_data = array();
-  $token_data['uid'] = 1337;
-  $token_data['firstname'] = 'Machine';
-  $token_data['lastname'] = 'Machine';
-  $token = JWT::encode($token_data, $secretKey);
-  $machine_token = $token;
-
-  $actual_link = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
-  $url_host = explode('APMS', $actual_link)[0];
-  $url_apiscript = '/APMS_test/'.$db_name.'/api.php';
-  $API_url = $url_host.$url_apiscript;
-  $LOGIN_url = $loginURL == '' ? 'http://localhost/Authenticate/' : $loginURL; // default value
-
-
   // ---> ENCODE Data as JSON
   $json = json_encode($data, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE);
   // ----------------------- Config File generator

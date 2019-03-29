@@ -1171,9 +1171,10 @@ class Table extends RawTable {
         // Title
         '<div class="float-left pl-1 pb-1">' + t.Columns[colname].column_alias + '</div>' +
         // Sorting
-        '<div class="float-right pr-3">' + (colname == ordercol ? '&nbsp;' + (
-          t.AscDesc == SortOrder.ASC ? '<i class="fa fa-sort-asc">' : (t.AscDesc == SortOrder.DESC ? '<i class="fa fa-sort-desc">' : '')
-        ) + '' : '') + '</div>';
+        '<div class="float-right pr-3">' + (colname == ordercol ?
+          '&nbsp;' + (t.AscDesc == SortOrder.ASC ? '<i class="fa fa-sort-up"></i>' : (t.AscDesc == SortOrder.DESC ? '<i class="fa fa-sort-down"></i>' : '')
+        ) + '' : '') +
+        '</div>';
 
         //---- Foreign Key Column
         if (t.Columns[colname].field_type == 'foreignkey') {
