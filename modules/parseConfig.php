@@ -26,10 +26,14 @@
 	// check
 	if ($data != "") {
 		// get data
-		$fname = __DIR__ . "/../../APMS_test/".$data."/".$data."-config.inc.php";
-		if (file_exists($fname)) {
-			include_once($fname);
-			echo json_encode(array("DBName" => DB_NAME, "login_url" => API_URL_LIAM, "secret_key" => AUTH_KEY, "data" => $config_tables_json));
+		$fname_json = __DIR__ . "/../../APMS_test/".$data."/".$data."-config.inc.json";
+		$fname_secret = __DIR__ . "/../../APMS_test/".$data."/".$data."-config.SECRET.inc.php";
+		//-----------------------
+		if (file_exists($fname_json) && file_exists($fname_secret)) {
+			$jsonFile = file_get_contents($fname_json);
+			$secretFile = file_get_contents($fname_secret);
+			include_once($fname_secret);
+			echo json_encode(array("DBName" => DB_NAME, "login_url" => API_URL_LIAM, "secret_key" => AUTH_KEY,	"data" => $jsonFile));
 		}
 		exit();
 	}

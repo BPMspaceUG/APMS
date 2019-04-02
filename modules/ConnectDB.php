@@ -1,6 +1,4 @@
 <?php
-	//error_reporting(-1);
-
   // Check if Request Method is POST
   if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($_POST)) {
     // Convert the input stream into PHP variables from Angular

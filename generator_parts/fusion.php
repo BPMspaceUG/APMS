@@ -435,42 +435,37 @@ END";
 
   // ------------------------------------ Generate Config File
   // ---> ENCODE Data as JSON
-  $json = json_encode($data, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE);
+  $json = json_encode($data, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+
+
+
   // ----------------------- Config File generator
-  $output_config = '<?php
-  /*
-    APMS Generator
-    ==================================================
-    Generated: '.date("Y-m-d H:i:s").'
-  */
-
-  // Database Login
-  define("DB_USER", "'.$db_user.'");
-  define("DB_PASS", "'.$db_pass.'");
-  define("DB_HOST", "'.$db_server.'");
-  define("DB_NAME", "'.$db_name.'");
-
-  // API-URL
-  define("API_URL", "'.$API_url.'");
-  define("API_URL_LIAM", "'.$LOGIN_url.'"); // for Login
-  // AuthKey
-  define("AUTH_KEY", "'.$secretKey.'");
-  // Machine-Token for internal API Calls
-  define("MACHINE_TOKEN", "'.$machine_token.'");
-
-  // WhiteLists for getFile
-  @define("WHITELIST_PATHS", array("ordner/test/", "ordner/"));
-  @define("WHITELIST_TYPES", array("pdf", "doc", "txt"));
-
-  // Structure Configuration Data
-  $config_tables_json = \''.$json.'\';
-?>';
-
+  function generateConfig($dbUser, $dbPass, $dbServer, $dbName, $urlAPI, $urlLogin, $secretKey, $machineToken) {
+    return  '<?php
+    //  APMS Generated Project ('.date("Y-m-d H:i:s").')
+    //  ==================================================
+  
+    // Database
+    define("DB_USER", "'.$dbUser.'");
+    define("DB_PASS", "'.$dbPass.'");
+    define("DB_HOST", "'.$dbServer.'");
+    define("DB_NAME", "'.$dbName.'");
+  
+    // Authentication + API
+    define("API_URL", "'.$urlAPI.'"); // URL from the API where all requests are sent
+    define("API_URL_LIAM", "'.$urlLogin.'"); // URL from Authentication-Service which returns JWT Token    
+    define("AUTH_KEY", "'.$secretKey.'"); // AuthKey which also has to be known by the Authentication-Service
+    define("MACHINE_TOKEN", "'.$machineToken.'"); // Machine-Token for internal API Calls
+  
+    // WhiteLists for getFile
+    // @define("WHITELIST_PATHS", array("ordner/test/", "ordner/"));
+    // @define("WHITELIST_TYPES", array("pdf", "doc", "txt"));
+  ?>';
+  }  
   function createSubDirIfNotExists($dirname) {
     if (!is_dir($dirname))
       mkdir($dirname, 0750, true);
-  }
-  
+  }  
   function createFile($filename, $content) {
     file_put_contents($filename, $content);
     chmod($filename, 0660);
@@ -510,8 +505,15 @@ END";
     createFile($project_dir."/src/AuthHandler.inc.php", $output_AuthHandler);
     // Main Directory
     createFile($project_dir."/api.php", $output_API);
-    createFile($project_dir."/".$db_name.".html", $output_all);
-    createFile($project_dir."/".$db_name."-config.inc.php", $output_config);
+    createFile($project_dir."/".$db_name.".inc.html", $output_all);
+
+    // Configuration
+    createFile($project_dir."/".$db_name."-config.SECRET.inc.php", generateConfig($db_user,$db_pass,$db_server,$db_name,$API_url,$LOGIN_url,$secretKey,$machine_token));
+    createFile($project_dir."/".$db_name."-config.EXAMPLE_SECRET.inc.php", generateConfig('','','','','','','','')); // Example
+    createFile($project_dir."/".$db_name."-config.inc.json", $json);
+    // Git
+    if (!file_exists($project_dir."/.gitignore"))
+      createFile($project_dir."/.gitignore", "*.secret.*\n*.SECRET.*\n");
 
     // Create Entrypoint (index)
     if ($redirectToLoginURL) {
@@ -568,10 +570,10 @@ END";
           exit();
         }
         // Success
-        require_once("'.$db_name.'.html");
+        require_once("'.$db_name.'.inc.html");
       ?>';
     } else
-      $output_index = "<?php\n\trequire_once(\"".$db_name.".html\");\n?>";
+      $output_index = "<?php\n\trequire_once(\"".$db_name.".inc.html\");\n?>";
     
     createFile($project_dir."/index.php", $output_index);
   }

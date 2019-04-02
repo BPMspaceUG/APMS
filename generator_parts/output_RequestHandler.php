@@ -33,8 +33,7 @@
     // i.e.
 
     public static function getConfig() {
-      global $config_tables_json;
-      return $config_tables_json;
+      return file_get_contents(__DIR__.'/../'.DB_NAME.'-config.inc.json');
     }
     public static function getColsByTablename($tablename, $data = null) {
       if (is_null($data))
