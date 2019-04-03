@@ -154,12 +154,15 @@
 
     // TODO: Check if the "table" is no view
 
+
+
+    //==================================================================== STORED PROCEDURE
     //--- Create a stored procedure for each Table
     $sp_name = 'sp_'.$tablename;
     $con->exec('DROP PROCEDURE IF EXISTS `'.$sp_name.'`'); // TODO: Ask user if it should be overwritten
 
     //-- All standard columns
-    $colnames = array_keys($table["columns"]);    
+    $colnames = array_keys($table["columns"]);
 
     // Generate joins
     unset($joincolsubst); // clear due to loop
@@ -184,7 +187,7 @@
         $fkey = $fk["col_id"];
         $fsub = $fk["col_subst"];
         // Template: ' LEFT JOIN [fktable] AS a___[0] ON a.[stdkey] = a____[0].[fkey] '
-        $jointexts[] = ' LEFT JOIN '.$ft.' AS a'.$seperator.$colname.' ON a.'.$colname.' = a'.$seperator.$colname.'.'.$fkey;
+        $jointexts[] = ' LEFT JOIN '.$ft.' AS a'.$seperator.$colname.' ON a.'.$colname.' = a'.$seperator.$colname.'.'.$fkey."\n";
         $joincolsubst[] = 'a'.$seperator.$colname.'.'.$fkey;
         $allcolnames[] = 'a'.$seperator.$colname.'.'.$fkey;
 
@@ -251,28 +254,49 @@
     if (count($joincolsubst) > 0) {
       $select .= ', '.implode(", ", $joincolsubst);
     }
+    //--- order by text
+    $orderByText = '';
+    // Template: 
+    /*
+    case when @sortDir <> 'ASC' then 0 when @sortCol = 'a.Role_id' then a.Role_id end ASC,
+    case when @sortDir <> 'ASC' then 0 when @sortCol = 'a.Role_name' then a.Role_name end ASC,
+    case when @sortDir <> 'DESC' then 0 when @sortCol = 'a.Role_id' then a.Role_id end DESC,
+    case when @sortDir <> 'DESC' then 0 when @sortCol = 'a.Role_name' then a.Role_name end DESC
+    */
+    foreach ($stdcols as $col) {
+      $orderByText .= 
+      "case when sortDir <> 'ASC' then 0 when sortCol = '$col' then $col end ASC,\n".
+      "case when sortDir <> 'DESC' then 0 when sortCol = '$col' then $col end DESC,\n";
+    }
+    $orderByText = substr($orderByText, 0, -2);
 
     // Filter
     //echo "---> Filter:\n";
     //var_dump($allcolnames);
     // Template: ' WHERE ([col1] LIKE '%[searchtext]%' OR [col2] LIKE '%[searchtext]%')
-    $filtertext = "(" . implode(" LIKE \'%', filter ,'%\' OR ", $allcolnames) . " LIKE \'%', filter ,'%\')";
+    // a.id LIKE CONCAT('%',search,'%')
+    $filtertext = implode(" LIKE CONCAT('%',search,'%') OR\n", $allcolnames) . " LIKE CONCAT('%',search,'%')\n";
 
     //===========================================================
     // STORED PROECEDURE START
 
-    $sp = "CREATE PROCEDURE $sp_name(IN token_uid INT, IN filter VARCHAR(256), IN whereParam VARCHAR(256), IN orderCol VARCHAR(100), IN ascDesc VARCHAR(4), IN LimitStart INT, IN LimitSize INT)
+    $sp = "CREATE PROCEDURE $sp_name(IN TID INT, IN search VARCHAR(256), IN sortCol VARCHAR(100), IN sortDir VARCHAR(4), IN limStart INT, IN limSize INT)
 BEGIN
-  SET @select = '$select';
-  SET @joins =  '$joinTables';
-  SET @where = CONCAT(' WHERE $filtertext ', COALESCE(CONCAT('AND ', NULLIF(whereParam, '')), ''));
-  SET @order = IFNULL(CONCAT(' ORDER BY ', orderCol, ' ', ascDesc), '');
-  SET @limit = IFNULL(CONCAT(' LIMIT ', LimitStart, CONCAT(', ', LimitSize)), '');
 
-  SET @s = CONCAT('SELECT ', @select, ' FROM $tablename AS a', @joins, @where, @order, @limit);
-  PREPARE stmt FROM @s;
-  EXECUTE stmt;
-  DEALLOCATE PREPARE stmt;
+SELECT
+$select
+
+FROM $tablename AS a
+$joinTables
+WHERE
+-- Filter
+$filtertext
+-- OrderBy
+ORDER BY
+$orderByText
+
+LIMIT limStart, limSize;
+
 END";
 
     echo "----------------------------- Create Stored Procedure for Reading\n";

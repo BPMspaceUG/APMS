@@ -444,10 +444,7 @@ class Table extends RawTable {
                     // Get Primary and SortColumn
                     if (me.Columns[col].show_in_grid && me.OrderBy == '') {
                         // DEFAULT: Sort by first visible Col
-                        if (me.Columns[col].field_type == 'foreignkey')
-                            me.OrderBy = 'a.' + col;
-                        else
-                            me.OrderBy = col;
+                        me.OrderBy = col;
                     }
                     if (me.Columns[col].is_primary)
                         me.PrimaryColumn = col;
@@ -468,12 +465,8 @@ class Table extends RawTable {
     }
     toggleSort(ColumnName) {
         let me = this;
+        this.OrderBy = ColumnName;
         this.AscDesc = (this.AscDesc == SortOrder.DESC) ? SortOrder.ASC : SortOrder.DESC;
-        // Check if column is a foreign key
-        if (me.Columns[ColumnName].field_type == 'foreignkey')
-            this.OrderBy = 'a.' + ColumnName;
-        else
-            this.OrderBy = ColumnName;
         // Refresh
         this.loadRows(function () {
             me.renderContent();
@@ -1694,6 +1687,15 @@ $(document).on('shown.bs.modal', function () {
     const val = el.val();
     el.val('');
     el.val(val);
+    // Do a submit - if on any R/W field return is pressed
+    $(".modal .rwInput").keypress(function (e) {
+        if (e.which == 13) {
+            e.preventDefault();
+            console.log('Return pressed');
+            // Do a submit
+            $('.modal .btnCreateEntry:first').click();
+        }
+    });
     // On keydown
     // Restrict input to digits and '.' by using a regular expression filter.
     $("input[type=number]").keydown(function (e) {

@@ -27,11 +27,6 @@
 
 
   class Config {
-    // In this class the configuration should be loaded in the constructor once
-    // there should be a method for getting easy the primary column by tablename
-    // also other helper functions
-    // i.e.
-
     public static function getConfig() {
       return file_get_contents(__DIR__.'/../'.DB_NAME.'-config.inc.json');
     }
@@ -75,7 +70,9 @@
       return $result;
     }
     public static function doesColExistInTable($tablename, $colname) {
-      //= boolean
+      $cols = Config::getColsByTablename($tablename);
+      $colnames = array_keys($cols);
+      return in_array($colname, $colnames);
     }
     public static function hasColumnFK($tablename, $colname) {
       $allCols = Config::getColsByTablename($tablename);
@@ -143,7 +140,6 @@
   }
 
   class RequestHandler {
-
     private static function splitQuery($row) {
       $res = array();
       foreach ($row as $key => $value) { 
@@ -151,7 +147,6 @@
       }
       return $res;
     }
-    // -------------------------------------------------- Database Access Methods
     private function readRowByPrimaryID($tablename, $ElementID) {
       $primColName = Config::getPrimaryColNameByTablename($tablename);
 
@@ -177,9 +172,8 @@
       $result = $row['state_id'];
       return $result;
     }
-
     //======= INIT (Load the configuration to the client)
-    public function init($param = null) {
+    /*sec*/ public function init($param = null) {
       if (is_null($param))
         return Config::getConfig();
       else {
@@ -289,7 +283,6 @@
       // Return
       return json_encode($script_result);
     }
-    //================================== private (CALL) and format foreign key structure
     //================================== READ & COUNT
     private function call($param) {
       $tablename = $param["table"];
@@ -351,7 +344,6 @@
               $x[$col] = $val;
             }
             $r[$table][$col] = $val;
-
           }
           $result[] = $x;
         }
@@ -366,69 +358,94 @@
       return json_encode($result);
     }
     public function read($param) {
-      // Parameters and default values
-      try {
-        @$tablename = $param["table"];
-        // Limit
-        @$limitStart = isset($param["limitStart"]) ? $param["limitStart"] : null;
-        @$limitSize = isset($param["limitSize"]) ? $param["limitSize"] : null;
-        @$limit = isset($param["limit"]) ? $param["limit"] : null;
-        // OrderBy
-        @$ascdesc = isset($param["ascdesc"]) ? $param["ascdesc"] : null; 
-        @$orderby = isset($param["orderby"]) ? $param["orderby"] : null; // has to be a column name
-        // Where / Filter
-        @$filter = isset($param["filter"]) ? $param["filter"] : "";
-        @$where = isset($param["where"]) ? $param["where"] : "";
-      } catch (Exception $e) {
-        die("Invalid Parameter-Data!");
-      }
-      // Give all params to SP like (filter, orderBY, ASCDESC, LIMIT-start, LIMIT-size, [spare1, spare2, spare3, spare4, spare5])
+      //--------------------- Check Params
+      $validParams = ['table', 'limitStart', 'limitSize', 'limit', 'ascdesc', 'orderby', 'filter', 'where'];
 
-      // Identify
+      if (!is_array($param)) die("Invalid Param Structure!");
+      $params = array_keys($param);
+      foreach ($params as $p) {
+        if (!in_array($p, $validParams))
+          die('Invalid parameters (allowed are: '.implode(', ', $validParams).')');
+      }
+      // Parameters and default values
+      @$tablename = isset($param["table"]) ? $param["table"] : die('Table is not set!');
+      @$limitStart = isset($param["limitStart"]) ? $param["limitStart"] : null;
+      @$limitSize = isset($param["limitSize"]) ? $param["limitSize"] : null;
+      @$limit = isset($param["limit"]) ? $param["limit"] : null;
+      @$ascdesc = isset($param["ascdesc"]) ? $param["ascdesc"] : null; 
+      @$orderby = isset($param["orderby"]) ? $param["orderby"] : null; // has to be a column name
+      // TODO: merge filter and where
+      @$filter = isset($param["filter"]) ? $param["filter"] : "";
+      @$where = isset($param["where"]) ? $param["where"] : "";
+
+      // Identify via Token
       global $token;
       $token_uid = -1;
-      if (property_exists($token, 'uid'))
-        $token_uid = $token->uid;
+      if (property_exists($token, 'uid')) $token_uid = $token->uid;
 
-      //--- ASC/DESC
-      $ascdesc = strtolower(trim($ascdesc));
-      if ($ascdesc == "") $ascdesc == "ASC";
-      elseif ($ascdesc == "asc") $ascdesc == "ASC";
-      elseif ($ascdesc == "desc") $ascdesc == "DESC";
-      else die("AscDesc has no valid value (value has to be empty, ASC or DESC)!");
-      $params = array(
-        'table' => $tablename,
-        'token' => $token_uid,
-        'filter' => $filter,
-        'where' => $where,
-        'orderby' => $orderby,
-        'ascdesc' => $ascdesc,
-        'limitstart' => $limitStart,
-        'limitsize' => $limitSize
-      );
+      // Table
+      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
+      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
 
-      return $this->call($params);
+      //--- Limit
+      if (strlen($limit) > 0 || strlen($limitStart) > 0 || strlen($limitSize) > 0) {
+        // Limit Params are set --> now validate
+        if (strlen($limit) > 0 && (strlen($limitStart) > 0 || strlen($limitSize) > 0)) {
+          die("Error in Limit Params (only send Limit or LimitStart & LimitSize)!");
+        }
+        else if (strlen($limit) == 0 && !(strlen($limitStart) > 0 && strlen($limitSize) > 0)) {
+          die("Error in Limit Params (LimitStart and LimitSize have to be set)!");
+        }
+        else {
+          // Valid structure
+          // LIMIT
+          if (strlen($limit) > 0) {
+            if (!is_numeric($limit)) die("Limit is not numeric!");
+            $limitStart = 1;
+            $limitSize = $limit;
+          }
+          // OFFSET, LIMIT
+          else if(strlen($limitStart) > 0 && strlen($limitSize) > 0) {
+            if (!is_numeric($limitStart)) die("LimitStart is not numeric!");
+            if (!is_numeric($limitSize)) die("LimitSize is not numeric!");
+          }
+        }
+      }
+
+      //--- OrderBy
+      if (strlen($ascdesc) > 0 && strlen($orderby) == 0) die("AscDesc can not be set without OrderBy!");
+      if (strlen($orderby) > 0) {
+        if (!Config::isValidColname($orderby)) die('OrderBy: Invalid Columnname!');
+        if (!Config::doesColExistInTable($tablename, $orderby)) die('OrderBy: Column does not exist in this Table!');
+        //--- ASC/DESC
+        $ascdesc = strtolower(trim($ascdesc));
+        if ($ascdesc == "") $ascdesc == "ASC";
+        elseif ($ascdesc == "asc") $ascdesc == "ASC";
+        elseif ($ascdesc == "desc") $ascdesc == "DESC";
+        else die("AscDesc has no valid value (value has to be empty, ASC or DESC)!");
+      }
+
+      //--- Filter
+      
+
+      $p = ['table' => $tablename, 'token' => $token_uid, 'filter' => $filter,
+      'orderby' => 'a.'.$orderby, 'ascdesc' => $ascdesc, 'limitstart' => $limitStart, 'limitsize' => $limitSize];
+      return $this->call($p);
     }
     public function count($param) {
-      global $token;
       $tablename = $param["table"];
       $where = $param["where"] ? $param["where"] : '';
       $filter = isset($param["filter"]) ? $param["filter"] : '';
-      // Identify
+      
+      // Identify via Token
+      global $token;
       $token_uid = -1;
-      if (property_exists($token, 'uid'))
-        $token_uid = $token->uid;
-      $params = array(
-        'table' => $tablename,
-        'token' => $token_uid,
-        'filter' => $filter,
-        'where' => $where,
-        'orderby' => '',
-        'ascdesc' => null,
-        'limitstart' => null,
-        'limitsize' => null
-      );
-      $data = json_decode($this->call($params), true);
+      if (property_exists($token, 'uid')) $token_uid = $token->uid;
+
+      $res = $this->call(['table' => $tablename, 'token' => $token_uid,'filter' => $filter,
+      'orderby' => null, 'ascdesc' => null,'limitstart' => null, 'limitsize' => null
+      ]);
+      $data = json_decode($res, true);
       return json_encode(array(array('cnt' => count($data))));
     }
     //================================== UPDATE
@@ -485,11 +502,9 @@
       return $success ? "1" : "0";
     }
     //================================== DELETE (sec)
-    public function delete($param) {
-
-      // NOT SUPPORTED FOR NOW
+    /*sec*/ public function delete($param) {
+      //---- NOT SUPPORTED FOR NOW [!]
       die('The Delete-Command is currently not supported!');
-
       // Parameter
       $tablename = $param["table"];
       $row = $param["row"];
@@ -509,7 +524,6 @@
       // Output
       return $success ? "1" : "0";
     }
-
     //---------------------------------- Statemachine
     public function getFormData($param) {
       // Inputs
@@ -527,64 +541,14 @@
         if (empty($r)) $r = "{}"; // default: allow editing (if there are no rules set)
         return $r;
       }
-      /*else {
-        // Has NO StateMachine -> Return standard form
-        $cols = Config::getColsByTablename($tablename);
-        $PrimKey = array(Config::getPrimaryColNameByTablename($tablename));
-        $VirtKeys = Config::getVirtualColnames($tablename);
-        $excludeKeys = array_merge($PrimKey, $VirtKeys);        
-        $r = $SM->getBasicFormDataByColumns($tablename, Config::getConfig(), $cols, $excludeKeys);
-        return $r;
-      }*/
     }    
-    private function getFormCreate($param) {
-      $tablename = $param["table"];
-      // Check Parameter
-      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
-      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
-
-      $SM = new StateMachine(DB::getInstance()->getConnection(), $tablename);
-      // StateMachine ?
-      if ($SM->getID() > 0) {
-        // Has StateMachine
-        $r = $SM->getCreateFormByTablename();
-        if (empty($r))
-          $r = "{}"; // default: allow editing (if there are no rules set)
-        else
-          return $r;
-      }
-      /*
-      // Return standard form
-      $cols = Config::getColsByTablename($tablename);
-      $PrimKey = array(Config::getPrimaryColNameByTablename($tablename));
-      $VirtKeys = Config::getVirtualColnames($tablename);
-      $excludeKeys = array_merge($PrimKey, $VirtKeys, array('state_id'));
-      $r = $SM->getBasicFormDataByColumns($tablename, Config::getConfig(), $cols, $excludeKeys, true);
-      */
-      return '{}'; //$r;
-    }
-    public function getNextStates($param) {
-      // Inputs
-      $tablename = $param["table"];
-      $stateID = $this->getActualStateByRow($tablename, $param['row']);
-      // Check Parameter
-      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
-      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
-
-      // execute query
-      $SE = new StateMachine(DB::getInstance()->getConnection(), $tablename);
-      $res = $SE->getNextStates($stateID);
-      return json_encode($res);
-    }
     public function makeTransition($param) {
       // INPUT [table, ElementID, (next)state_id]
-      // Get the next ID for the next State
-      $nextStateID = $param["row"]["state_id"];
       $tablename = $param["table"];
       // Check Parameter
       if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
       if (!Config::doesTableExist($tablename)) die('Table does not exist!');
-
+      
       // Get Primary Column
       $pcol = Config::getPrimaryColNameByTablename($tablename);
       $ElementID = $param["row"][$pcol];
@@ -601,6 +565,13 @@
       $SE = new StateMachine(DB::getInstance()->getConnection(), $tablename);
       // get ActStateID by Element ID
       $actstateID = $this->getActualStateByRow($tablename, $param['row']);
+
+      // Get the next ID for the next State or if none is used try a Save
+      if (array_key_exists('state_id', $param['row'])) {
+        $nextStateID = $param["row"]["state_id"];
+      } else {        
+        $nextStateID = $actstateID; // Try a save transition
+      }
 
       // check if transition is allowed
       $transPossible = $SE->checkTransition($actstateID, $nextStateID);
@@ -650,12 +621,41 @@
         echo json_encode($feedbackMsgs);
         exit;
 
-      } else {
-        echo "Transition not possible!";
-        exit;
-      }
+      } else 
+        die("Transition not possible!");
     }
-    public function getStates($param) {
+    /*sec*/ private function getFormCreate($param) {
+      $tablename = $param["table"];
+      // Check Parameter
+      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
+      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
+
+      $SM = new StateMachine(DB::getInstance()->getConnection(), $tablename);
+      // StateMachine ?
+      if ($SM->getID() > 0) {
+        // Has StateMachine
+        $r = $SM->getCreateFormByTablename();
+        if (empty($r))
+          $r = "{}"; // default: allow editing (if there are no rules set)
+        else
+          return $r;
+      }
+      return '{}'; //$r;
+    }
+    /*sec*/ public function getNextStates($param) {
+      // Inputs
+      $tablename = $param["table"];
+      $stateID = $this->getActualStateByRow($tablename, $param['row']);
+      // Check Parameter
+      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
+      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
+
+      // execute query
+      $SE = new StateMachine(DB::getInstance()->getConnection(), $tablename);
+      $res = $SE->getNextStates($stateID);
+      return json_encode($res);
+    }
+    /*sec*/ public function getStates($param) {
       $tablename = $param["table"];
       // Check Parameter
       if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
@@ -665,7 +665,7 @@
       $res = $SE->getStates();
       return json_encode($res);
     }
-    public function smGetLinks($param) {
+    /*sec*/ public function smGetLinks($param) {
       $tablename = $param["table"];
       // Check Parameter
       if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
@@ -675,7 +675,6 @@
       $res = $SE->getLinks();
       return json_encode($res);
     }
-
     //---------------------------------- File Handling
     public function getFile($param) {
       // Download File from Server
