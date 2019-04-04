@@ -211,7 +211,6 @@
               $joincolsubst[] = 'a'.$seperator.$colname.$seperator.$c.'.'.$_fsub;
               
               $allcolnames[] = 'a'.$seperator.$colname.$seperator.$c.'.'.$_fsub;
-
             }
             else {
               // Normal FK
@@ -227,14 +226,13 @@
         }
       }
 
-
       // -- Virtual Column
       $isVc = $table["columns"][$colname]["is_virtual"];
       if ($isVc) {
         $virtSelect = $table["columns"][$colname]["virtual_select"];
         if (strlen($virtSelect) > 0) {
-          $virtualcols[] = addslashes($virtSelect).' AS '.$colname;
-          $allcolnames[] = addslashes($virtSelect);
+          $virtualcols[] = $virtSelect.' AS '.$colname;
+          $allcolnames[] = $virtSelect;
         }
       }
       elseif (!$isVc) {
@@ -247,6 +245,7 @@
     $stdColText = implode(", ", $stdcols);    
     $joinTables = implode("", $jointexts);
 
+    //---- Select
     $select = $stdColText;
     if (count($virtualcols) > 0) {
       $select .= ', '.implode(", ", $virtualcols);
@@ -270,33 +269,55 @@
     }
     $orderByText = substr($orderByText, 0, -2);
 
-    // Filter
-    //echo "---> Filter:\n";
-    //var_dump($allcolnames);
-    // Template: ' WHERE ([col1] LIKE '%[searchtext]%' OR [col2] LIKE '%[searchtext]%')
-    // a.id LIKE CONCAT('%',search,'%')
-    $filtertext = implode(" LIKE CONCAT('%',search,'%') OR\n", $allcolnames) . " LIKE CONCAT('%',search,'%')\n";
+    // Filter All
+    $filtertext = implode(" LIKE CONCAT('%',@sAll,'%') OR\n", $allcolnames) . " LIKE CONCAT('%',@sAll,'%')\n";
+    $filtertext = substr($filtertext, 0, -1);
+    // Filter Custom
+    $filtercustomVars = '';
+    $filtercustom = '';
+    foreach ($stdcols as $col) {
+      $parts = explode('.', $col);
+      $colname = end($parts);
+      $filtercustomVars .= "SET @s$colname = IFNULL(JSON_UNQUOTE(JSON_EXTRACT(search, '$.columns.$colname')), '');\n";
+      $filtercustom .= "AND (@s$colname IS NULL OR $col LIKE CONCAT('%',@s$colname,'%'))\n";
+    }
+    $filtercustomVars = substr($filtercustomVars, 0, -1);
+    $filtercustom = substr($filtercustom, 0, -1);
+
+    // Custom Conditions
+    // __CONDITION__ = a.state_id IN (1,2)
+    // __CONDITION__ = a.Role_id = TID
+    // __CONDITION__ = $stdcols[0] % 2
+    // $cuWhere1 = "AND (IF(customWhere = '1', __CONDITION__, TRUE))\n";
+    $customWhere = ''; //$cuWhere1;
 
     //===========================================================
     // STORED PROECEDURE START
 
-    $sp = "CREATE PROCEDURE $sp_name(IN TID INT, IN search VARCHAR(256), IN sortCol VARCHAR(100), IN sortDir VARCHAR(4), IN limStart INT, IN limSize INT)
+    // SET @search = '{"all": "sdfsdf", "columns": {"test": "123", "test2": "hajkhd", "test3": "qwert"}}';
+    // SET @searchGlobal = JSON_UNQUOTE(JSON_EXTRACT(@search, '$.all'));
+    // SET @searchColumname1 = JSON_UNQUOTE(JSON_EXTRACT(@search, '$.columns.name'));
+    $sp = "CREATE PROCEDURE $sp_name(IN TID INT, IN search LONGTEXT, IN sortCol VARCHAR(100), IN sortDir VARCHAR(4), IN limStart INT, IN limSize INT)
 BEGIN
-
+-- ------ Variables
+SET @sAll = IFNULL(JSON_UNQUOTE(JSON_EXTRACT(search, '$.all')), '');
+$filtercustomVars
+-- -----------------------------
 SELECT
 $select
-
-FROM $tablename AS a
+FROM
+$tablename AS a
 $joinTables
 WHERE
--- Filter
+( -- Filter ALL
 $filtertext
+) -- Filter via Column
+$filtercustom
 -- OrderBy
 ORDER BY
 $orderByText
-
+-- Limit
 LIMIT limStart, limSize;
-
 END";
 
     echo "----------------------------- Create Stored Procedure for Reading\n";

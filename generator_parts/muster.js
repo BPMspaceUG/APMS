@@ -294,10 +294,10 @@ class RawTable {
     constructor(tablename) {
         this.AscDesc = SortOrder.DESC;
         this.PageIndex = 0;
-        this.Where = '';
         this.TableType = TableType.obj;
         this.tablename = tablename;
         this.actRowCount = 0;
+        this.resetFilter();
     }
     getNextStates(data, callback) {
         DB.request('getNextStates', { table: this.tablename, row: data }, function (r) { callback(r); });
@@ -339,7 +339,6 @@ class RawTable {
         let me = this;
         let data = {
             table: this.tablename,
-            where: this.Where,
             filter: this.Filter
         };
         DB.request('count', data, function (r) {
@@ -360,13 +359,9 @@ class RawTable {
             limitStart: this.PageIndex * this.PageLimit,
             limitSize: this.PageLimit,
             orderby: this.OrderBy,
-            ascdesc: this.AscDesc
+            ascdesc: this.AscDesc,
+            filter: this.Filter
         };
-        // Append filtering
-        if (this.Filter)
-            data['filter'] = this.Filter;
-        if (this.Where)
-            data['where'] = this.Where;
         // HTTP Request
         DB.request('read', data, function (r) {
             let response = JSON.parse(r);
@@ -380,12 +375,24 @@ class RawTable {
     getTablename() {
         return this.tablename;
     }
+    setGlobalFilter(filterText) {
+        this.Filter.all = filterText;
+    }
+    getFilter() {
+        return this.Filter;
+    }
+    setColumnFilter(columnName, filterText) {
+        this.Filter.columns[columnName] = filterText;
+    }
+    resetFilter() {
+        this.Filter = { all: '', columns: {} };
+    }
 }
 //==============================================================
 // Class: Table
 //==============================================================
 class Table extends RawTable {
-    constructor(tablename, SelType = SelectType.NoSelect, callback = function () { }, whereFilter = '', defaultObj = {}) {
+    constructor(tablename, SelType = SelectType.NoSelect, callback = function () { }, defaultObj = {}) {
         super(tablename); // Call parent constructor
         this.FilterText = ''; // TODO: Remove
         this.SM = null;
@@ -415,15 +422,13 @@ class Table extends RawTable {
         // Check this values
         this.defaultValues = defaultObj;
         this.selType = SelType;
-        this.Where = whereFilter;
         // Inherited
         this.PageIndex = 0;
         this.PageLimit = 10;
         this.selectedRow = undefined;
         this.tablename = tablename;
-        this.Filter = '';
         this.OrderBy = '';
-        DB.request('init', { table: tablename, where: whereFilter }, function (resp) {
+        DB.request('init', { table: tablename }, function (resp) {
             if (resp.length > 0) {
                 resp = JSON.parse(resp);
                 // Save Form Data
@@ -1176,7 +1181,7 @@ class Table extends RawTable {
         }
         else {
             // Filter was set
-            t.FilterText = t.Filter;
+            t.FilterText = t.getFilter().all;
         }
         const hasEntries = t.Rows && (t.Rows.length > 0);
         let NoText = 'No Objects';
@@ -1215,7 +1220,8 @@ class Table extends RawTable {
         function filterEvent(t) {
             return __awaiter(this, void 0, void 0, function* () {
                 t.PageIndex = 0; // jump to first page
-                t.Filter = $('.' + t.GUID).parent().find('.filterText').val();
+                const filterText = $('.' + t.GUID).parent().find('.filterText').val();
+                t.setGlobalFilter(filterText);
                 t.loadRows(function () {
                     return __awaiter(this, void 0, void 0, function* () {
                         if (t.Rows.length == t.PageLimit) {
@@ -1323,7 +1329,7 @@ class Table extends RawTable {
             ${tds}
           </tbody>
         </table>
-      </div>` : (t.Filter != '' ? 'Sorry, nothing found.' : '')}
+      </div>` : (t.getFilter().all != '' ? 'Sorry, nothing found.' : '')}
     </div>`;
         });
     }
@@ -1573,12 +1579,13 @@ class FormGenerator {
                 tmp.Columns[tmp.getPrimaryColname()].show_in_grid = false; // Hide the origin column
                 tmp.ReadOnly = (el.mode_form == 'ro');
                 tmp.GUIOptions.showControlColumn = !tmp.ReadOnly;
+                //tmp.Filter = {'all': '', 'columns': {hideCol: OriginRowID}};
+                tmp.setColumnFilter(hideCol, '' + OriginRowID);
                 // Load Rows
                 tmp.loadRows(function () {
                     tmp.renderHTML('.' + tmpGUID);
                 });
-            }, 'a.' + hideCol + ' = ' + OriginRowID, // Where-filter
-            defValues // Default Values
+            }, defValues // Default Values
             );
         }
         //--- Quill Editor

@@ -272,14 +272,13 @@ APMS.controller('APMScontrol', function ($scope, $http) {
     }
     return
   }
-  $scope.del_virtCol = function(tbl, col){
-    /*
-    console.log('Deleted virtual column');
+  $scope.del_virtCol = function(tbl, colname){    
+    console.log('xxxxxxxxxxxxxxxx --- Deleted virtual column');
     console.log(tbl);
-    console.log(col);
-    console.log($scope.tables[tbl.table_name].columns[col.COLUMN_NAME]);
-    */
-    delete tbl.columns[Object.keys(col)[0]];
+    console.log(colname);
+    console.log($scope.tables[tbl.table_name].columns[colname]);    
+    //-- Delete
+    delete tbl.columns[colname];
   }
   $scope.changeSortOrder = function(col, inc) {
     //const oldIndex = parseInt(col.col_order); // can be overwritten

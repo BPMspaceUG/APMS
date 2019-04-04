@@ -318,7 +318,7 @@
                         </div>
                         <div class="col-2">
                           <!-- Delete Virtual column -->
-                          <button class="btn btn-sm btn-danger" title="Delete virtual Column" ng-click="del_virtCol(tbl, col)">X</button>
+                          <button class="btn btn-sm btn-danger" title="Delete virtual Column" ng-click="del_virtCol(tbl, colname)">X</button>
                         </div>
                       </div>
                     </td>

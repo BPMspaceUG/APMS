@@ -180,7 +180,6 @@
         // Send only data from a specific Table
         // Send info: structure (from config) the createForm and Count of all entries
         $tablename = $param["table"];
-        $where = $param["where"] != '' ? $param["where"] : '';
         // Check Parameter
         if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
         if (!Config::doesTableExist($tablename)) die('Table does not exist!');
@@ -359,24 +358,20 @@
     }
     public function read($param) {
       //--------------------- Check Params
-      $validParams = ['table', 'limitStart', 'limitSize', 'limit', 'ascdesc', 'orderby', 'filter', 'where'];
+      $validParams = ['table', 'limitStart', 'limitSize', 'ascdesc', 'orderby', 'filter'];
 
       if (!is_array($param)) die("Invalid Param Structure!");
       $params = array_keys($param);
       foreach ($params as $p) {
-        if (!in_array($p, $validParams))
-          die('Invalid parameters (allowed are: '.implode(', ', $validParams).')');
+        if (!in_array($p, $validParams)) die('Invalid parameters (allowed are: '.implode(', ', $validParams).')');
       }
       // Parameters and default values
       @$tablename = isset($param["table"]) ? $param["table"] : die('Table is not set!');
       @$limitStart = isset($param["limitStart"]) ? $param["limitStart"] : null;
       @$limitSize = isset($param["limitSize"]) ? $param["limitSize"] : null;
-      @$limit = isset($param["limit"]) ? $param["limit"] : null;
       @$ascdesc = isset($param["ascdesc"]) ? $param["ascdesc"] : null; 
       @$orderby = isset($param["orderby"]) ? $param["orderby"] : null; // has to be a column name
-      // TODO: merge filter and where
-      @$filter = isset($param["filter"]) ? $param["filter"] : "";
-      @$where = isset($param["where"]) ? $param["where"] : "";
+      @$filter = isset($param["filter"]) ? $param["filter"] : null;
 
       // Identify via Token
       global $token;
@@ -388,33 +383,20 @@
       if (!Config::doesTableExist($tablename)) die('Table does not exist!');
 
       //--- Limit
-      if (strlen($limit) > 0 || strlen($limitStart) > 0 || strlen($limitSize) > 0) {
-        // Limit Params are set --> now validate
-        if (strlen($limit) > 0 && (strlen($limitStart) > 0 || strlen($limitSize) > 0)) {
-          die("Error in Limit Params (only send Limit or LimitStart & LimitSize)!");
-        }
-        else if (strlen($limit) == 0 && !(strlen($limitStart) > 0 && strlen($limitSize) > 0)) {
-          die("Error in Limit Params (LimitStart and LimitSize have to be set)!");
-        }
-        else {
-          // Valid structure
-          // LIMIT
-          if (strlen($limit) > 0) {
-            if (!is_numeric($limit)) die("Limit is not numeric!");
-            $limitStart = 1;
-            $limitSize = $limit;
-          }
-          // OFFSET, LIMIT
-          else if(strlen($limitStart) > 0 && strlen($limitSize) > 0) {
-            if (!is_numeric($limitStart)) die("LimitStart is not numeric!");
-            if (!is_numeric($limitSize)) die("LimitSize is not numeric!");
-          }
-        }
+      if (!is_null($limitStart) && is_null($limitSize)) die("Error in Limit Params (LimitSize is not set)!");
+      if (is_null($limitStart) && !is_null($limitSize)) die("Error in Limit Params (LimitStart is not set)!");
+      if (!is_null($limitStart) && !is_null($limitSize)) {
+        // Valid structure
+        if (!is_numeric($limitStart)) die("LimitStart is not numeric!");
+        if (!is_numeric($limitSize)) die("LimitSize is not numeric!");
+      } else {
+        $limitStart = 1;
+        $limitSize = 1000;
       }
 
       //--- OrderBy
-      if (strlen($ascdesc) > 0 && strlen($orderby) == 0) die("AscDesc can not be set without OrderBy!");
-      if (strlen($orderby) > 0) {
+      if (!is_null($ascdesc) && is_null($orderby)) die("AscDesc can not be set without OrderBy!");
+      if (!is_null($orderby)) {
         if (!Config::isValidColname($orderby)) die('OrderBy: Invalid Columnname!');
         if (!Config::doesColExistInTable($tablename, $orderby)) die('OrderBy: Column does not exist in this Table!');
         //--- ASC/DESC
@@ -426,25 +408,27 @@
       }
 
       //--- Filter
-      
+      if (!is_null($filter)) {
+        $filter = json_encode($filter);
+      }
 
       $p = ['table' => $tablename, 'token' => $token_uid, 'filter' => $filter,
       'orderby' => 'a.'.$orderby, 'ascdesc' => $ascdesc, 'limitstart' => $limitStart, 'limitsize' => $limitSize];
       return $this->call($p);
     }
     public function count($param) {
+      // TODO !!!
       $tablename = $param["table"];
-      $where = $param["where"] ? $param["where"] : '';
       $filter = isset($param["filter"]) ? $param["filter"] : '';
+      $filter = json_encode($filter);
       
       // Identify via Token
       global $token;
       $token_uid = -1;
       if (property_exists($token, 'uid')) $token_uid = $token->uid;
 
-      $res = $this->call(['table' => $tablename, 'token' => $token_uid,'filter' => $filter,
-      'orderby' => null, 'ascdesc' => null,'limitstart' => null, 'limitsize' => null
-      ]);
+      $res = $this->call(['table' => $tablename, 'token' => $token_uid, 'filter' => $filter,
+      'orderby' => null, 'ascdesc' => null,'limitstart' => null, 'limitsize' => null]);
       $data = json_decode($res, true);
       return json_encode(array(array('cnt' => count($data))));
     }
