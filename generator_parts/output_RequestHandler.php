@@ -356,15 +356,19 @@
       // Return result as JSON
       return json_encode($result);
     }
+    private function validateParamStruct($allowed_keys, $param) {
+      if (!is_array($param)) return false;
+      $keys = array_keys($param);
+      foreach ($keys as $k) {
+        if (!in_array($k, $allowed_keys)) return false;
+      }
+      return true;
+    }
     public function read($param) {
       //--------------------- Check Params
       $validParams = ['table', 'limitStart', 'limitSize', 'ascdesc', 'orderby', 'filter'];
-
-      if (!is_array($param)) die("Invalid Param Structure!");
-      $params = array_keys($param);
-      foreach ($params as $p) {
-        if (!in_array($p, $validParams)) die('Invalid parameters (allowed are: '.implode(', ', $validParams).')');
-      }
+      $hasValidParams = $this->validateParamStruct($validParams, $param);
+      if (!$hasValidParams) die('Invalid parameters! (allowed are: '.implode(', ', $validParams).')');
       // Parameters and default values
       @$tablename = isset($param["table"]) ? $param["table"] : die('Table is not set!');
       @$limitStart = isset($param["limitStart"]) ? $param["limitStart"] : null;
@@ -417,18 +421,21 @@
       return $this->call($p);
     }
     public function count($param) {
+      //--------------------- Check Params
+      $validParams = ['table', 'filter'];
+      $hasValidParams = $this->validateParamStruct($validParams, $param);
+      if (!$hasValidParams) die('Invalid parameters! (allowed are: '.implode(', ', $validParams).')');
       // TODO !!!
       $tablename = $param["table"];
-      $filter = isset($param["filter"]) ? $param["filter"] : '';
+      $filter = isset($param["filter"]) ? $param["filter"] : '{}';
       $filter = json_encode($filter);
-      
       // Identify via Token
       global $token;
       $token_uid = -1;
       if (property_exists($token, 'uid')) $token_uid = $token->uid;
 
-      $res = $this->call(['table' => $tablename, 'token' => $token_uid, 'filter' => $filter,
-      'orderby' => null, 'ascdesc' => null,'limitstart' => null, 'limitsize' => null]);
+      $res = $this->call(['table' => $tablename, 'token' => $token_uid,
+        'filter' => $filter, 'orderby' => '', 'ascdesc' => 'ASC','limitstart' => 0, 'limitsize' => 1000000]);
       $data = json_decode($res, true);
       return json_encode(array(array('cnt' => count($data))));
     }

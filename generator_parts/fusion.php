@@ -279,7 +279,7 @@
       $parts = explode('.', $col);
       $colname = end($parts);
       $filtercustomVars .= "SET @s$colname = IFNULL(JSON_UNQUOTE(JSON_EXTRACT(search, '$.columns.$colname')), '');\n";
-      $filtercustom .= "AND (@s$colname IS NULL OR $col LIKE CONCAT('%',@s$colname,'%'))\n";
+      $filtercustom .= "AND (CONCAT(@s$colname, $col) IS NULL OR $col LIKE CONCAT('%',@s$colname,'%'))\n";
     }
     $filtercustomVars = substr($filtercustomVars, 0, -1);
     $filtercustom = substr($filtercustom, 0, -1);

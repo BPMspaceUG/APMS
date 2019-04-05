@@ -446,13 +446,12 @@ class Table extends RawTable {
                     me.GUIOptions.showControlColumn = false;
                 // Loop all cloumns from this table
                 for (const col of Object.keys(me.Columns)) {
-                    // Get Primary and SortColumn
-                    if (me.Columns[col].show_in_grid && me.OrderBy == '') {
-                        // DEFAULT: Sort by first visible Col
-                        me.OrderBy = col;
-                    }
+                    // Get Primary Column
                     if (me.Columns[col].is_primary)
                         me.PrimaryColumn = col;
+                    // Get SortColumn (DEFAULT: Sort by first visible Col)
+                    if (me.Columns[col].show_in_grid && me.OrderBy == '')
+                        me.OrderBy = col;
                 }
                 // Initializing finished
                 callback();
@@ -1081,9 +1080,7 @@ class Table extends RawTable {
         }
         else if (t.Columns[col].field_type == 'switch' || t.Columns[col].field_type == 'checkbox') {
             //--- BOOLEAN
-            return (parseInt(value) !== 0 ?
-                '<i class="fa fa-check text-success text-center"></i>&nbsp;' :
-                '<i class="fa fa-times text-danger text-center"></i>&nbsp;');
+            return parseInt(value) !== 0 ? '<i class="fa fa-check text-success "></i>' : '<i class="fa fa-times text-danger"></i>';
         }
         else if (col == 'state_id' && t.tablename != 'state') {
             //--- STATE
