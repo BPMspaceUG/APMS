@@ -406,9 +406,9 @@ END";
       // Generate CSS-Colors for states
       $allstates = $SM->getStates();
       $initColorHue = rand(0, 360); // le color
-      $v = 8;
+      $v = 10;
       foreach ($allstates as $state) {
-        $v += 12;
+        $v += 5;
         $tmpStateID = $state['id'];
         if ($table_type == 'obj') {
           // Generate color
@@ -445,6 +445,26 @@ END";
   $url_apiscript = '/APMS_test/'.$db_name.'/api.php';
   $API_url = $url_host.$url_apiscript;
   $LOGIN_url = $loginURL == '' ? 'http://localhost/Authenticate/' : $loginURL; // default value
+  // TODO: Workaround
+  $tmpURL = explode('/', $LOGIN_url);
+  array_pop($tmpURL);
+  $LOGIN_url2 = implode('/', $tmpURL);
+
+
+  $AccountHandler = '<div class="collapse navbar-collapse" id="navbarText">
+    <ul class="navbar-nav ml-auto">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <i class="fas fa-user"></i> Account
+        </a>
+        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">
+          <a class="dropdown-item" href="'.$LOGIN_url2.'/LIAM2_Client_change_password.php">Change Password</a>
+          <a class="dropdown-item" href="'.$LOGIN_url2.'/LIAM2_Client_manage_emails.php">Manage E-Mails</a>
+          <a class="dropdown-item" href="'.$LOGIN_url2.'/LIAM2_Client_logout.php">Logout</a>
+        </div>
+      </li>
+    </ul>
+  </div>';
 
   // ------------------- Load complete Project
   $class_StateEngine = loadFile("./output_StateEngine.php");
@@ -468,7 +488,7 @@ END";
   $output_content = str_replace('<!--###TABS###-->', $content_tabs, $output_content); // Tabs (Headers on Top)
   $output_content = str_replace('<!--###TAB_PANELS###-->', $content_tabpanels, $output_content); // Tabs (Panels)
   $output_content = str_replace('replaceDBName', $db_name, $output_content); // Project Name
-  $output_content = str_replace('replaceAuthLink', $LOGIN_url, $output_content); // Account-URL
+  $output_content = str_replace('<!-- replaceAccountHandler -->', $AccountHandler, $output_content); // Account-URL
   $output_footer = str_replace('/*###JS_TABLE_OBJECTS###*/', $content_jsObjects, $output_footer); // Init functions for JS-Tables
   $output_css = str_replace('/*###CSS_STATES###*/', $content_css_statecolors, $output_css); // CSS State Colors
   $output_all = $output_header.$output_content.$output_footer; // Compose Main HTML File
