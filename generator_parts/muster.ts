@@ -1016,21 +1016,21 @@ class Table extends RawTable {
       return `<button title="State-ID: ${ID}" onclick="return false;" class="btn btnGridState btn-sm label-state ${cssClass}">${name}</button>`;
     }
   }
+  // string -> escaped string
+  private escapeHtml(string) {
+    let entityMap = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '/': '&#x2F;', '`': '&#x60;', '=': '&#x3D;'};
+    return String(string).replace(/[&<>"'`=\/]/g, function (s) {
+      return entityMap[s];
+    });
+  }
   private formatCell(cellContent: any, isHTML: boolean = false) {
     if (isHTML) return cellContent;
     let t = this;
-    // string -> escaped string
-    function escapeHtml(string) {
-      let entityMap = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '/': '&#x2F;', '`': '&#x60;', '=': '&#x3D;'};
-      return String(string).replace(/[&<>"'`=\/]/g, function (s) {
-        return entityMap[s];
-      });
-    }
     // check cell type
     if (typeof cellContent == 'string') {
       // String, and longer than X chars
       if (cellContent.length > this.GUIOptions.maxCellLength)
-        return escapeHtml(cellContent.substr(0, this.GUIOptions.maxCellLength) + "\u2026");      
+        return this.escapeHtml(cellContent.substr(0, this.GUIOptions.maxCellLength) + "\u2026");
     }
     else if ((typeof cellContent === "object") && (cellContent !== null)) {
       //-----------------------
@@ -1038,15 +1038,19 @@ class Table extends RawTable {
       //-----------------------
       const nrOfCells = Object.keys(cellContent).length;
       const split = (nrOfCells == 1 ? 100 : (100 * (1 / (nrOfCells-1))).toFixed(0));
-      let content = '<table class="w-100 border-0"><tr class="border-0">';
+      let content = '<table class="w-100 p-0 border-0"><tr class="border-0">';
       let cnt = 0;
       Object.keys(cellContent).forEach(c => {
-        if (nrOfCells > 1 && cnt == 0) {
-          cnt += 1;
-          return;
-        }
+
         let val = cellContent[c];
+
+        if (nrOfCells > 1 && cnt == 0) {
+          const fTablename = t.Columns[c].foreignKey.table;
+          content += '<td style="max-width: 50px; width: 50px;" class="border-0 controllcoulm align-middle" onclick="gEdit(\''+fTablename+'\', '+ val +')"><i class="far fa-edit"></i></td>';
+          cnt += 1; return;
+        }
         if ((typeof val === "object") && (val !== null)) {
+          // ---State
           if (c === 'state_id') {
             if (val['state_id'])
               content += '<td class="border-0" style="width: '+ split +'%">' + t.renderStateButton(val['state_id'], val['name'], false) + '</td>';
@@ -1055,8 +1059,9 @@ class Table extends RawTable {
           } else
             content += '<td class="border-0" style="width: '+ split +'%">' + JSON.stringify(val) + '</td>';
         } else {
+          // -- HTML
           if (val)
-            content += '<td class="border-0" style="width: '+ split +'%">' + escapeHtml(val) + '</td>';
+            content += '<td class="border-0" style="width: '+ split +'%">' + this.formatCell(val, true) + '</td>';
           else
             content += '<td class="border-0">&nbsp;</td>';
         }
@@ -1066,7 +1071,7 @@ class Table extends RawTable {
       return content;
     }
     // Cell is no String and no Object   
-    return escapeHtml(cellContent);
+    return this.escapeHtml(cellContent);
   }
   private renderCell(row: any, col: string) {
     let t = this;
@@ -1326,7 +1331,9 @@ class Table extends RawTable {
       // [Control Column] is set then Add one before each row
       if (t.GUIOptions.showControlColumn) {
         data_string = `<td scope="row" class="controllcoulm modRow align-middle border-0" data-rowid="${row[t.PrimaryColumn]}">
-          ${ (t.selType == SelectType.Single ? (isSelected ? '<i class="far fa-check-circle"></i>' : '<i class="far fa-circle"></i>') : '<i class="far fa-edit"></i>' ) }
+          ${ (t.selType == SelectType.Single ? (isSelected ? '<i class="far fa-check-circle"></i>' : '<i class="far fa-circle"></i>') 
+            : ( t.TableType == TableType.obj ? '<i class="far fa-edit"></i>' : '<i class="fas fa-link"></i>') )
+          }
         </td>`;
       }
 
@@ -1334,7 +1341,7 @@ class Table extends RawTable {
       sortedColumnNames.forEach(function(col) {
         // Check if it is displayed
         if (t.Columns[col].show_in_grid) 
-          data_string += '<td class="align-middle py-0 border-0">' + t.renderCell(row, col) + '</td>';
+          data_string += '<td class="align-middle p-0 border-0">' + t.renderCell(row, col) + '</td>';
       })
 
       // Add row to table
@@ -1617,7 +1624,6 @@ class FormGenerator {
           tmp.Columns[tmp.getPrimaryColname()].show_in_grid = false; // Hide the origin column
           tmp.ReadOnly = (el.mode_form == 'ro');
           tmp.GUIOptions.showControlColumn = !tmp.ReadOnly;
-          //tmp.Filter = {'all': '', 'columns': {hideCol: OriginRowID}};
           tmp.setColumnFilter(hideCol, ''+OriginRowID);
           // Load Rows
           tmp.loadRows(function(){
@@ -1735,12 +1741,10 @@ $(document).on('shown.bs.modal', function() {
   el.val(val);
 
   // Do a submit - if on any R/W field return is pressed
-  $(".modal .rwInput").keypress(function(e) {
+  $(".modal .rwInput:not(textarea)").keypress(function(e) {
     if (e.which == 13) {
-      e.preventDefault();
-      console.log('Return pressed');
-      // Do a submit
-      $('.modal .btnCreateEntry:first').click();
+      e.preventDefault();      
+      $('.modal .btnCreateEntry:first').click(); // Do a submit
     }
   });
 
@@ -1824,6 +1828,8 @@ function test(x): void {
   me.parent().parent().parent().find('.external-table').replaceWith('<div class="'+randID+'"></div>');
 
   let tmpTable = new Table(FKTable, 1, function(){
+    tmpTable.setColumnFilter('state_id', '6');
+    // Load
     tmpTable.loadRows(async function(){
       await tmpTable.renderHTML('.'+randID);
       $('.' + randID).find('.filterText').focus();
@@ -1833,4 +1839,15 @@ function test(x): void {
     const selRowID = tmpTable.getSelectedRowID();
     if (selRowID) fkInput.val(selRowID); else fkInput.val("");
   })
+}
+function gEdit(tablename, RowID) {
+  //alert('Servus! Du willst den Eintrag #' + RowID + ' der Tabelle ' + tablename + ' bearbeiten.');
+  let tmpTable = new Table(tablename, 0, function(){
+    // Load
+    tmpTable.loadRows(async function(){
+      tmpTable.modifyRow(RowID);
+      //await tmpTable.renderHTML('.'+randID);
+      //$('.' + randID).find('.filterText').focus();
+    });
+  });
 }
