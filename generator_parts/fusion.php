@@ -63,8 +63,6 @@
   // Loop each Table with StateMachine checked create a StateMachine Column
 
   // -------------------- FormData --------------------
-
-  $tabCount = 0;
   $content_tabs = '';
   $content_tabpanels = '';  
   $content_jsObjects = '';
@@ -73,38 +71,47 @@
   // Add Pseudo Element for Dashboard
   $content_tabs .= "            ".
   "<li class=\"nav-item\">
-    <a class=\"nav-link\" href=\"#dashboard\" data-toggle=\"tab\">
+    <a class=\"nav-link active\" href=\"#dashboard\" data-toggle=\"tab\">
       <i class=\"fas fa-tachometer-alt\"></i><span class=\"table_alias ml-2\">Dashboard</span>
     </a>
   </li>\n";
   // Add Pseudo Element for Dashboard
   $content_tabpanels .= "            ".
-    "<div role=\"tabpanel\" class=\"tab-pane\" id=\"dashboard\">".
+    "<div role=\"tabpanel\" class=\"tab-pane show active\" id=\"dashboard\">".
     "  <div id=\"dashboardcontent\"></div>".
     "</div>\n";
 
+  // Database Connection
   $con = DB::getInstance()->getConnection();
-  //$tablePrefix = $db_name;  
+  $con->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION); //Error Handling
+
   //--------------------------------- create RoleManagement
   if ($createRoleManagement) {
     echo "\nCreating Role Management Tables...\n";
-    // Table: Role
-    $con->exec('CREATE TABLE IF NOT EXISTS `Role` (
-      `Role_id` bigint(20) NOT NULL AUTO_INCREMENT,
-      `Role_name` varchar(45) DEFAULT NULL,
-      PRIMARY KEY (`Role_id`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;');
-    // Table: Role_LIAMUSER
-    $con->exec('CREATE TABLE IF NOT EXISTS `Role_LIAMUSER` (
-      `Role_User_id` bigint(20) NOT NULL AUTO_INCREMENT,
-      `Role_id` bigint(20) NOT NULL,
-      `User_id` bigint(20) NOT NULL,
-      PRIMARY KEY (`Role_User_id`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;');
-    // ForeignKeys
-    $con->exec('ALTER TABLE `Role_LIAMUSER` ADD INDEX `Role_id_fk` (`Role_id`)');
-    $con->exec('ALTER TABLE `Role_LIAMUSER` ADD CONSTRAINT `Role_id_fk` FOREIGN KEY (`Role_id`) REFERENCES `Role` (`Role_id`) ON DELETE NO ACTION ON UPDATE NO ACTION');
-
+    try {
+      // Table: Role
+      $con->exec('CREATE TABLE `Role` (
+        `Role_id` bigint(20) NOT NULL AUTO_INCREMENT,
+        `Role_name` varchar(45) DEFAULT NULL,
+        PRIMARY KEY (`Role_id`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8;');
+      // Table: Role_LIAMUSER
+      $con->exec('CREATE TABLE `Role_LIAMUSER` (
+        `Role_User_id` bigint(20) NOT NULL AUTO_INCREMENT,
+        `Role_id` bigint(20) NOT NULL,
+        `User_id` bigint(20) NOT NULL,
+        PRIMARY KEY (`Role_User_id`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8;');
+      // ForeignKeys
+      $con->exec('ALTER TABLE `Role_LIAMUSER` ADD INDEX `Role_id_fk` (`Role_id`)');
+      $con->exec('ALTER TABLE `Role_LIAMUSER` ADD CONSTRAINT `Role_id_fk` FOREIGN KEY (`Role_id`) REFERENCES `Role` (`Role_id`) ON DELETE NO ACTION ON UPDATE NO ACTION');
+      // Insert default Roles
+      $randomID = rand(1000, 10000);
+      $con->exec('INSERT INTO Role (Role_id, Role_name) VALUES ('.$randomID.', \'Administrator\')');
+      $con->exec('INSERT INTO Role (Role_name) VALUES (\'User\')');
+    } catch(PDOException $e) {
+      echo $e->getMessage()."\n";
+    }
   } 
   //--------------------------------- create HistoryTable
   if ($createHistoryTable) {
@@ -119,8 +126,8 @@
       `History_valuenew` LONGTEXT NOT NULL,
       PRIMARY KEY (`History_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8;');
-  }
-
+  }  
+  //---------------------------------
   foreach ($data as $table) {
     // Get Data
     $tablename = $table["table_name"];
@@ -132,16 +139,14 @@
       // Tabs
       $content_tabs .= "            ".
             "<li class=\"nav-item\">
-              <a class=\"nav-link".( $tabCount == 0 ? ' active' : '')."\" href=\"#$tablename\" data-toggle=\"tab\">
+              <a class=\"nav-link\" href=\"#$tablename\" data-toggle=\"tab\">
                 ".$table["table_icon"]."<span class=\"table_alias ml-2\">".$table["table_alias"]."</span>
               </a>
             </li>\n";
-
       // TabPanes
       $content_tabpanels .= "            ".
-        "<div role=\"tabpanel\" class=\"tab-pane".( $tabCount == 0 ? ' show active' : '')."\" id=\"$tablename\">".
+        "<div role=\"tabpanel\" class=\"tab-pane\" id=\"$tablename\">".
         "<div class=\"table_$tablename\"></div></div>\n";
-
       // Init a JS-Object
       $tableVarName = "tbl_$tablename";
       $content_jsObjects .= "      let $tableVarName = new Table('$tablename', 0, function(){
@@ -149,12 +154,9 @@
         $tableVarName.loadRows(function(){ $tableVarName.renderHTML('.table_$tablename'); });
       });\n";
     }
-    $tabCount += 1;
     //---/Create HTML Content
 
     // TODO: Check if the "table" is no view
-
-
 
     //==================================================================== STORED PROCEDURE
     //--- Create a stored procedure for each Table
@@ -506,26 +508,23 @@ END";
 
   // ----------------------- Config File generator
   function generateConfig($dbUser, $dbPass, $dbServer, $dbName, $urlAPI, $urlLogin, $secretKey, $machineToken) {
-    return  '<?php
-    //  APMS Generated Project ('.date("Y-m-d H:i:s").')
+    return  "<?php
+    //  APMS Generated Project (".date("Y-m-d H:i:s").")
     //  ==================================================
-  
-    // Database
-    define("DB_USER", "'.$dbUser.'");
-    define("DB_PASS", "'.$dbPass.'");
-    define("DB_HOST", "'.$dbServer.'");
-    define("DB_NAME", "'.$dbName.'");
-  
-    // Authentication + API
-    define("API_URL", "'.$urlAPI.'"); // URL from the API where all requests are sent
-    define("API_URL_LIAM", "'.$urlLogin.'"); // URL from Authentication-Service which returns JWT Token    
-    define("AUTH_KEY", "'.$secretKey.'"); // AuthKey which also has to be known by the Authentication-Service
-    define("MACHINE_TOKEN", "'.$machineToken.'"); // Machine-Token for internal API Calls
-  
-    // WhiteLists for getFile
-    // @define("WHITELIST_PATHS", array("ordner/test/", "ordner/"));
-    // @define("WHITELIST_TYPES", array("pdf", "doc", "txt"));
-  ?>';
+    //-- Database
+    define('DB_USER', '$dbUser');
+    define('DB_PASS', '$dbPass');
+    define('DB_HOST', '$dbServer');
+    define('DB_NAME', '$dbName');
+    //-- Authentication + API
+    define('API_URL', '$urlAPI'); // URL from the API where all requests are sent
+    define('API_URL_LIAM', '$urlLogin'); // URL from Authentication-Service which returns JWT Token    
+    define('AUTH_KEY', '$secretKey'); // AuthKey which also has to be known by the Authentication-Service
+    define('MACHINE_TOKEN', '$machineToken'); // Machine-Token for internal API Calls
+    //-- WhiteLists for getFile Command
+    // @define('WHITELIST_PATHS', array('ordner/test/', 'ordner/'));
+    // @define('WHITELIST_TYPES', array('pdf', 'doc', 'txt'));
+  ?>";
   }  
   function createSubDirIfNotExists($dirname) {
     if (!is_dir($dirname))
@@ -555,10 +554,7 @@ END";
     // JavaScript
     createFile($project_dir."/js/main.js", $output_JS);
     if (!file_exists($project_dir."/js/custom.js"))
-      createFile(
-        $project_dir."/js/custom.js",
-        "// Custom JS\ndocument.getElementById('dashboardcontent').innerHTML = '<h1>Dashboard</h1>';"
-      );
+      createFile($project_dir."/js/custom.js", "// Custom JS\ndocument.getElementById('dashboardcontent').innerHTML = '<h1>Dashboard</h1>';");
     // Styles
     createFile($project_dir."/css/main.css", $output_css);
     if (!file_exists($project_dir."/css/custom.css"))

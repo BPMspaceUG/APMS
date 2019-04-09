@@ -988,7 +988,7 @@ class Table extends RawTable {
             return entityMap[s];
         });
     }
-    formatCell(cellContent, isHTML = false) {
+    formatCell(colname, cellContent, isHTML = false) {
         if (isHTML)
             return cellContent;
         let t = this;
@@ -1009,7 +1009,8 @@ class Table extends RawTable {
             Object.keys(cellContent).forEach(c => {
                 let val = cellContent[c];
                 if (nrOfCells > 1 && cnt == 0) {
-                    const fTablename = t.Columns[c].foreignKey.table;
+                    // TODO!!!!
+                    const fTablename = t.Columns[colname].foreignKey.table;
                     content += '<td style="max-width: 50px; width: 50px;" class="border-0 controllcoulm align-middle" onclick="gEdit(\'' + fTablename + '\', ' + val + ')"><i class="far fa-edit"></i></td>';
                     cnt += 1;
                     return;
@@ -1028,7 +1029,7 @@ class Table extends RawTable {
                 else {
                     // -- HTML
                     if (val)
-                        content += '<td class="border-0" style="width: ' + split + '%">' + this.formatCell(val, true) + '</td>';
+                        content += '<td class="border-0" style="width: ' + split + '%">' + this.formatCell(colname, val, true) + '</td>';
                     else
                         content += '<td class="border-0">&nbsp;</td>';
                 }
@@ -1107,7 +1108,7 @@ class Table extends RawTable {
         }
         //--- OTHER
         const isHTML = t.Columns[col].is_virtual || t.Columns[col].field_type == 'htmleditor';
-        value = t.formatCell(value, isHTML);
+        value = t.formatCell(col, value, isHTML);
         return value;
     }
     htmlHeaders(colnames) {
@@ -1731,7 +1732,14 @@ $(document).on('hidden.bs.modal', '.modal', function () {
 // Show the actual Tab in the URL and also open Tab by URL
 $(function () {
     let hash = window.location.hash;
+    console.log(hash);
     hash && $('ul.nav a[href="' + hash + '"]').tab('show');
+    console.log(hash);
+    // No Hash -> select first tab
+    if (hash.length == 0) {
+        console.log('Select Dashboard');
+    }
+    // Change Link if Tab is clicked
     $('.nav-tabs a').click(function (e) {
         $(this).tab('show');
         const scrollmem = $('body').scrollTop() || $('html').scrollTop();
@@ -1781,7 +1789,8 @@ function test(x) {
     fkInput.val(''); // Reset Selection
     me.parent().parent().parent().find('.external-table').replaceWith('<div class="' + randID + '"></div>');
     let tmpTable = new Table(FKTable, 1, function () {
-        tmpTable.setColumnFilter('state_id', '6');
+        // TODO: Set Filter
+        //tmpTable.setColumnFilter('state_id', '6');
         // Load
         tmpTable.loadRows(function () {
             return __awaiter(this, void 0, void 0, function* () {
