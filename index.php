@@ -278,7 +278,7 @@
 
                     <!-- Visibility / Mode -->
                     <td colspan="2" class="align-middle">
-                      <select class="custom-select custom-select-sm" ng-model="col.mode_form">
+                      <select class="custom-select custom-select-sm" ng-model="col.mode_form" ng-if="!col.is_primary && colname != 'state_id'">
                         <option value="rw">RW</option>
                         <option value="ro">RO</option>
                         <option value="hi">HI</option>

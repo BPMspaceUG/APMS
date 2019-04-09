@@ -1153,11 +1153,8 @@ class Table extends RawTable {
     // Pre fill with 1 because of selector
     if (t.GUIOptions.showControlColumn)
       th = `<th class="border-0 align-middle text-center text-muted" scope="col">
-        ${
-          t.selType == SelectType.Single ?
-          '<i class="fa fa-link"></i>' :
-          (t.TableType == TableType.obj ? '<i class="fa fa-cog"></i>' : '<i class="fa fa-link"></i>')
-        }
+        ${t.selType == SelectType.Single ? '<i class="fa fa-link"></i>' :
+          (t.TableType == TableType.obj ? '<i class="fa fa-cog"></i>' : '<i class="fa fa-link"></i>')}
       </th>`;
 
     // Loop Columns
@@ -1165,7 +1162,9 @@ class Table extends RawTable {
       if (t.Columns[colname].show_in_grid) {
         //--- Alias (+Sorting)
         const ordercol = t.OrderBy.replace('a.', '');
-        th += '<th scope="col" data-colname="'+colname+'" class="border-0 p-0 align-middle datatbl_header'+(colname == ordercol ? ' sorted' : '')+'">'+
+        th += `<th scope="col" data-colname="${colname}" ${
+          t.Columns[colname].is_primary ? 'style="max-width:120px;width:120px;" ' : ''
+        }class="border-0 p-0 align-middle datatbl_header${colname == ordercol ? ' sorted' : ''}">`+
         // Title
         '<div class="float-left pl-1 pb-1">' + t.Columns[colname].column_alias + '</div>' +
         // Sorting

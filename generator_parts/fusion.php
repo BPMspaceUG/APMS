@@ -82,11 +82,10 @@
     "</div>\n";
 
   // Database Connection
-  $con = DB::getInstance()->getConnection();
-  $con->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION); //Error Handling
-
+  $con = DB::getInstance()->getConnection();  
   //--------------------------------- create RoleManagement
   if ($createRoleManagement) {
+    $con->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION); //Error Handling
     echo "\nCreating Role Management Tables...\n";
     try {
       // Table: Role
@@ -112,6 +111,7 @@
     } catch(PDOException $e) {
       echo $e->getMessage()."\n";
     }
+    $con->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_SILENT); //Error Handling off
   } 
   //--------------------------------- create HistoryTable
   if ($createHistoryTable) {
@@ -244,16 +244,29 @@
     }
 
     // Prepare for SP -> add prefixes/aliases for each column
-    $stdColText = implode(", ", $stdcols);    
+    // IF(JSON_UNQUOTE(JSON_EXTRACT(a_____state_id.form_data, '$.demo_order_person_name.mode_form')) = 'hi', null, a.demo_order_person_name) AS demo_order_person_name,
+    $stdColText = ''; //implode(",\n", $stdcols);
+    foreach ($stdcols as $stdcol) {
+      $parts = explode('.', $stdcol);
+      $cname = end($parts);
+      if ($se_active && !$table["columns"][$cname]["is_primary"] && $cname != 'state_id') { 
+        $stdColText .= "IF(JSON_UNQUOTE(JSON_EXTRACT(a_____state_id.form_data, '$.$cname.mode_form')) = 'hi', NULL, $stdcol) AS $cname,\n";
+      } else {
+        $stdColText .= $stdcol.",\n";
+      }
+    }
+    $stdColText = substr($stdColText, 0, -2);
+
+
     $joinTables = implode("", $jointexts);
 
     //---- Select
     $select = $stdColText;
     if (count($virtualcols) > 0) {
-      $select .= ', '.implode(", ", $virtualcols);
+      $select .= ",\n".implode(",\n", $virtualcols);
     }
     if (count($joincolsubst) > 0) {
-      $select .= ', '.implode(", ", $joincolsubst);
+      $select .= ",\n".implode(",\n", $joincolsubst);
     }
     //--- order by text
     $orderByText = '';
@@ -631,6 +644,7 @@ END";
           exit();
         }
         // Success
+        //echo var_export($token, true); // for debugging
         require_once("'.$db_name.'.inc.html");
       ?>';
     } else
