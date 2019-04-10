@@ -293,8 +293,12 @@
     foreach ($stdcols as $col) {
       $parts = explode('.', $col);
       $colname = end($parts);
-      $filtercustomVars .= "SET @s$colname = IFNULL(JSON_UNQUOTE(JSON_EXTRACT(search, '$.columns.$colname')), '');\n";
-      $filtercustom .= "AND (CONCAT(@s$colname, $col) IS NULL OR $col LIKE CONCAT('%',@s$colname,'%'))\n";
+      $filtercustomVars .= "SET @s$colname = JSON_UNQUOTE(JSON_EXTRACT(search, '$.columns.$colname'));\n";
+      // if type is string then like, if type is INT || primary || state_id then excactly
+      if ($table["columns"][$colname]["is_primary"])
+        $filtercustom .= "AND (CONCAT(@s$colname, $col) IS NULL OR $col LIKE @s$colname)\n";
+      else
+        $filtercustom .= "AND (CONCAT(@s$colname, $col) IS NULL OR $col LIKE CONCAT('%',@s$colname,'%'))\n";
     }
     $filtercustomVars = substr($filtercustomVars, 0, -1);
     $filtercustom = substr($filtercustom, 0, -1);
@@ -426,14 +430,14 @@ END";
         $v += 5;
         $tmpStateID = $state['id'];
         if ($table_type == 'obj') {
-          // Generate color
-          $state_css = getStateCSS($tmpStateID, "hsl($initColorHue, 50%, $v%)");
+          // Object Table          
+          $state_css = getStateCSS($tmpStateID, "hsl($initColorHue, 50%, $v%)"); // Generate color
         } else {
-          // NM Table
-          if ($v == 20) //$state_css = ".state$tmpStateID {background-color: #328332;}\n"; // Selected
-            $state_css = getStateCSS($tmpStateID, "#328332");
+          // Relation Table
+          if (strpos($state['name'], 'unselected') === false) // not found
+            $state_css = getStateCSS($tmpStateID, "#328332"); // SELECTED
           else
-            $state_css = getStateCSS($tmpStateID, "#8b0000"); //".state$tmpStateID {background-color: #8b0000;}\n";
+            $state_css = getStateCSS($tmpStateID, "#8b0000"); // UN-SELECTED
         }
         $content_css_statecolors .= $state_css;
       }

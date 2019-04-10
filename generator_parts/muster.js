@@ -1731,13 +1731,7 @@ $(document).on('hidden.bs.modal', '.modal', function () {
 // Show the actual Tab in the URL and also open Tab by URL
 $(function () {
     let hash = window.location.hash;
-    console.log(hash);
     hash && $('ul.nav a[href="' + hash + '"]').tab('show');
-    console.log(hash);
-    // No Hash -> select first tab
-    if (hash.length == 0) {
-        console.log('Select Dashboard');
-    }
     // Change Link if Tab is clicked
     $('.nav-tabs a').click(function (e) {
         $(this).tab('show');

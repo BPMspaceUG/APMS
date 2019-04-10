@@ -31,7 +31,6 @@ class LiteEvent<T> implements ILiteEvent<T> {
   }
 }
 
-
 // Generates GUID for jQuery DOM Handling
 abstract class GUI {
   public static getID = function () {
@@ -56,7 +55,6 @@ abstract class DB {
     // If Params are set, then append them to data object
     if (params)
       data['paramJS'] = params;
-
     // Request (every Request is processed by this function)
     $.ajax({
       method: "POST",
@@ -1777,13 +1775,7 @@ $(document).on('hidden.bs.modal', '.modal', function () {
 // Show the actual Tab in the URL and also open Tab by URL
 $(function(){
   let hash = window.location.hash;
-  console.log(hash);
   hash && $('ul.nav a[href="' + hash + '"]').tab('show');
-  console.log(hash);
-  // No Hash -> select first tab
-  if (hash.length == 0) {
-    console.log('Select Dashboard');
-  }
   // Change Link if Tab is clicked
   $('.nav-tabs a').click(function (e) {
     $(this).tab('show');

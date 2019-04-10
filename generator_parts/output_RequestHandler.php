@@ -76,6 +76,8 @@
     }
     public static function hasColumnFK($tablename, $colname) {
       $allCols = Config::getColsByTablename($tablename);
+      $hasFK = array_key_exists('foreignKey', $allCols[$colname]);
+      if (!$hasFK) return false;
       return $allCols[$colname]['foreignKey']['table'] <> '';
     }
     public static function isValidTablename($tablename) {
@@ -181,6 +183,7 @@
       return true;
     }
     private function parseResultData($stmt) {
+      $result = [];
       while($row = $stmt->fetch(PDO::FETCH_NUM)) {
         $r = [];
         $x = [];
@@ -221,6 +224,7 @@
         }
         $result[] = $x;
       }
+      // Return 
       return $result;
     }
     //======= INIT (Load the configuration to the client)
@@ -336,7 +340,6 @@
       $validParams = ['name', 'inputs'];
       $hasValidParams = $this->validateParamStruct($validParams, $param);
       if (!$hasValidParams) die('Invalid parameters! (allowed are: '.implode(', ', $validParams).')');
-
       $name = $param["name"];
       $inputs = $param["inputs"];
       $inp_count = count($inputs);
@@ -346,11 +349,11 @@
       $keystring = implode(', ', $keys);
       $query = "CALL $name($keystring)";
       // Execute & Fetch
-      $result = array();
       $pdo = DB::getInstance()->getConnection();
       $stmt = $pdo->prepare($query);
       if ($stmt->execute($vals)) {
-        $result = $this->parseResultData($stmt);
+        $result = $this->parseResultData($stmt);        
+        return json_encode($result); // Return result as JSON
       } else {
         // Query-Error
         echo $stmt->queryString."<br>";
@@ -358,8 +361,6 @@
         var_dump($stmt->errorInfo());
         exit();
       }
-      // Return result as JSON
-      return json_encode($result);
     }
     public function read($param) {
       //--------------------- Check Params
