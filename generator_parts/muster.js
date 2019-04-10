@@ -1807,15 +1807,11 @@ function test(x) {
     });
 }
 function gEdit(tablename, RowID) {
-    //alert('Servus! Du willst den Eintrag #' + RowID + ' der Tabelle ' + tablename + ' bearbeiten.');
     let tmpTable = new Table(tablename, 0, function () {
-        // Load
+        // Load Table, load Row
+        tmpTable.setColumnFilter(tmpTable.getPrimaryColname(), RowID);
         tmpTable.loadRows(function () {
-            return __awaiter(this, void 0, void 0, function* () {
-                tmpTable.modifyRow(RowID);
-                //await tmpTable.renderHTML('.'+randID);
-                //$('.' + randID).find('.filterText').focus();
-            });
+            return __awaiter(this, void 0, void 0, function* () { tmpTable.modifyRow(RowID); });
         });
     });
 }

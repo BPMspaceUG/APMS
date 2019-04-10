@@ -172,10 +172,61 @@
       $result = $row['state_id'];
       return $result;
     }
+    private function validateParamStruct($allowed_keys, $param) {
+      if (!is_array($param)) return false;
+      $keys = array_keys($param);
+      foreach ($keys as $k) {
+        if (!in_array($k, $allowed_keys)) return false;
+      }
+      return true;
+    }
+    private function parseResultData($stmt) {
+      while($row = $stmt->fetch(PDO::FETCH_NUM)) {
+        $r = [];
+        $x = [];
+        foreach($row as $idx => $val) {
+          $meta = $stmt->getColumnMeta($idx);            
+          $table = $meta["table"];
+          $col = $meta["name"];
+          //echo "$table.$col -> $val<br>";
+          // Split Table and place into correct place in origin
+          if (strpos($table, '_____') !== FALSE) {
+            // Foreign Table or nested Foreign Table
+            $splited = explode('_____', $table);
+            if (count($splited) == 2) {
+              // Layer 1
+              if (is_array($x[$splited[1]]))
+                $x[$splited[1]][$col] = $val; // Append
+              else {
+                // Convert to array
+                $x[$splited[1]] = array();
+                $x[$splited[1]][$col] = $val; // Append
+              }
+            }
+            elseif (count($splited) == 3) {
+              // Layer 2
+              if (is_array($x[$splited[1]][$splited[2]] ))
+                $x[$splited[1]][$splited[2]][$col] = $val; // Append
+              else {
+                // Convert to array
+                $x[$splited[1]][$splited[2]] = array();
+                $x[$splited[1]][$splited[2]][$col] = $val; // Append
+              }
+            }
+          } else {
+            // Origin Table
+            $x[$col] = $val;
+          }
+          $r[$table][$col] = $val;
+        }
+        $result[] = $x;
+      }
+      return $result;
+    }
     //======= INIT (Load the configuration to the client)
     /*sec*/ public function init($param = null) {
       if (is_null($param))
-        return Config::getConfig();
+        return Config::getConfig(); // return entire config
       else {
         // Send only data from a specific Table
         // Send info: structure (from config) the createForm and Count of all entries
@@ -189,16 +240,13 @@
         // ---- Structure
         $config = json_decode(Config::getConfig(), true);
         $result['config'] = $config[$tablename];
-        // ---- Count
         $result['count'] = json_decode($this->count($param), true)[0]['cnt'];
-        // ---- Forms
         $result['formcreate'] = $this->getFormCreate($param);
-        //$result['formmodify'] = $this->getFormData($param);  
         // Return result as JSON
         return json_encode($result);
       }
     }
-    //================================== CREATE
+    //=======================================================
     public function create($param) {
       // Inputs
       $tablename = $param["table"];
@@ -282,87 +330,36 @@
       // Return
       return json_encode($script_result);
     }
-    //================================== READ & COUNT
-    private function call($param) {
-      $tablename = $param["table"];
-      $keys = [];
-      $vals = [];
-      foreach ($param as $key => $value) {
-        if ($key != "table") { // Exclude tablename
-          $keys[] = '?';
-          $vals[] = $value;
-        }
-      }
-      //$valstring = implode(', ', $vals);
+    public function call($param) {
+      // Strcuture: {name: "sp_table", inputs: ["test", 13, 42, "2019-01-01"]}
+      //--------------------- Check Params
+      $validParams = ['name', 'inputs'];
+      $hasValidParams = $this->validateParamStruct($validParams, $param);
+      if (!$hasValidParams) die('Invalid parameters! (allowed are: '.implode(', ', $validParams).')');
+
+      $name = $param["name"];
+      $inputs = $param["inputs"];
+      $inp_count = count($inputs);
+      // Prepare Query
+      $keys = array_fill(0, $inp_count, '?');
+      $vals = $inputs;
       $keystring = implode(', ', $keys);
-      $query = 'CALL sp_'.$tablename.'('.$keystring.')';
+      $query = "CALL $name($keystring)";
       // Execute & Fetch
       $result = array();
       $pdo = DB::getInstance()->getConnection();
       $stmt = $pdo->prepare($query);
       if ($stmt->execute($vals)) {
-
-        // Query executed successfully
-        while($row = $stmt->fetch(PDO::FETCH_NUM)) {
-          $r = [];
-          $x = [];
-          foreach($row as $idx => $val) {
-            $meta = $stmt->getColumnMeta($idx);            
-            $table = $meta["table"];
-            $col = $meta["name"];
-            //echo "$table.$col -> $val<br>";
-
-            // Split Table and place into correct place in origin
-            if (strpos($table, '_____') !== FALSE) {
-              // Foreign Table or nested Foreign Table
-              $splited = explode('_____', $table);
-
-              if (count($splited) == 2) {
-                // Layer 1
-                if (is_array($x[$splited[1]]))
-                  $x[$splited[1]][$col] = $val; // Append
-                else {
-                  // Convert to array
-                  $x[$splited[1]] = array();
-                  $x[$splited[1]][$col] = $val; // Append
-                }
-              }
-              elseif (count($splited) == 3) {
-                // Layer 2
-                if (is_array($x[$splited[1]][$splited[2]] ))
-                  $x[$splited[1]][$splited[2]][$col] = $val; // Append
-                else {
-                  // Convert to array
-                  $x[$splited[1]][$splited[2]] = array();
-                  $x[$splited[1]][$splited[2]][$col] = $val; // Append
-                }
-              }
-
-            } else {
-              // Origin Table
-              $x[$col] = $val;
-            }
-            $r[$table][$col] = $val;
-          }
-          $result[] = $x;
-        }
-
-
+        $result = $this->parseResultData($stmt);
       } else {
+        // Query-Error
         echo $stmt->queryString."<br>";
         echo json_encode($vals)."<br>";
         var_dump($stmt->errorInfo());
+        exit();
       }
       // Return result as JSON
       return json_encode($result);
-    }
-    private function validateParamStruct($allowed_keys, $param) {
-      if (!is_array($param)) return false;
-      $keys = array_keys($param);
-      foreach ($keys as $k) {
-        if (!in_array($k, $allowed_keys)) return false;
-      }
-      return true;
     }
     public function read($param) {
       //--------------------- Check Params
@@ -415,9 +412,8 @@
       if (!is_null($filter)) {
         $filter = json_encode($filter);
       }
-
-      $p = ['table' => $tablename, 'token' => $token_uid, 'filter' => $filter,
-      'orderby' => 'a.'.$orderby, 'ascdesc' => $ascdesc, 'limitstart' => $limitStart, 'limitsize' => $limitSize];
+      // Prepare Structure
+      $p = ['name' => 'sp_'.$tablename, 'inputs' => [$token_uid, $filter, 'a.'.$orderby, $ascdesc, $limitStart, $limitSize]];
       return $this->call($p);
     }
     public function count($param) {
@@ -433,13 +429,13 @@
       global $token;
       $token_uid = -1;
       if (property_exists($token, 'uid')) $token_uid = $token->uid;
-
-      $res = $this->call(['table' => $tablename, 'token' => $token_uid,
-        'filter' => $filter, 'orderby' => '', 'ascdesc' => 'ASC','limitstart' => 0, 'limitsize' => 1000000]);
+      // Prepare Structure
+      $p = ['name' => 'sp_'.$tablename, 'inputs' => [$token_uid, $filter, '', 'ASC', 1, 1000000]];
+      $res = $this->call($p);
+      // Parse result
       $data = json_decode($res, true);
       return json_encode(array(array('cnt' => count($data))));
     }
-    //================================== UPDATE
     public function update($param, $allowUpdateFromSM = false) {
        // Parameter
       $tablename = $param["table"];
@@ -492,7 +488,6 @@
       // Output
       return $success ? "1" : "0";
     }
-    //================================== DELETE (sec)
     /*sec*/ public function delete($param) {
       //---- NOT SUPPORTED FOR NOW [!]
       die('The Delete-Command is currently not supported!');

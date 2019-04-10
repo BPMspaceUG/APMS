@@ -1849,13 +1849,9 @@ function test(x): void {
   })
 }
 function gEdit(tablename, RowID) {
-  //alert('Servus! Du willst den Eintrag #' + RowID + ' der Tabelle ' + tablename + ' bearbeiten.');
   let tmpTable = new Table(tablename, 0, function(){
-    // Load
-    tmpTable.loadRows(async function(){
-      tmpTable.modifyRow(RowID);
-      //await tmpTable.renderHTML('.'+randID);
-      //$('.' + randID).find('.filterText').focus();
-    });
+    // Load Table, load Row
+    tmpTable.setColumnFilter(tmpTable.getPrimaryColname(), RowID);
+    tmpTable.loadRows(async function(){ tmpTable.modifyRow(RowID); });
   });
 }
