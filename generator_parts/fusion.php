@@ -181,7 +181,7 @@
     $seperator = '_____';
 
     foreach ($colnames as $colname) {
-      $has_FK = ($table["columns"][$colname]["field_type"] == 'foreignkey');      
+      $has_FK = ($table["columns"][$colname]["field_type"] == 'foreignkey');
       // -- Foreign Key
       if ($has_FK) {
         $fk = $table["columns"][$colname]["foreignKey"];
@@ -295,7 +295,7 @@
       $colname = end($parts);
       $filtercustomVars .= "SET @s$colname = JSON_UNQUOTE(JSON_EXTRACT(search, '$.columns.$colname'));\n";
       // if type is string then like, if type is INT || primary || state_id then excactly
-      if ($table["columns"][$colname]["is_primary"])
+      if ($table["columns"][$colname]["is_primary"] || $table["columns"][$colname]["field_type"] == 'foreignkey')
         $filtercustom .= "AND (CONCAT(@s$colname, $col) IS NULL OR $col LIKE @s$colname)\n";
       else
         $filtercustom .= "AND (CONCAT(@s$colname, $col) IS NULL OR $col LIKE CONCAT('%',@s$colname,'%'))\n";

@@ -1,43 +1,27 @@
 <?php
-// (1:N)
-$seSt=STATE_SELECTED;
-$unSt=STATE_UNSELECTED;
-
+// (N:1)
 $data = $param['row'];
-$fks = [];
 $allow = true;
-$isCreateScript = false;
 $keys = array_keys($data);
 $primaryColname = Config::getPrimaryColNameByTablename($tablename);
-// Collect all FKs
-foreach ($keys as $col) {
-    if (Config::hasColumnFK($tablename, $col))
-        $fks[] = $col;
-}
+$isCreateScript = !in_array($primaryColname, $keys); // create-script => if Primary-Column does not exist in row
+$fks = [];
+// Collect all FKs from Relation-Table
+foreach ($keys as $col) { if (Config::hasColumnFK($tablename, $col)) $fks[] = $col; }
 $fkcol_1st = $fks[0];
 $fkcol_2nd = $fks[1];
 $myID1 = $data[$fkcol_1st];
 $myID2 = $data[$fkcol_2nd];
-
 // Read all Rows
-$allRows = api(['cmd' => 'read', 'paramJS' => [
-    'table' => $tablename,
-    'where' => 'a.'.$fkcol_2nd.' = '.$myID2
-]]);
-// Check if this is a create-script => Primary Column does not exist in row
-if (!in_array($primaryColname, $keys))
-    $isCreateScript = true;
-    
+$filter = ['columns' => [$fkcol_2nd => $myID2]]; // the N part
+$allRows = api(['cmd' => 'read', 'paramJS' => ['table' => $tablename, 'filter' => $filter]]);
 $json = json_decode($allRows, true);
-
 // Unselect all Transitions
 foreach ($json as $row) {
     $ID = $row[$primaryColname];
-    // Set Row to unselected
     api(['cmd' => 'makeTransition', 'paramJS' => [
-        'table' => $tablename,
-        'row' => [$primaryColname => $ID, 'state_id' => $unSt]
-    ]]);
+        'table' => $tablename, 'row' => [$primaryColname => $ID, 'state_id' => STATE_UNSELECTED
+    ]]]);
 }
 // If already exists -> set to selected
 foreach ($json as $row) {
@@ -48,16 +32,10 @@ foreach ($json as $row) {
     // Check if already exists
     if ($isCreateScript && $row[$fkcol_1st][$k1] == $myID1 && $row[$fkcol_2nd][$k2] == $myID2) {
         // Set Row to selected
-        api(['cmd' => 'makeTransition', 'paramJS' => [
-            'table' => $tablename,
-            'row' => [$primaryColname => $ID, 'state_id' => $seSt]
-        ]]);
+        api(['cmd' => 'makeTransition', 'paramJS' => ['table' => $tablename, 'row' => [$primaryColname => $ID, 'state_id' => STATE_SELECTED]]]);
         $allow = false;
         break;
     }
 }
-$script_result = array(
-    "allow_transition" => $allow,
-    "show_message" => false,
-    "message" => "RelationActivationCompleteCloseTheModal"
-);
+//-----------------------Output
+$script_result = ["allow_transition" => $allow, "show_message" => false, "message" => "RelationActivationCompleteCloseTheModal"];

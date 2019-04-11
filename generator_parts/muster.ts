@@ -456,7 +456,7 @@ class Table extends RawTable {
   private readonly onSelectionChanged = new LiteEvent<void>();
   private readonly onEntriesModified = new LiteEvent<void>(); // Created, Deleted, Updated
 
-  constructor(tablename: string, SelType: SelectType = SelectType.NoSelect, callback: any = function(){}, defaultObj = {}) {
+  constructor(tablename: string, SelType: SelectType = SelectType.NoSelect, callback: any = function(){}, defaultObj = {}, initFilter: any = {}) {
     super(tablename); // Call parent constructor
 
     let me = this;
@@ -468,10 +468,10 @@ class Table extends RawTable {
     this.PageIndex = 0;
     this.PageLimit = 10;
     this.selectedRow = undefined;
-    this.tablename = tablename
+    this.tablename = tablename;
     this.OrderBy = '';
 
-    DB.request('init', {table: tablename}, function(resp: string) {
+    DB.request('init', {table: tablename, filter: initFilter}, function(resp: string) {
       if (resp.length > 0) {
         resp = JSON.parse(resp);        
         // Save Form Data
@@ -796,12 +796,8 @@ class Table extends RawTable {
 
     const ModalTitle = this.GUIOptions.modalHeaderTextCreate + '<span class="text-muted ml-3">in ' + this.getTableIcon() + ' ' + this.getTableAlias()+'</span>';
     const CreateBtns = `<div class="ml-auto mr-0">
-  <button class="btn btn-success btnCreateEntry andReopen" type="button">
-    </i>&nbsp;${this.GUIOptions.modalButtonTextCreate}
-  </button>
-  <button class="btn btn-outline-success btnCreateEntry ml-1" type="button">
-    ${this.GUIOptions.modalButtonTextCreate} &amp; Close
-  </button>
+  <button class="btn btn-success btnCreateEntry andReopen" type="button">${this.GUIOptions.modalButtonTextCreate}</button>
+  <button class="btn btn-outline-success btnCreateEntry ml-1" type="button">${this.GUIOptions.modalButtonTextCreate} &amp; Close</button>
 </div>`;
 
     //--- Overwrite and merge the differences from diffObject
@@ -995,7 +991,6 @@ class Table extends RawTable {
       }
     }
   }
-
   public getSelectedRowID(): number {
     return this.selectedRow[this.PrimaryColumn];
   }
@@ -1161,7 +1156,7 @@ class Table extends RawTable {
         //--- Alias (+Sorting)
         const ordercol = t.OrderBy.replace('a.', '');
         th += `<th scope="col" data-colname="${colname}" ${
-          t.Columns[colname].is_primary ? 'style="max-width:120px;width:120px;" ' : ''
+          (t.Columns[colname].is_primary || ['state_id', 'state_id_FROM', 'state_id_TO'].indexOf(colname) >= 0) ? 'style="max-width:120px;width:120px;" ' : ''
         }class="border-0 p-0 align-middle datatbl_header${colname == ordercol ? ' sorted' : ''}">`+
         // Title
         '<div class="float-left pl-1 pb-1">' + t.Columns[colname].column_alias + '</div>' +
@@ -1237,12 +1232,14 @@ class Table extends RawTable {
     (t.ReadOnly ? '' : 
       `<!-- Create Button -->
       <button class="btn btn-success btnCreateEntry mr-1">
-        ${ t.TableType != TableType.obj ? '<i class="fa fa-link"></i> Add Relation' : `</i> ${t.GUIOptions.modalButtonTextCreate} ${t.getTableAlias()}`}
+        ${ t.TableType != TableType.obj ?
+          '<i class="fa fa-link"></i><span class="d-none d-md-inline pl-2">Add Relation</span>' : 
+          `<i class="fa fa-plus"></i><span class="d-none d-md-inline pl-2">${t.GUIOptions.modalButtonTextCreate} ${t.getTableAlias()}</span>`}
       </button>`) +
     ( (t.SM && t.GUIOptions.showWorkflowButton) ? 
       `<!-- Workflow Button -->
       <button class="btn btn-info btnShowWorkflow mr-1">
-        <i class="fa fa-random"></i>&nbsp; Workflow
+        <i class="fa fa-random"></i><span class="d-none d-md-inline pl-2">Workflow</span>
       </button>` : '') +
     (t.selType == SelectType.Single ? 
       `<!-- Reset & Expand -->
@@ -1360,7 +1357,7 @@ class Table extends RawTable {
 
     return `<div class="tbl_content ${t.GUID} mt-1 p-0${ ((t.selType == SelectType.Single && !t.isExpanded) ? ' collapse' : '')}">
       ${ (t.Rows && t.Rows.length > 0) ?
-      `<div class="tablewrapper border">
+      `<div class="tablewrapper border table-responsive-md">
         <table class="table table-striped table-hover m-0 table-sm datatbl">
           <thead>
             <tr>${ths}</tr>
@@ -1532,7 +1529,6 @@ class FormGenerator {
     this.oTable = originTable;
     this.oRowID = originRowID;
     this.data = rowData;
-    //console.log('--- New Form was generated!');
   }
   private getElement(key: string, el): string {
     let result: string = '';
@@ -1614,6 +1610,8 @@ class FormGenerator {
       let defValues = {}
       defValues[hideCol] = OriginRowID;
       result += `<div class="${tmpGUID}"></div>`; // Container for Table
+      const tmpFilter = {columns: {}}
+      tmpFilter.columns[hideCol] = OriginRowID;
       //--- Create new Table
       let tmp = new Table(ext_tablename, SelectType.NoSelect,
         function(){
@@ -1628,7 +1626,8 @@ class FormGenerator {
             tmp.renderHTML('.' + tmpGUID);
           })
         },
-        defValues // Default Values
+        defValues, // Default Values
+        tmpFilter
       )
     }
     //--- Quill Editor

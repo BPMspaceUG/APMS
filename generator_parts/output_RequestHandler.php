@@ -182,6 +182,9 @@
       }
       return true;
     }
+    private function isValidFilterStruct($input) {
+      return !is_null($input) && is_array($input) && (array_key_exists('all', $input) || array_key_exists('columns', $input));
+    }
     private function parseResultData($stmt) {
       $result = [];
       while($row = $stmt->fetch(PDO::FETCH_NUM)) {
@@ -374,16 +377,13 @@
       @$ascdesc = isset($param["ascdesc"]) ? $param["ascdesc"] : null; 
       @$orderby = isset($param["orderby"]) ? $param["orderby"] : null; // has to be a column name
       @$filter = isset($param["filter"]) ? $param["filter"] : null;
-
       // Identify via Token
       global $token;
       $token_uid = -1;
       if (property_exists($token, 'uid')) $token_uid = $token->uid;
-
       // Table
       if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
       if (!Config::doesTableExist($tablename)) die('Table does not exist!');
-
       //--- Limit
       if (!is_null($limitStart) && is_null($limitSize)) die("Error in Limit Params (LimitSize is not set)!");
       if (is_null($limitStart) && !is_null($limitSize)) die("Error in Limit Params (LimitStart is not set)!");
@@ -392,10 +392,10 @@
         if (!is_numeric($limitStart)) die("LimitStart is not numeric!");
         if (!is_numeric($limitSize)) die("LimitSize is not numeric!");
       } else {
-        $limitStart = 1;
+        // default: 1000 rows
+        $limitStart = 0;
         $limitSize = 1000;
       }
-
       //--- OrderBy
       if (!is_null($ascdesc) && is_null($orderby)) die("AscDesc can not be set without OrderBy!");
       if (!is_null($orderby)) {
@@ -408,11 +408,9 @@
         elseif ($ascdesc == "desc") $ascdesc == "DESC";
         else die("AscDesc has no valid value (value has to be empty, ASC or DESC)!");
       }
-
       //--- Filter
-      if (!is_null($filter)) {
+      if ($this->isValidFilterStruct($filter))
         $filter = json_encode($filter);
-      }
       // Prepare Structure
       $p = ['name' => 'sp_'.$tablename, 'inputs' => [$token_uid, $filter, 'a.'.$orderby, $ascdesc, $limitStart, $limitSize]];
       return $this->call($p);
@@ -424,14 +422,18 @@
       if (!$hasValidParams) die('Invalid parameters! (allowed are: '.implode(', ', $validParams).')');
       // TODO !!!
       $tablename = $param["table"];
-      $filter = isset($param["filter"]) ? $param["filter"] : '{}';
+      $filter = isset($param["filter"]) ? $param["filter"] : null;
       $filter = json_encode($filter);
       // Identify via Token
       global $token;
       $token_uid = -1;
-      if (property_exists($token, 'uid')) $token_uid = $token->uid;
+      if (property_exists($token, 'uid'))
+        $token_uid = $token->uid;
+      //--- Filter
+      if ($this->isValidFilterStruct($filter))
+        $filter = json_encode($filter);
       // Prepare Structure
-      $p = ['name' => 'sp_'.$tablename, 'inputs' => [$token_uid, $filter, '', 'ASC', 1, 1000000]];
+      $p = ['name' => 'sp_'.$tablename, 'inputs' => [$token_uid, $filter, '', 'ASC', 0, 1000000]];
       $res = $this->call($p);
       // Parse result
       $data = json_decode($res, true);

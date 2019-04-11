@@ -6,28 +6,22 @@ $keys = array_keys($data);
 $primaryColname = Config::getPrimaryColNameByTablename($tablename);
 $isCreateScript = !in_array($primaryColname, $keys); // create-script => if Primary-Column does not exist in row
 $fks = [];
-
 // Collect all FKs from Relation-Table
 foreach ($keys as $col) { if (Config::hasColumnFK($tablename, $col)) $fks[] = $col; }
 $fkcol_1st = $fks[0];
 $fkcol_2nd = $fks[1];
 $myID1 = $data[$fkcol_1st];
 $myID2 = $data[$fkcol_2nd];
-echo $fkcol_1st.' - '.$fkcol_2nd.'<br>';
-
 // Read all Rows
-$filter = ['all' => '', 'columns' => []];
-$filter['columns'][$fkcol_1st] = $myID1; // the N part
-echo var_export($filter, true).'<br>';
+$filter = ['columns' => [$fkcol_1st => $myID1]]; // the N part
 $allRows = api(['cmd' => 'read', 'paramJS' => ['table' => $tablename, 'filter' => $filter]]);
 $json = json_decode($allRows, true);
-
 // Unselect all Transitions
 foreach ($json as $row) {
     $ID = $row[$primaryColname];
-    echo $ID.' --> unselect</br>';
-    // Set Row to unselected
-    api(['cmd' => 'makeTransition', 'paramJS' => ['table' => $tablename, 'row' => [$primaryColname => $ID, 'state_id' => STATE_UNSELECTED]]]);
+    api(['cmd' => 'makeTransition', 'paramJS' => [
+        'table' => $tablename, 'row' => [$primaryColname => $ID, 'state_id' => STATE_UNSELECTED
+    ]]]);
 }
 // If already exists -> set to selected
 foreach ($json as $row) {
@@ -43,8 +37,5 @@ foreach ($json as $row) {
         break;
     }
 }
-$script_result = array(
-    "allow_transition" => $allow,
-    "show_message" => false,
-    "message" => "RelationActivationCompleteCloseTheModal"
-);
+//-----------------------Output
+$script_result = ["allow_transition" => $allow, "show_message" => false, "message" => "RelationActivationCompleteCloseTheModal"];
