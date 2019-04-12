@@ -74,7 +74,7 @@
     // Numbers
     if ($datatype == 'bigint') return 'number';
     elseif ($datatype == 'int') return 'number';
-    elseif ($datatype == 'float') return 'text'; // TODO
+    elseif ($datatype == 'float') return 'float';
     // Boolean
     elseif ($datatype == 'tinyint') return 'switch';
     // Date & Time

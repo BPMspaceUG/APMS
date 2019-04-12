@@ -1109,6 +1109,16 @@ class Table extends RawTable {
         value = '';
       return value;
     }
+    else if (t.Columns[col].field_type == 'number') {
+      //--- INTEGER / Number
+      const number = parseInt(value);
+      return number.toLocaleString('de-DE');
+    }
+    else if (t.Columns[col].field_type == 'float') {
+      //--- FLOAT
+      const number = parseFloat(value);
+      return number.toLocaleString('de-DE');
+    }
     else if (t.Columns[col].field_type == 'switch' || t.Columns[col].field_type == 'checkbox') {
       //--- BOOLEAN
       return parseInt(value) !== 0 ? '<i class="fa fa-check text-success "></i>' : '<i class="fa fa-times text-danger"></i>'
@@ -1322,7 +1332,6 @@ class Table extends RawTable {
       if (t.selectedRow) {
         isSelected = (t.selectedRow[t.PrimaryColumn] == RowID);
       }
-
       // [Control Column] is set then Add one before each row
       if (t.GUIOptions.showControlColumn) {
         data_string = `<td scope="row" class="controllcoulm modRow align-middle border-0" data-rowid="${row[t.PrimaryColumn]}">
@@ -1331,14 +1340,12 @@ class Table extends RawTable {
           }
         </td>`;
       }
-
       // Generate HTML for Table-Data Cells sorted
       sortedColumnNames.forEach(function(col) {
         // Check if it is displayed
         if (t.Columns[col].show_in_grid) 
           data_string += '<td class="align-middle p-0 border-0">' + t.renderCell(row, col) + '</td>';
       })
-
       // Add row to table
       if (t.GUIOptions.showControlColumn) {
         // Edit via first column
@@ -1549,6 +1556,13 @@ class FormGenerator {
       result += `<input name="${key}" type="number" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
         value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
     }
+    //--- Float
+    else if (el.field_type == 'float') {
+      // TODO:
+      el.value = parseFloat(el.value).toFixed(2); 
+      result += `<input name="${key}" type="text" id="inp_${key}" class="form-control inpFloat${el.mode_form == 'rw' ? ' rwInput' : ''}"
+      value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
+    }
     //--- Time
     else if (el.field_type == 'time') {
       result += `<input name="${key}" type="time" id="inp_${key}" class="form-control${el.mode_form == 'rw' ? ' rwInput' : ''}"
@@ -1674,8 +1688,15 @@ class FormGenerator {
       let value = undefined;
       //--- Format different Types
       // Checkbox
-      if (type == 'checkbox')
+      if (type == 'checkbox') {
         value = inp.is(':checked') ? 1 : 0;
+      }
+      else if (type == 'text' && inp.hasClass('inpFloat')) {
+        // TODOO!!!!!
+        const input = inp.val().replace(',', '.');
+        value = parseFloat(input);
+        console.log(input, '-->', value);
+      } 
       // DateTime
       else if (type == 'time' && inp.hasClass('dtm')) {
         if (key in result) // if key already exists in result

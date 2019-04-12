@@ -251,7 +251,8 @@
                           <option value="password">Password</option>
                         </optgroup>
                         <optgroup label="Numbers">
-                          <option value="number">Number (Integer)</option>
+                          <option value="number">Integer</option>
+                          <option value="float">Float</option>
                         </optgroup>
                         <optgroup label="Boolean">
                           <option value="switch">Switch</option>

@@ -8,23 +8,35 @@
   // Global function for StateMachine
   function api($data) {
     $url = API_URL;
+    $token = MACHINE_TOKEN;
+
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
     curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_VERBOSE, true);
     $headers = array();
     //JWT token for Authentication
-    $headers[] = 'Cookie: token='.MACHINE_TOKEN;
+    $headers[] = 'Cookie: token='.$token;
     if ($data) {
       $json = json_encode($data);
       curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
       $headers[] = 'Content-Type: application/json';
-      $headers[] = 'Content-Length: ' . strlen($json);
+      $headers[] = 'Content-Length: '.strlen($json);
     }
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    return curl_exec($ch);
+    $verbose = fopen('php://temp', 'w+');
+    curl_setopt($ch, CURLOPT_STDERR, $verbose);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    $result = curl_exec($ch);
+    // Debug Info
+    if ($result === FALSE)
+      printf("cUrl error (#%d): %s<br>\n", curl_errno($ch), htmlspecialchars(curl_error($ch)));
+    rewind($verbose);
+    $verboseLog = stream_get_contents($verbose);
+    return $result;
   }
-
 
   class Config {
     public static function getConfig() {
