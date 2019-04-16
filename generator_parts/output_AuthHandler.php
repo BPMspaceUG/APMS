@@ -194,7 +194,6 @@ class JWT
 	/** 
 	 * Get header Authorization
 	 * */
-	/*
 	public static function getAuthorizationHeader(){
 		$headers = null;
 		if (isset($_SERVER['Authorization'])) {
@@ -213,7 +212,7 @@ class JWT
 		}
 		return $headers;
 	}
-	public static function getBearerToken() {
+	public static function getBearerTokenViaHeader() {
 		$headers = JWT::getAuthorizationHeader();
 		// HEADER: Get the access token from the header
 		if (!empty($headers)) {
@@ -223,12 +222,14 @@ class JWT
 		}
 		return null;
 	}
-	*/
 	// Get Token from Cookie
 	public static function getBearerToken() {
+		// via Cookie
 		if (isset($_COOKIE['token']))
 			return $_COOKIE['token'];
-	  	return null;
+		// via Header
+		$token = JWT::getBearerTokenViaHeader();
+	  	return $token;
 	}
 }
 ?>

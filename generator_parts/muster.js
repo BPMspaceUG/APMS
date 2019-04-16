@@ -509,10 +509,11 @@ class Table extends RawTable {
     }
     renderEditForm(RowID, diffObject, ExistingModal = undefined) {
         let t = this;
-        let TheRow = null;
-        // get The Row
-        this.Rows.forEach(row => { if (row[t.PrimaryColumn] == RowID)
-            TheRow = row; });
+        let TheRow;
+        t.Rows.forEach(row => {
+            if (row[t.PrimaryColumn] == RowID)
+                TheRow = row;
+        });
         //--- Overwrite and merge the differences from diffObject
         let defaultFormObj = t.getDefaultFormObject();
         let newObj = mergeDeep({}, defaultFormObj, diffObject);
@@ -535,9 +536,9 @@ class Table extends RawTable {
         newForm.initEditors();
         let btns = '';
         let saveBtn = '';
-        let actStateID = TheRow.state_id['state_id']; // ID
-        let actStateName = TheRow.state_id['name']; // ID
-        let cssClass = ' state' + actStateID;
+        const actStateID = TheRow.state_id['state_id'];
+        const actStateName = TheRow.state_id['name'];
+        const cssClass = ' state' + actStateID;
         const nexstates = t.SM.getNextStates(actStateID);
         // Check States -> generate Footer HTML
         if (nexstates.length > 0) {
@@ -569,8 +570,9 @@ class Table extends RawTable {
             // Footer
             btns += '</div></div>';
             // Save buttons
+            // Reset html if only Save button exists
             if (cnt_states == 0)
-                btns = '<button type="button" class="btn ' + cssClass + ' text-white" tabindex="-1" disabled>' + actStateName + '</button>'; // Reset html if only Save button exists      
+                btns = '<button type="button" class="btn ' + cssClass + ' text-white" tabindex="-1" disabled>' + actStateName + '</button>';
         }
         else {
             // No Next States
@@ -588,11 +590,6 @@ class Table extends RawTable {
             // Set new State
             t.setState(newForm.getValues(), RowID, { state_id: TargetStateID, name: TargetStateName }, M, closeModal);
         });
-        //newForm.todo_setValues();
-        //$('#' + M.getDOMID() + ' .label-state').addClass('state' + actStateID).text(TheRow.state_id[1]);    
-        //$('#' + M.getDOMID() + ' .inputFK').data('origintable', t.tablename); // Save origin Table in all FKeys
-        //$('#' + M.getDOMID() + ' .modal-body').append('<input type="hidden" name="'+t.PrimaryColumn+'" value="'+RowID+'">'); // Add PrimaryID in stored Data
-        //t.writeDataToForm('#' + M.getDOMID(), TheRow); // Load data from row and write to input fields with {key:value}    
         //--- finally show Modal if it is a new one
         if (M)
             M.show();
@@ -675,22 +672,22 @@ class Table extends RawTable {
             messages.reverse(); // like the process => [Out, Transit, In]
             // Check if Transition was successful
             if (counter == 3) {
-                // Refresh Form-Data if Modal exists        
-                if (myModal) {
-                    t.getFormModify(data, function (r) {
-                        if (r.length > 0) {
-                            const diffObject = JSON.parse(r); // Refresh Form-Content              
-                            t.renderEditForm(RowID, diffObject, myModal); // The circle begins again
-                        }
-                    });
-                }
                 // Mark rows
                 if (RowID != 0)
                     t.lastModifiedRowID = RowID;
-                // Reload all rows
+                // Reload all rows (Important!!! because of relation tables!)
                 t.loadRows(function () {
                     t.renderContent();
                     t.onEntriesModified.trigger();
+                    // Refresh Form-Data if Modal exists
+                    if (myModal) {
+                        t.getFormModify(data, function (r) {
+                            if (r.length > 0) {
+                                const diffObject = JSON.parse(r); // Refresh Form-Content
+                                t.renderEditForm(RowID, diffObject, myModal); // The circle begins again
+                            }
+                        });
+                    }
                     // close Modal if it was save and close
                     if (myModal && closeModal)
                         myModal.close();
@@ -1341,11 +1338,7 @@ class Table extends RawTable {
                         break;
                     }
                 }
-                //let PrimaryColumn: string = t.PrimaryColumn;
-                //let data = {};
-                //data[PrimaryColumn] = RowID;
-                let nextstates = t.SM.getNextStates(Row['state_id'].state_id);
-                //jQRow.find('.dropdown-menu').html('<p class="m-0 p-3 text-muted"><i class="fa fa-times"></i> No transition possible</p>');
+                const nextstates = t.SM.getNextStates(Row['state_id'].state_id);
                 // Any Target States?
                 if (nextstates.length > 0) {
                     jQRow.find('.dropdown-menu').empty();
