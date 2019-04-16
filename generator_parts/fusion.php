@@ -135,7 +135,7 @@
     $table_type = $table["table_type"];    
 
     //--- Create HTML Content
-    if ($table["is_in_menu"]) {
+    if ($table["mode"] != 'hi') {
       // Tabs
       $content_tabs .= "            ".
             "<li class=\"nav-item\">
@@ -606,8 +606,8 @@ END";
           $thisHost = (isset($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] === "on" ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
           $thisPath = parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH);
           $actual_link = $thisHost.$thisPath;
-          //die($actual_link);
-
+          setcookie("token", "", time()-3600); // Delete cookies
+          
           if ($error == "") {
             header("Location: ".Config::getLoginSystemURL()."?origin=".$actual_link);
             exit();

@@ -281,11 +281,6 @@ APMS.controller('APMScontrol', function ($scope, $http) {
     }
     tbl.showKids = !tbl.showKids;
   }
-  $scope.tbl_toggle_sel_all = function() {
-    $scope.tables.forEach(function(t){
-      t.is_in_menu = !t.is_in_menu;
-    })
-  }
   $scope.cntTables = function() {
     return Object.keys($scope.tables).length;
   }

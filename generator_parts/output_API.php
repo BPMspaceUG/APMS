@@ -34,6 +34,7 @@
   } catch (Exception $e) {
     die('Error: Invalid data sent to API');
   }
+  
   // Handle the Requests
   if ($command != "") {
     $RH = new RequestHandler();

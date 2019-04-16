@@ -212,8 +212,7 @@
         "table_alias" => $table_alias,
         "table_type" => $table == 'state_rules' ? 'n_m' : 'obj', // Default = Object
         "order" => (int)$table_counter,
-        "is_in_menu" => true,
-        "is_read_only" => false,
+        "mode" => 'rw',
         "se_active" => $TableHasStateMachine,
         "columns" => $columns
       );

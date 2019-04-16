@@ -34,12 +34,8 @@ class LiteEvent<T> implements ILiteEvent<T> {
 // Generates GUID for jQuery DOM Handling
 abstract class GUI {
   public static getID = function () {
-    // Math.random should be unique because of its seeding algorithm.
-    // Convert it to base 36 (numbers + letters), and grab the first 9 characters
-    // after the decimal.
     function chr4(){ return Math.random().toString(16).slice(-4); }
     return chr4() + chr4() + chr4() + chr4() + chr4() + chr4() + chr4() + chr4();
-    //return Math.random().toString(36).substr(2, 9);
   };
 }
 
@@ -53,14 +49,21 @@ abstract class DB {
     let me = this;
     let data = {cmd: command}
     // If Params are set, then append them to data object
-    if (params)
-      data['paramJS'] = params;
+    if (params) data['paramJS'] = params;
     // Request (every Request is processed by this function)
     $.ajax({
       method: "POST",
       url: me.API_URL,
       contentType: 'json',
-      data: JSON.stringify(data)
+      data: JSON.stringify(data),
+      error: function(xhr, status) {
+        // Not Authorized
+        if (xhr.status == 401) {
+          document.location.assign('login.php') // Redirect to Login-Page
+        } else if (xhr.status == 403) {
+          alert("Sorry! You dont have the rights to do this.");
+        }
+      }
     }).done(function(response) {
       callback(response)
     });
@@ -149,166 +152,129 @@ class Modal {
 //==============================================================
 class StateMachine {
   private myTable: Table;
-
-  constructor(table: Table){
-    this.myTable = table
-  }
-  public openSEPopup() {
-    let smLinks, smNodes;
-    let me = this;
-    const tablename = me.myTable.getTablename();
+  private myStates: any;
+  private myLinks: any;
   
-    DB.request('getStates', {table: tablename}, function(r) {
-      smNodes = JSON.parse(r)
-      DB.request('smGetLinks', {table: tablename}, function(r) {
-        smLinks = JSON.parse(r);
-        // Finally, when everything was loaded, show Modal
-        let M = new Modal(
-          '<i class="fa fa-random"></i> Workflow <span class="text-muted ml-3">of '+ me.myTable.getTableIcon() +' '+ me.myTable.getTableAlias() +'</span>',
-          '<div class="statediagram" style="width: 100%; height: 300px;"></div>',
-          '<button class="btn btn-secondary fitsm"><i class="fa fa-expand"></i> Fit</button>',
-          true
-        )
-        let container =  document.getElementsByClassName('statediagram')[0]
-        const idOffset = 10000;
-
-        for (let i=0; i<smNodes.length; i++) {
-          smNodes[i].id = parseInt(smNodes[i].id) + idOffset;
-        }
-        for (let i=0; i<smLinks.length; i++) {
-          smLinks[i].from = parseInt(smLinks[i].from) + idOffset
-          smLinks[i].to = parseInt(smLinks[i].to) + idOffset
-        }
-
-        let nodes = smNodes
-        let edges = smLinks
-
-        for (let i=0; i<nodes.length; i++) {
-
-          //--- Add EntryPoint Node and Edge
-          if (nodes[i].entrypoint == 1) {
-            nodes.push({id: i+1, color: '#5c5',  shape: 'dot', size: 10});
-            edges.push({from: i+1, to: nodes[i].id})
-          }
-
-          const isExitNode = me.isExitNode(nodes[i].id, smLinks);
-          const cssClass = 'state' + (nodes[i].id - idOffset);
-
-          const element = $('<div class="' + cssClass + ' delete-this-div"></div>').appendTo('html');
-          const colBG = element.css("background-color");
-          const colFont = element.css("color");
-          $('.delete-this-div').remove(); // Delete the divs
-
-          
-          if (isExitNode) {
-            // Exit Node
-            nodes[i]['color'] = colBG;
-            nodes[i]['shape'] = 'dot';
-            nodes[i]['size'] = 10;
-            nodes[i]['font'] = { multi: 'html', color: 'black'};
-            nodes[i]['title'] = 'StateID: ' + (nodes[i].id - idOffset);
-          }
-          // every node, except 0 node
-          if (nodes[i].id >= idOffset && !isExitNode) {
-            // Get color
-            nodes[i]['font'] = { multi: 'html', color: colFont};
-            nodes[i]['color'] = colBG;
-            nodes[i]['title'] = 'StateID: ' + (nodes[i].id - idOffset);
-          }
-        }
-      
-        let data = {
-          nodes: nodes,
-          edges: edges
-        };
-        let options = {
-          edges: {
-            //smooth: { 'type': 'straightCross', 'forceDirection': 'horizontal'},
-            color: {color: '#888888'},
-            shadow: true,
-            length: 100,
-            arrows: 'to',
-            arrowStrikethrough: true,
-            dashes: false,
-            smooth: {
-              //'enabled': true,
-              //"type": "cubicBezier",
-              //"forceDirection": "horizontal"
-              //"roundness": 1// 0.2
-            }
-          },
-          nodes: {
-            shape: 'box',
-            //color: {background: 'white', border: '#333'},
-            margin: 20,
-            heightConstraint: {
-              minimum: 40
-            },
-            widthConstraint: {
-              minimum: 80,
-              maximum: 200
-            },
-            borderWidth: 0,
-            size: 24,
-            /*
-            color: {
-              border: '#fff',
-              background: '#fff'
-            },
-            */
-            font: {color: '#888888', size: 16},
-            shapeProperties: {
-              useBorderWithImage: false
-            },
-            scaling: {min: 10, max: 30},
-            fixed: {x: false, y: false}
-          },
-          layout: {
-            improvedLayout:true,
-            hierarchical: {
-              enabled: true,
-              direction: 'LR',
-              nodeSpacing: 200,
-              levelSeparation: 225,
-              blockShifting: false,
-              edgeMinimization: false,
-              parentCentralization: false,
-              sortMethod: 'directed'
-            }
-          },
-          physics: {
-            enabled: false
-          },
-          interaction: {
-            /*zoomView:false,*/
-            //dragNodes:false
-            /*dragView: false*/
-          }
-        };
-
-        let network = new vis.Network(container, data, options);
-        M.show()
-        let ID = M.getDOMID();
-        $('#' + ID).on('shown.bs.modal', function (e) {
-          network.fit({scale: 1, offset: {x:0, y:0}});
-        })
-
-        $('.fitsm').click(function(e){
-          e.preventDefault();
-          network.fit({scale: 1, offset: {x:0, y:0}})
-        })
-
-
-      })
-    })
+  constructor(table: Table, states: any, links: any){
+    this.myTable = table
+    this.myStates = states;
+    this.myLinks = links;
   }
-  private isExitNode(NodeID: number, links) {
+  private getNextStateIDs(StateID: number) {
+    let result = [];
+    for (const link of this.myLinks) {
+      if (StateID == link.from)
+      result.push(link.to);
+    }
+    return result;
+  }
+  public getNextStates(StateID: number) {
+    const nextStateIDs = this.getNextStateIDs(StateID);
+    let result = [];
+    for (const state of this.myStates) {
+      if (nextStateIDs.indexOf(state.id) >= 0) {
+        result.push(state);
+      }
+    }
+    return result;
+  }
+  public isExitNode(NodeID: number) {
     let res: boolean = true;
-    links.forEach(function(e){
+    this.myLinks.forEach(function(e){
       if (e.from == NodeID && e.from != e.to)
         res = false;
     })
-    return res
+    return res;
+  }
+  private getStateCSS(stateID: number) {
+    // Workaround to get the color from css file
+    const cssClass = 'state' + stateID;
+    const element = $('<div class="' + cssClass + ' delete-this-div"></div>').appendTo('html');
+    const colBG = element.css("background-color");
+    const colFont = element.css("color");
+    $('.delete-this-div').remove(); // Delete the divs
+    return {background: colBG, color: colFont};
+  }
+  public openSEPopup() {
+    let me = this;
+    // Finally, when everything was loaded, show Modal
+    let M = new Modal(
+      '<i class="fa fa-random"></i> Workflow <span class="text-muted ml-3">of '+ me.myTable.getTableIcon() +' '+ me.myTable.getTableAlias() +'</span>',
+      '<div class="statediagram" style="width: 100%; height: 300px;"></div>',
+      '<button class="btn btn-secondary fitsm"><i class="fa fa-expand"></i> Fit</button>',
+      true
+    )
+    let container =  document.getElementsByClassName('statediagram')[0];
+    const idOffset = 100;
+
+    // Map data to ready for VisJs
+    let nodes = this.myStates.map(state => {
+      let node = {};
+      node['id'] = (idOffset + state.id);
+      node['label'] = state.name;
+      node['isEntryPoint'] = (state.entrypoint == 1);
+      node['isExit'] = (this.isExitNode(state.id));
+      node['title'] = 'StateID: ' + state.id;
+      const css = this.getStateCSS(state.id);
+      node['font'] = {multi: 'html', color: css.color};
+      node['color'] = css.background;
+      return node;
+    });
+    let edges = this.myLinks.map(link => {
+      let edge = {};
+      edge['from'] = (idOffset + link.from);
+      edge['to'] = (idOffset + link.to);
+      return edge;
+    });
+
+    // Add Entrypoints
+    let counter = 1;
+    nodes.forEach(node => {
+      // Entries
+      if (node.isEntryPoint) {
+        nodes.push({id: counter, color: 'LimeGreen', shape: 'dot', size: 10, title: 'Entrypoint'}); // Entry-Node
+        edges.push({from: counter, to: node.id}); // Link to state
+        counter++;
+      }
+      // Exits
+      if (node.isExit) {
+        node.color = 'Red';
+        node.shape = 'dot';
+        node.size = 10;
+        node.font = { multi: 'html', color: 'black'};
+      }
+    });
+
+    let data = {nodes: nodes, edges: edges};
+    let options = {
+      edges: {color: {color: '#888888'}, shadow: true, length: 100, arrows: 'to', arrowStrikethrough: true, smooth: {}},
+      nodes: {
+        shape: 'box', margin: 20, heightConstraint: {minimum: 40}, widthConstraint: {minimum: 80, maximum: 200},
+        borderWidth: 0, size: 24, font: {color: '#888888', size: 16}, shapeProperties: {useBorderWithImage: false}, scaling: {min: 10, max: 30},
+        fixed: {x: false, y: false}
+      },
+      layout: {improvedLayout: true,
+        hierarchical: {
+          enabled: true, direction: 'LR', nodeSpacing: 200, levelSeparation: 225, blockShifting: false, edgeMinimization: false,
+          parentCentralization: false, sortMethod: 'directed'
+        }
+      },
+      physics: {enabled: false},
+      interaction: {}
+    };
+    // Render
+    let network = new vis.Network(container, data, options);
+
+    M.show();
+    let ID = M.getDOMID();
+    // Events
+    $('#' + ID).on('shown.bs.modal', function (e) {
+      network.fit({scale: 1, offset: {x:0, y:0}});
+    });
+    $('.fitsm').click(function(e){
+      e.preventDefault();
+      network.fit({scale: 1, offset: {x:0, y:0}})
+    });
   }
 }
 
@@ -332,9 +298,6 @@ class RawTable {
     this.tablename = tablename;
     this.actRowCount = 0;
     this.resetFilter();
-  }
-  public getNextStates(data: any, callback) {
-    DB.request('getNextStates', {table: this.tablename, row: data}, function(r) { callback(r); });
   }
   public createRow(data: any, callback) {
     DB.request('create', {table: this.tablename, row: data}, function(r){ callback(r); });
@@ -458,18 +421,17 @@ class Table extends RawTable {
 
   constructor(tablename: string, SelType: SelectType = SelectType.NoSelect, callback: any = function(){}, defaultObj = {}, initFilter: any = {}) {
     super(tablename); // Call parent constructor
-
     let me = this;
-    this.GUID = GUI.getID();
+    me.GUID = GUI.getID();
     // Check this values
-    this.defaultValues = defaultObj;
-    this.selType = SelType;
+    me.defaultValues = defaultObj;
+    me.selType = SelType;
     // Inherited
-    this.PageIndex = 0;
-    this.PageLimit = 10;
-    this.selectedRow = undefined;
-    this.tablename = tablename;
-    this.OrderBy = '';
+    me.PageIndex = 0;
+    me.PageLimit = 10;
+    me.selectedRow = undefined;
+    me.tablename = tablename;
+    me.OrderBy = '';
 
     DB.request('init', {table: tablename, filter: initFilter}, function(resp: string) {
       if (resp.length > 0) {
@@ -478,20 +440,20 @@ class Table extends RawTable {
         me.TableConfig = resp['config'];
         me.actRowCount = resp['count'];
         me.diffFormCreateObject = JSON.parse(resp['formcreate']);
-
         me.Columns = me.TableConfig.columns;
-        me.ReadOnly = me.TableConfig.is_read_only;
+        me.ReadOnly = me.TableConfig.mode == 'ro';
         me.TableType = me.TableConfig.table_type;
         // Initialize StateMachine for the Table
-        if (me.TableConfig['se_active']) me.SM = new StateMachine(me);
-        // check if is read only and no select then hide first column
-        if (me.ReadOnly && me.selType == SelectType.NoSelect) me.GUIOptions.showControlColumn = false;
+        if (me.TableConfig['se_active']) {
+          me.SM = new StateMachine(me, resp['sm_states'], resp['sm_rules']);
+        }
+        // check if is ReadOnly and NoSelect then hide first column
+        if (me.ReadOnly && me.selType == SelectType.NoSelect)
+          me.GUIOptions.showControlColumn = false;
         // Loop all cloumns from this table
         for (const col of Object.keys(me.Columns)) {
-          // Get Primary Column
-          if (me.Columns[col].is_primary) me.PrimaryColumn = col;
-          // Get SortColumn (DEFAULT: Sort by first visible Col)
-          if (me.Columns[col].show_in_grid && me.OrderBy == '') me.OrderBy = col;
+          if (me.Columns[col].is_primary) me.PrimaryColumn = col; // Get Primary Column          
+          if (me.Columns[col].show_in_grid && me.OrderBy == '') me.OrderBy = col; // Get SortColumn (DEFAULT: Sort by first visible Col)
         }
         // Initializing finished
         callback();
@@ -565,7 +527,7 @@ class Table extends RawTable {
       callback(response)
     })
   }
-  private renderEditForm(RowID: number, diffObject: any, nextStates: any, ExistingModal: Modal = undefined) {
+  private renderEditForm(RowID: number, diffObject: any, ExistingModal: Modal = undefined) {
     let t = this;
     let TheRow = null;
     // get The Row
@@ -599,15 +561,16 @@ class Table extends RawTable {
     let actStateID = TheRow.state_id['state_id']; // ID
     let actStateName = TheRow.state_id['name']; // ID
     let cssClass = ' state' + actStateID;
+    const nexstates = t.SM.getNextStates(actStateID);
     // Check States -> generate Footer HTML
-    if (nextStates.length > 0) {
+    if (nexstates.length > 0) {
       let cnt_states = 0;
       // Header
       btns = `<div class="btn-group dropup ml-0 mr-auto">
         <button type="button" class="btn ${cssClass} text-white dropdown-toggle" data-toggle="dropdown">${actStateName}</button>
       <div class="dropdown-menu p-0">`;
       // Loop States
-      nextStates.forEach(function(state){
+      nexstates.forEach(function(state){
         let btn_text = state.name
         let btn = '';
         // Override the state-name if it is a Loop (Save)
@@ -739,15 +702,8 @@ class Table extends RawTable {
         if (myModal) {
           t.getFormModify(data, function(r){
             if (r.length > 0) {
-              const diffObject = JSON.parse(r);
-              // Refresh Modal Buttons
-              t.getNextStates(data, function(re){
-                if (re.length > 0) {
-                  let nextstates = JSON.parse(re);
-                  // Set Form-Content
-                  t.renderEditForm(RowID, diffObject, nextstates, myModal); // The circle begins again
-                }
-              })
+              const diffObject = JSON.parse(r); // Refresh Form-Content              
+              t.renderEditForm(RowID, diffObject, myModal); // The circle begins again
             }
           })
         }
@@ -939,12 +895,12 @@ class Table extends RawTable {
         me.getFormModify(data, function(r){
           if (r.length > 0) {
             const diffJSON = JSON.parse(r);
-            me.getNextStates(data, function(re){
-              if (re.length > 0) {
-                let nextstates = JSON.parse(re);
-                me.renderEditForm(id, diffJSON, nextstates, ExistingModal);
-              }
-            })
+            me.renderEditForm(id, diffJSON, ExistingModal);
+            //me.getNextStates(data, function(re){
+              //if (re.length > 0) {
+                //let nextstates = JSON.parse(re);
+              //}
+            //})
           }
         })
       } else {
@@ -1040,7 +996,7 @@ class Table extends RawTable {
         if (nrOfCells > 1 && cnt == 0) {
           // TODO!!!!
           const fTablename = t.Columns[colname].foreignKey.table;
-          content += '<td style="max-width: 50px; width: 50px;" class="border-0 controllcoulm align-middle" onclick="gEdit(\''+fTablename+'\', '+ val +')"><i class="far fa-edit"></i></td>';
+          content += '<td style="max-width: 30px; width: 30px;" class="border-0 controllcoulm align-middle" onclick="gEdit(\''+fTablename+'\', '+ val +')"><i class="far fa-edit"></i></td>';
           cnt += 1; return;
         }
         if ((typeof val === "object") && (val !== null)) {
@@ -1125,7 +1081,9 @@ class Table extends RawTable {
     }
     else if (col == 'state_id' && t.tablename != 'state') {
       //--- STATE
-      return t.renderStateButton(value['state_id'], value['name'], !t.ReadOnly);
+      let isExitNode = t.SM.isExitNode(value['state_id']);
+      const withDropdown = !(t.ReadOnly || isExitNode);
+      return t.renderStateButton(value['state_id'], value['name'], withDropdown);
     }
     else if (
       (t.tablename == 'state' && col == 'name') || (t.tablename == 'state_rules' && (col == 'state_id_FROM' || col == 'state_id_TO'))
@@ -1344,7 +1302,7 @@ class Table extends RawTable {
       sortedColumnNames.forEach(function(col) {
         // Check if it is displayed
         if (t.Columns[col].show_in_grid) 
-          data_string += '<td class="align-middle p-0 border-0">' + t.renderCell(row, col) + '</td>';
+          data_string += '<td class="align-middle py-0 border-0">' + t.renderCell(row, col) + '</td>';
       })
       // Add row to table
       if (t.GUIOptions.showControlColumn) {
@@ -1397,33 +1355,37 @@ class Table extends RawTable {
     $('.'+t.GUID+' .showNextStates').off('show.bs.dropdown').on('show.bs.dropdown', function(e){
       let jQRow = $(this).parent().parent();
       let RowID = jQRow.find('td:first').data('rowid');
-      let PrimaryColumn: string = t.PrimaryColumn;
-      let data = {}
-      data[PrimaryColumn] = RowID
-      t.getNextStates(data, function(re){
-        if (re.length > 0) {
-          jQRow.find('.dropdown-menu').html('<p class="m-0 p-3 text-muted"><i class="fa fa-times"></i> No transition possible</p>');
-          let nextstates = JSON.parse(re);
-          // Any Target States?
-          if (nextstates.length > 0) {
-            jQRow.find('.dropdown-menu').empty();
-            let btns = '';
-            nextstates.map(state => {
-              btns += '<a class="dropdown-item btnState btnStateChange state' + state.id +
-                 '" data-rowid="'+RowID+'" data-targetstate="'+state.id+'" data-targetname="'+state.name+'">' + state.name + '</a>';
-            });
-            jQRow.find('.dropdown-menu').html(btns);
-            // Bind function to StateButtons
-            $('.'+t.GUID+' .btnState').click(function(e){
-              e.preventDefault();
-              const RowID = $(this).data('rowid');
-              const TargetStateID = $(this).data('targetstate');
-              const TargetStateName = $(this).data('targetname');
-              t.setState('', RowID, {state_id: TargetStateID, name: TargetStateName}, undefined, false);
-            })
-          }
+      let Row = {};
+      const pc = t.getPrimaryColname();
+      for (const row of t.Rows) {
+        if (row[pc] == RowID) {
+          Row = row;
+          break;
         }
-      })
+      }
+      //let PrimaryColumn: string = t.PrimaryColumn;
+      //let data = {};
+      //data[PrimaryColumn] = RowID;
+      let nextstates = t.SM.getNextStates(Row['state_id'].state_id);
+      //jQRow.find('.dropdown-menu').html('<p class="m-0 p-3 text-muted"><i class="fa fa-times"></i> No transition possible</p>');
+      // Any Target States?
+      if (nextstates.length > 0) {
+        jQRow.find('.dropdown-menu').empty();
+        let btns = '';
+        nextstates.map(state => {
+          btns += '<a class="dropdown-item btnState btnStateChange state' + state.id +
+              '" data-rowid="'+RowID+'" data-targetstate="'+state.id+'" data-targetname="'+state.name+'">' + state.name + '</a>';
+        });
+        jQRow.find('.dropdown-menu').html(btns);
+        // Bind function to StateButtons
+        $('.'+t.GUID+' .btnState').click(function(e){
+          e.preventDefault();
+          const RowID = $(this).data('rowid');
+          const TargetStateID = $(this).data('targetstate');
+          const TargetStateName = $(this).data('targetname');
+          t.setState('', RowID, {state_id: TargetStateID, name: TargetStateName}, undefined, false);
+        })
+      }
     })
   }
   private getFooter() {
@@ -1558,8 +1520,7 @@ class FormGenerator {
     }
     //--- Float
     else if (el.field_type == 'float') {
-      // TODO:
-      el.value = parseFloat(el.value).toFixed(2); 
+      if (el.value) el.value = parseFloat(el.value).toLocaleString('de-DE');
       result += `<input name="${key}" type="text" id="inp_${key}" class="form-control inpFloat${el.mode_form == 'rw' ? ' rwInput' : ''}"
       value="${el.value ? el.value : ''}"${el.mode_form == 'ro' ? ' readonly' : ''}/>`;
     }
@@ -1692,10 +1653,9 @@ class FormGenerator {
         value = inp.is(':checked') ? 1 : 0;
       }
       else if (type == 'text' && inp.hasClass('inpFloat')) {
-        // TODOO!!!!!
         const input = inp.val().replace(',', '.');
         value = parseFloat(input);
-        console.log(input, '-->', value);
+        //console.log(input, '-->', value);
       } 
       // DateTime
       else if (type == 'time' && inp.hasClass('dtm')) {

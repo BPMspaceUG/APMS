@@ -242,8 +242,61 @@
       // Return 
       return $result;
     }
-    //======= INIT (Load the configuration to the client)
-    /*sec*/ public function init($param = null) {
+    private function getFormCreate($param) {
+      $tablename = $param["table"];
+      // Check Parameter
+      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
+      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
+
+      $SM = new StateMachine(DB::getInstance()->getConnection(), $tablename);
+      // StateMachine ?
+      if ($SM->getID() > 0) {
+        // Has StateMachine
+        $r = $SM->getCreateFormByTablename();
+        if (empty($r))
+          $r = "{}"; // default: allow editing (if there are no rules set)
+        else
+          return $r;
+      }
+      return '{}'; //$r;
+    }
+    private function getNextStates($param) {
+      // Inputs
+      $tablename = $param["table"];
+      $stateID = $this->getActualStateByRow($tablename, $param['row']);
+      // Check Parameter
+      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
+      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
+
+      // execute query
+      $SE = new StateMachine(DB::getInstance()->getConnection(), $tablename);
+      $res = $SE->getNextStates($stateID);
+      return json_encode($res);
+    }
+    private function getStates($param) {
+      $tablename = $param["table"];
+      // Check Parameter
+      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
+      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
+    
+      $SE = new StateMachine(DB::getInstance()->getConnection(), $tablename);
+      $res = $SE->getStates();
+      return json_encode($res);
+    }
+    private function smGetLinks($param) {
+      $tablename = $param["table"];
+      // Check Parameter
+      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
+      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
+
+      $SE = new StateMachine(DB::getInstance()->getConnection(), $tablename);
+      $res = $SE->getLinks();
+      return json_encode($res);
+    }
+
+    //=======================================================
+ 
+    public function init($param = null) {
       if (is_null($param))
         return Config::getConfig(); // return entire config
       else {
@@ -261,11 +314,13 @@
         $result['config'] = $config[$tablename];
         $result['count'] = json_decode($this->count($param), true)[0]['cnt'];
         $result['formcreate'] = $this->getFormCreate($param);
+        $result['sm_states'] = json_decode($this->getStates(['table' => $tablename]), true);
+        $result['sm_rules'] = json_decode($this->smGetLinks(['table' => $tablename]), true);
         // Return result as JSON
         return json_encode($result);
       }
     }
-    //=======================================================
+
     public function create($param) {
       // Inputs
       $tablename = $param["table"];
@@ -377,6 +432,7 @@
         exit();
       }
     }
+
     public function read($param) {
       //--------------------- Check Params
       $validParams = ['table', 'limitStart', 'limitSize', 'ascdesc', 'orderby', 'filter'];
@@ -451,6 +507,7 @@
       $data = json_decode($res, true);
       return json_encode(array(array('cnt' => count($data))));
     }
+
     public function update($param, $allowUpdateFromSM = false) {
        // Parameter
       $tablename = $param["table"];
@@ -503,46 +560,6 @@
       // Output
       return $success ? "1" : "0";
     }
-    /*sec*/ public function delete($param) {
-      //---- NOT SUPPORTED FOR NOW [!]
-      die('The Delete-Command is currently not supported!');
-      // Parameter
-      $tablename = $param["table"];
-      $row = $param["row"];
-      // Check Parameter
-      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
-      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
-      // Extract relevant Info via Config
-      $pcol = Config::getPrimaryColNameByTablename($tablename);
-      $id = (int)$row[$pcol];
-      // Execute on Database
-      $success = false;
-      $pdo = DB::getInstance()->getConnection();
-      $stmt = $pdo->prepare("DELETE FROM $tablename WHERE $pcol = ?");
-      $stmt->execute(array($id));
-      // Check if rows where updated
-      $success = ($pdo->rowCount() > 0);
-      // Output
-      return $success ? "1" : "0";
-    }
-    //---------------------------------- Statemachine
-    public function getFormData($param) {
-      // Inputs
-      $tablename = $param["table"];
-      @$row =  $param['row'];
-      // Check Parameter
-      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
-      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
-
-      $SM = new StateMachine(DB::getInstance()->getConnection(), $tablename);
-      // Check if has state machine ?
-      if ($SM->getID() > 0) {
-        $stateID = $this->getActualStateByRow($tablename, $row);
-        $r = $SM->getFormDataByStateID($stateID);
-        if (empty($r)) $r = "{}"; // default: allow editing (if there are no rules set)
-        return $r;
-      }
-    }    
     public function makeTransition($param) {
       // INPUT [table, ElementID, (next)state_id]
       $tablename = $param["table"];
@@ -625,57 +642,48 @@
       } else 
         die("Transition not possible!");
     }
-    /*sec*/ private function getFormCreate($param) {
+
+    public function delete($param) {
+      //---- NOT SUPPORTED FOR NOW [!]
+      die('The Delete-Command is currently not supported!');
+      // Parameter
       $tablename = $param["table"];
+      $row = $param["row"];
+      // Check Parameter
+      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
+      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
+      // Extract relevant Info via Config
+      $pcol = Config::getPrimaryColNameByTablename($tablename);
+      $id = (int)$row[$pcol];
+      // Execute on Database
+      $success = false;
+      $pdo = DB::getInstance()->getConnection();
+      $stmt = $pdo->prepare("DELETE FROM $tablename WHERE $pcol = ?");
+      $stmt->execute(array($id));
+      // Check if rows where updated
+      $success = ($pdo->rowCount() > 0);
+      // Output
+      return $success ? "1" : "0";
+    }
+
+    public function getFormData($param) {
+      // Inputs
+      $tablename = $param["table"];
+      @$row =  $param['row'];
       // Check Parameter
       if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
       if (!Config::doesTableExist($tablename)) die('Table does not exist!');
 
       $SM = new StateMachine(DB::getInstance()->getConnection(), $tablename);
-      // StateMachine ?
+      // Check if has state machine ?
       if ($SM->getID() > 0) {
-        // Has StateMachine
-        $r = $SM->getCreateFormByTablename();
-        if (empty($r))
-          $r = "{}"; // default: allow editing (if there are no rules set)
-        else
-          return $r;
+        $stateID = $this->getActualStateByRow($tablename, $row);
+        $r = $SM->getFormDataByStateID($stateID);
+        if (empty($r)) $r = "{}"; // default: allow editing (if there are no rules set)
+        return $r;
       }
-      return '{}'; //$r;
-    }
-    /*sec*/ public function getNextStates($param) {
-      // Inputs
-      $tablename = $param["table"];
-      $stateID = $this->getActualStateByRow($tablename, $param['row']);
-      // Check Parameter
-      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
-      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
+    } 
 
-      // execute query
-      $SE = new StateMachine(DB::getInstance()->getConnection(), $tablename);
-      $res = $SE->getNextStates($stateID);
-      return json_encode($res);
-    }
-    /*sec*/ public function getStates($param) {
-      $tablename = $param["table"];
-      // Check Parameter
-      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
-      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
-    
-      $SE = new StateMachine(DB::getInstance()->getConnection(), $tablename);
-      $res = $SE->getStates();
-      return json_encode($res);
-    }
-    /*sec*/ public function smGetLinks($param) {
-      $tablename = $param["table"];
-      // Check Parameter
-      if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
-      if (!Config::doesTableExist($tablename)) die('Table does not exist!');
-
-      $SE = new StateMachine(DB::getInstance()->getConnection(), $tablename);
-      $res = $SE->getLinks();
-      return json_encode($res);
-    }
     //---------------------------------- File Handling
     public function getFile($param) {
       // Download File from Server
