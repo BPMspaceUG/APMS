@@ -263,9 +263,7 @@
     }
     public function getStates() {
       $result = array();
-      $stmt = $this->db->prepare(
-        "SELECT state_id AS 'id', name AS 'name', name AS 'label', entrypoint
-        FROM state WHERE statemachine_id = ? ORDER BY state_id");
+      $stmt = $this->db->prepare("SELECT state_id AS id, name, entrypoint, form_data FROM state WHERE statemachine_id = ? ORDER BY state_id");
       $stmt->execute(array($this->ID));
       while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $result[] = $row;

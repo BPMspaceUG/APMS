@@ -262,6 +262,15 @@ class StateMachine {
             network.fit({ scale: 1, offset: { x: 0, y: 0 } });
         });
     }
+    getFormDiffByState(StateID) {
+        let result = {};
+        this.myStates.forEach(el => {
+            if (StateID == el.id) {
+                result = JSON.parse(el.form_data);
+            }
+        });
+        return result;
+    }
 }
 //==============================================================
 // Class: RawTable
@@ -315,14 +324,8 @@ class RawTable {
             filter: this.Filter
         };
         DB.request('count', data, function (r) {
-            if (r.length > 0) {
-                const resp = JSON.parse(r);
-                if (resp.length > 0) {
-                    me.actRowCount = parseInt(resp[0].cnt);
-                    // Callback method
-                    callback();
-                }
-            }
+            me.actRowCount = parseInt(r[0].cnt);
+            callback();
         });
     }
     loadRows(callback) {
@@ -336,9 +339,8 @@ class RawTable {
             filter: this.Filter
         };
         // HTTP Request
-        DB.request('read', data, function (r) {
-            let response = JSON.parse(r);
-            me.Rows = response;
+        DB.request('read', data, function (response) {
+            me.Rows = response; // Cache
             callback(response);
         });
     }
@@ -402,32 +404,29 @@ class Table extends RawTable {
         me.tablename = tablename;
         me.OrderBy = '';
         DB.request('init', { table: tablename, filter: initFilter }, function (resp) {
-            if (resp.length > 0) {
-                resp = JSON.parse(resp);
-                // Save Form Data
-                me.TableConfig = resp['config'];
-                me.actRowCount = resp['count'];
-                me.diffFormCreateObject = JSON.parse(resp['formcreate']);
-                me.Columns = me.TableConfig.columns;
-                me.ReadOnly = me.TableConfig.mode == 'ro';
-                me.TableType = me.TableConfig.table_type;
-                // Initialize StateMachine for the Table
-                if (me.TableConfig['se_active']) {
-                    me.SM = new StateMachine(me, resp['sm_states'], resp['sm_rules']);
-                }
-                // check if is ReadOnly and NoSelect then hide first column
-                if (me.ReadOnly && me.selType == SelectType.NoSelect)
-                    me.GUIOptions.showControlColumn = false;
-                // Loop all cloumns from this table
-                for (const col of Object.keys(me.Columns)) {
-                    if (me.Columns[col].is_primary)
-                        me.PrimaryColumn = col; // Get Primary Column          
-                    if (me.Columns[col].show_in_grid && me.OrderBy == '')
-                        me.OrderBy = col; // Get SortColumn (DEFAULT: Sort by first visible Col)
-                }
-                // Initializing finished
-                callback();
+            // Save Form Data
+            me.TableConfig = resp['config'];
+            me.actRowCount = resp['count'];
+            me.diffFormCreateObject = JSON.parse(resp['formcreate']);
+            me.Columns = me.TableConfig.columns;
+            me.ReadOnly = me.TableConfig.mode == 'ro';
+            me.TableType = me.TableConfig.table_type;
+            // Initialize StateMachine for the Table
+            if (me.TableConfig['se_active']) {
+                me.SM = new StateMachine(me, resp['sm_states'], resp['sm_rules']);
             }
+            // check if is ReadOnly and NoSelect then hide first column
+            if (me.ReadOnly && me.selType == SelectType.NoSelect)
+                me.GUIOptions.showControlColumn = false;
+            // Loop all cloumns from this table
+            for (const col of Object.keys(me.Columns)) {
+                if (me.Columns[col].is_primary)
+                    me.PrimaryColumn = col; // Get Primary Column          
+                if (me.Columns[col].show_in_grid && me.OrderBy == '')
+                    me.OrderBy = col; // Get SortColumn (DEFAULT: Sort by first visible Col)
+            }
+            // Initializing finished
+            callback();
         });
     }
     getPrimaryColname() {
@@ -501,12 +500,6 @@ class Table extends RawTable {
         }
         return pages;
     }
-    getFormModify(data, callback) {
-        const me = this;
-        DB.request('getFormData', { table: me.tablename, row: data }, function (response) {
-            callback(response);
-        });
-    }
     renderEditForm(RowID, diffObject, ExistingModal = undefined) {
         let t = this;
         let TheRow;
@@ -518,8 +511,6 @@ class Table extends RawTable {
         let defaultFormObj = t.getDefaultFormObject();
         let newObj = mergeDeep({}, defaultFormObj, diffObject);
         for (const key of Object.keys(TheRow)) {
-            //const value = TheRow[key];
-            //newObj[key].value = isObject(value) ? value[Object.keys(value)[0]] : value;
             newObj[key].value = TheRow[key];
         }
         // Generate a Modify-Form
@@ -543,14 +534,14 @@ class Table extends RawTable {
         // Check States -> generate Footer HTML
         if (nexstates.length > 0) {
             let cnt_states = 0;
-            // Header
+            // Init DropdownButton
             btns = `<div class="btn-group dropup ml-0 mr-auto">
         <button type="button" class="btn ${cssClass} text-white dropdown-toggle" data-toggle="dropdown">${actStateName}</button>
       <div class="dropdown-menu p-0">`;
             // Loop States
             nexstates.forEach(function (state) {
                 let btn_text = state.name;
-                let btn = '';
+                let btnDropdown = '';
                 // Override the state-name if it is a Loop (Save)
                 if (actStateID == state.id) {
                     saveBtn = `<div class="ml-auto mr-0">
@@ -563,14 +554,12 @@ class Table extends RawTable {
                 }
                 else {
                     cnt_states++;
-                    btn = '<a class="dropdown-item btnState btnStateChange state' + state.id + '" data-rowid="' + RowID + '" data-targetstate="' + state.id + '" data-targetname="' + state.name + '">' + btn_text + '</a>';
+                    btnDropdown = '<a class="dropdown-item btnState btnStateChange state' + state.id + '" data-rowid="' + RowID + '" data-targetstate="' + state.id + '" data-targetname="' + state.name + '">' + btn_text + '</a>';
                 }
-                btns += btn;
+                btns += btnDropdown;
             });
-            // Footer
             btns += '</div></div>';
-            // Save buttons
-            // Reset html if only Save button exists
+            // Save buttons (Reset html if only Save button exists)
             if (cnt_states == 0)
                 btns = '<button type="button" class="btn ' + cssClass + ' text-white" tabindex="-1" disabled>' + actStateName + '</button>';
         }
@@ -598,22 +587,20 @@ class Table extends RawTable {
         let t = this;
         // REQUEST
         t.updateRow(data[t.PrimaryColumn], data, function (r) {
-            if (r.length > 0) {
-                if (r == "1") {
-                    // Success
-                    if (closeModal)
-                        SaveModal.close();
-                    t.lastModifiedRowID = data[t.PrimaryColumn];
-                    t.loadRows(function () {
-                        t.renderContent();
-                        t.onEntriesModified.trigger();
-                    });
-                }
-                else {
-                    // Fail
-                    const ErrorModal = new Modal('Error', '<b class="text-danger">Element could not be updated!</b><br><pre>' + r + '</pre>');
-                    ErrorModal.show();
-                }
+            if (r == "1") {
+                // Success
+                if (closeModal)
+                    SaveModal.close();
+                t.lastModifiedRowID = data[t.PrimaryColumn];
+                t.loadRows(function () {
+                    t.renderContent();
+                    t.onEntriesModified.trigger();
+                });
+            }
+            else {
+                // Fail
+                const ErrorModal = new Modal('Error', '<b class="text-danger">Element could not be updated!</b><br><pre>' + r + '</pre>');
+                ErrorModal.show();
             }
         });
     }
@@ -647,7 +634,7 @@ class Table extends RawTable {
             }*/
             // Try to parse result messages
             try {
-                parsedData = JSON.parse(r);
+                parsedData = r;
             }
             catch (err) {
                 let resM = new Modal('<b class="text-danger">Script Error!</b>', r);
@@ -681,12 +668,10 @@ class Table extends RawTable {
                     t.onEntriesModified.trigger();
                     // Refresh Form-Data if Modal exists
                     if (myModal) {
-                        t.getFormModify(data, function (r) {
-                            if (r.length > 0) {
-                                const diffObject = JSON.parse(r); // Refresh Form-Content
-                                t.renderEditForm(RowID, diffObject, myModal); // The circle begins again
-                            }
-                        });
+                        //t.getFormModify(data, function(r){
+                        let r = t.SM.getFormDiffByState(targetState.state_id.state_id);
+                        const diffObject = r; // Refresh Form-Content
+                        t.renderEditForm(RowID, diffObject, myModal); // The circle begins again
                     }
                     // close Modal if it was save and close
                     if (myModal && closeModal)
@@ -763,7 +748,7 @@ class Table extends RawTable {
                 $('#' + ModalID + ' .modal-body .alert').remove(); // Remove all Error Messages
                 // Try to parse Result
                 try {
-                    msgs = JSON.parse(r);
+                    msgs = r;
                 }
                 catch (err) {
                     // Show Error
@@ -837,7 +822,7 @@ class Table extends RawTable {
     modifyRow(id, ExistingModal = undefined) {
         let me = this;
         // Check Selection-Type
-        if (this.selType == SelectType.Single) {
+        if (me.selType == SelectType.Single) {
             //------------------------------------ SINGLE SELECT
             me.selectedRow = me.Rows[id];
             for (const row of me.Rows) {
@@ -846,48 +831,47 @@ class Table extends RawTable {
                     break;
                 }
             }
-            this.isExpanded = false;
+            me.isExpanded = false;
             // Render HTML
-            this.renderContent();
-            this.renderHeader();
-            this.renderFooter();
-            this.onSelectionChanged.trigger();
+            me.renderContent();
+            me.renderHeader();
+            me.renderFooter();
+            me.onSelectionChanged.trigger();
             return;
         }
         else {
             //------------------------------------ NO SELECT / EDITABLE / READ-ONLY
             // Exit if it is a ReadOnly Table
-            if (this.ReadOnly)
+            if (me.ReadOnly) {
+                alert('The Table "' + me.tablename + '" is read-only!');
                 return;
+            }
             // Set Form
-            if (this.SM) {
+            if (me.SM) {
                 //-------- EDIT-Modal WITH StateMachine
                 let data = {};
                 data[me.PrimaryColumn] = id;
                 // Get Forms
-                me.getFormModify(data, function (r) {
-                    if (r.length > 0) {
-                        const diffJSON = JSON.parse(r);
-                        me.renderEditForm(id, diffJSON, ExistingModal);
-                        //me.getNextStates(data, function(re){
-                        //if (re.length > 0) {
-                        //let nextstates = JSON.parse(re);
-                        //}
-                        //})
-                    }
-                });
+                //me.getFormModify(data, function(r){
+                let TheRow = null;
+                // get The Row
+                this.Rows.forEach(row => { if (row[me.PrimaryColumn] == id)
+                    TheRow = row; });
+                let r = me.SM.getFormDiffByState(TheRow.state_id.state_id);
+                const diffJSON = r;
+                me.renderEditForm(id, diffJSON, ExistingModal);
+                //})
             }
             else {
                 //-------- EDIT-Modal WITHOUT StateMachine
-                const tblTxt = 'in ' + this.getTableIcon() + ' ' + this.getTableAlias();
-                const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">(' + id + ')</span><span class="text-muted ml-3">' + tblTxt + '</span>';
-                let t = this;
+                const tblTxt = 'in ' + me.getTableIcon() + ' ' + me.getTableAlias();
+                const ModalTitle = me.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">(' + id + ')</span><span class="text-muted ml-3">' + tblTxt + '</span>';
                 let TheRow = null;
                 // get The Row
-                this.Rows.forEach(row => { if (row[t.PrimaryColumn] == id)
+                this.Rows.forEach(row => { if (row[me.PrimaryColumn] == id)
                     TheRow = row; });
                 //--- Overwrite and merge the differences from diffObject
-                let FormObj = mergeDeep({}, t.getDefaultFormObject());
+                let FormObj = mergeDeep({}, me.getDefaultFormObject());
                 for (const key of Object.keys(TheRow)) {
                     const value = TheRow[key];
                     FormObj[key].value = isObject(value) ? value[Object.keys(value)[0]] : value;
@@ -1788,11 +1772,9 @@ function test(x) {
     });
 }
 function gEdit(tablename, RowID) {
+    // Load Table, load Row, display Edit-Modal
     let tmpTable = new Table(tablename, 0, function () {
-        // Load Table, load Row
         tmpTable.setColumnFilter(tmpTable.getPrimaryColname(), RowID);
-        tmpTable.loadRows(function () {
-            return __awaiter(this, void 0, void 0, function* () { tmpTable.modifyRow(RowID); });
-        });
+        tmpTable.loadRows(function () { tmpTable.modifyRow(RowID); });
     });
 }

@@ -1,6 +1,5 @@
 <?php
   $ReqMethod = $_SERVER['REQUEST_METHOD'];
-
   // API Header
   if ($ReqMethod === 'OPTIONS') {
     header('Access-Control-Allow-Origin: *');
@@ -12,8 +11,8 @@
     die();
   }
   header('Access-Control-Allow-Origin: *');
-  header('Content-Type: text/plain; charset=utf-8');
-
+  header('Content-Type: application/json; charset=utf-8');
+  //-----------------------------------------------------------------------------------
   // Includes
   require_once(__DIR__.'/src/AuthHandler.inc.php');
   include_once(__DIR__."/src/RequestHandler.inc.php");
@@ -28,13 +27,13 @@
     catch (Exception $e) {
       // Invalid Token!
       http_response_code(401);
-      exit();
+      die(json_encode(['error' => ['msg' => "Please use a Token for authentication."]]));
     }
     // Token is valid but expired?
     if (property_exists($token, "exp")) {
       if (($token->exp - time()) <= 0) {
         http_response_code(401);
-        exit();
+        die(json_encode(['error' => ['msg' => "This Token has expired. Please renew your Token."]]));
       }
     }
   } else {
@@ -57,7 +56,7 @@
     }
   }
   catch (Exception $e) {
-    die('Error: Invalid data sent to API');
+    die(json_encode(['error' => ['msg' => "Invalid data sent to API."]]));
   }
 
   // Handle the Requests
