@@ -265,8 +265,10 @@ class StateMachine {
     getFormDiffByState(StateID) {
         let result = {};
         this.myStates.forEach(el => {
-            if (StateID == el.id) {
-                result = JSON.parse(el.form_data);
+            if (StateID == el.id && el.form_data) {
+                const strForm = el.form_data.trim();
+                if (strForm != '')
+                    result = JSON.parse(strForm);
             }
         });
         return result;
