@@ -369,6 +369,15 @@ class RawTable {
       callback(response);
     })
   }
+  public loadRow(RowID: number, callback) {
+    let data = {table: this.tablename, limitStart: 0, limitSize: 1, filter: {columns: {}}};
+    data.filter.columns[this.PrimaryColumn] = RowID;
+    // HTTP Request
+    DB.request('read', data, function(response){
+      const row = response[0];
+      callback(row);
+    });
+  }
   public getNrOfRows(): number {
     return this.actRowCount
   }
@@ -521,25 +530,18 @@ class Table extends RawTable {
     }
     return pages
   }
-  private renderEditForm(RowID: number, diffObject: any, ExistingModal: Modal = undefined) {
+  private renderEditForm(Row: any, diffObject: any, ExistingModal: Modal = undefined) {
     let t = this;
-
-    let TheRow;
-    t.Rows.forEach(row => {
-      if (row[t.PrimaryColumn] == RowID)
-        TheRow = row;
-    });
+    let RowID = Row[t.PrimaryColumn];
     //--- Overwrite and merge the differences from diffObject
     let defaultFormObj = t.getDefaultFormObject();
     let newObj = mergeDeep({}, defaultFormObj, diffObject);
-    for (const key of Object.keys(TheRow)) {
-      newObj[key].value = TheRow[key];
+    for (const key of Object.keys(Row)) {
+      newObj[key].value = Row[key];
     }
-
     // Generate a Modify-Form
     const newForm = new FormGenerator(t, RowID, newObj);
     const htmlForm = newForm.getHTML();
-
     // create Modal if not exists
     const TableAlias = 'in '+this.getTableIcon()+' ' + this.getTableAlias();
     const ModalTitle = this.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+RowID+')</span><span class="text-muted ml-3">'+ TableAlias +'</span>';
@@ -552,8 +554,8 @@ class Table extends RawTable {
 
     let btns = '';
     let saveBtn = '';
-    const actStateID = TheRow.state_id['state_id'];
-    const actStateName = TheRow.state_id['name'];
+    const actStateID = Row.state_id['state_id'];
+    const actStateName = Row.state_id['name'];
     const cssClass = ' state' + actStateID;
     const nexstates = t.SM.getNextStates(actStateID);
 
@@ -594,7 +596,6 @@ class Table extends RawTable {
     }
     btns += saveBtn;
     M.setFooter(btns);
-
     //--------------------- Bind function to StateButtons
     $('#' + M.getDOMID() + ' .btnState').click(function(e){
       e.preventDefault();
@@ -607,8 +608,9 @@ class Table extends RawTable {
     })
     //--- finally show Modal if it is a new one
     if (M) M.show();
-
   }
+
+
   private saveEntry(SaveModal: Modal, data: any, closeModal: boolean = true){
     let t = this
     // REQUEST
@@ -683,26 +685,37 @@ class Table extends RawTable {
       });
       // Re-Sort the messages
       messages.reverse(); // like the process => [Out, Transit, In]
+
       // Check if Transition was successful
       if (counter == 3) {
         // Mark rows
         if (RowID != 0) t.lastModifiedRowID = RowID;
-        // Reload all rows (Important!!! because of relation tables!)
+        // Refresh Rows (refresh whole grid because of Relation-Tables [select <-> unselect])
         t.loadRows(function(){
           t.renderContent();
           t.onEntriesModified.trigger();
           // Refresh Form-Data if Modal exists
           if (myModal) {
-            //t.getFormModify(data, function(r){
-            let r = t.SM.getFormDiffByState(targetState.state_id.state_id);
-            const diffObject = r; // Refresh Form-Content
-            t.renderEditForm(RowID, diffObject, myModal); // The circle begins again
+            const diffObject = t.SM.getFormDiffByState(targetState.state_id); // Refresh Form-Content
+            // Refresh Row
+            let newRow = null;
+            t.Rows.forEach(row => { if (row[t.PrimaryColumn] == RowID) newRow = row; });
+            // check if the row is already loaded in the grid
+            if (newRow)
+              t.renderEditForm(newRow, diffObject, myModal); // The circle begins again
+            else {
+              // Reload specific Row
+              t.loadRow(RowID, res => {
+                t.renderEditForm(res, diffObject, myModal); // The circle begins again
+              })
+            }
           }
           // close Modal if it was save and close
           if (myModal && closeModal)
             myModal.close();
-        })
+        });
       }
+
       // Show all Script-Result Messages
       for (const msg of messages) {
         const stateFrom = t.renderStateButton(actState.state_id, actState.name);
@@ -874,28 +887,19 @@ class Table extends RawTable {
         alert('The Table "'+me.tablename+'" is read-only!');
         return
       }
+      // Get Row
+      let TheRow = null;
+      this.Rows.forEach(row => { if (row[me.PrimaryColumn] == id) TheRow = row; });
       // Set Form
       if (me.SM) {
         //-------- EDIT-Modal WITH StateMachine
-        let data = {};
-        data[me.PrimaryColumn] = id;
-        // Get Forms
-        //me.getFormModify(data, function(r){
-        let TheRow = null;
-        // get The Row
-        this.Rows.forEach(row => { if (row[me.PrimaryColumn] == id) TheRow = row; });
-        let r = me.SM.getFormDiffByState(TheRow.state_id.state_id);
-        const diffJSON = r;
-        me.renderEditForm(id, diffJSON, ExistingModal);
-        //})
+        const diffJSON = me.SM.getFormDiffByState(TheRow.state_id.state_id);
+        me.renderEditForm(TheRow, diffJSON, ExistingModal);
       }
       else {
         //-------- EDIT-Modal WITHOUT StateMachine
         const tblTxt = 'in '+ me.getTableIcon() +' ' + me.getTableAlias();
         const ModalTitle = me.GUIOptions.modalHeaderTextModify + '<span class="text-muted mx-3">('+id+')</span><span class="text-muted ml-3">'+tblTxt+'</span>';
-        let TheRow = null;
-        // get The Row
-        this.Rows.forEach(row => { if (row[me.PrimaryColumn] == id) TheRow = row; });
         //--- Overwrite and merge the differences from diffObject
         let FormObj = mergeDeep({}, me.getDefaultFormObject());
         for (const key of Object.keys(TheRow)) {
@@ -917,6 +921,7 @@ class Table extends RawTable {
             ${this.GUIOptions.modalButtonTextModifySaveAndClose}
           </button>
         </div>`);
+        //--------------------------------------------------
         // Bind functions to Save Buttons
         $('#' + M.getDOMID() + ' .btnSave').click(function(e){
           e.preventDefault();

@@ -189,7 +189,7 @@
         $fkey = $fk["col_id"];
         $fsub = $fk["col_subst"];
         // Template: ' LEFT JOIN [fktable] AS a___[0] ON a.[stdkey] = a____[0].[fkey] '
-        $jointexts[] = ' LEFT JOIN '.$ft.' AS a'.$seperator.$colname.' ON a.'.$colname.' = a'.$seperator.$colname.'.'.$fkey."\n";
+        $jointexts[] = ' LEFT JOIN `'.$ft.'` AS a'.$seperator.$colname.' ON a.'.$colname.' = a'.$seperator.$colname.'.'.$fkey."\n";
         $joincolsubst[] = 'a'.$seperator.$colname.'.'.$fkey;
         $allcolnames[] = 'a'.$seperator.$colname.'.'.$fkey;
 
@@ -257,17 +257,12 @@
     }
     $stdColText = substr($stdColText, 0, -2);
 
-
     $joinTables = implode("", $jointexts);
 
     //---- Select
     $select = $stdColText;
-    if (count($virtualcols) > 0) {
-      $select .= ",\n".implode(",\n", $virtualcols);
-    }
-    if (count($joincolsubst) > 0) {
-      $select .= ",\n".implode(",\n", $joincolsubst);
-    }
+    if (count($virtualcols) > 0) $select .= ",\n".implode(",\n", $virtualcols);
+    if (count($joincolsubst) > 0) $select .= ",\n".implode(",\n", $joincolsubst);
     //--- order by text
     $orderByText = '';
     // Template: 
@@ -325,7 +320,7 @@ $filtercustomVars
 SELECT
 $select
 FROM
-$tablename AS a
+`$tablename` AS a
 $joinTables
 WHERE
 ( -- Filter ALL

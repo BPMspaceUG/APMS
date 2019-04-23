@@ -37,10 +37,9 @@
     $verboseLog = stream_get_contents($verbose);
     return $result;
   }
-  function formatError($errormessage) {
+  function fmtError($errormessage) {
     return json_encode(['error' => ['msg' => $errormessage]]);
   }
-
 
   class Config {
     public static function getConfig() {
@@ -201,15 +200,37 @@
     private function isValidFilterStruct($input) {
       return !is_null($input) && is_array($input) && (array_key_exists('all', $input) || array_key_exists('columns', $input));
     }
+    private function fmtCell($dtype, $inp, $test) {      
+      //echo $dtype." (".$test.")\n";
+      // TIME, DATE, DATETIME, FLOAT, VAR_STRING
+      switch ($dtype) {
+        case 'TINY': // Bool
+        case 'LONG':
+        case 'LONGLONG':
+          return (int)$inp;
+          break;
+        
+        case 'NEWDECIMAL':
+        case 'FLOAT':
+          return (float)$inp;
+          break;
+
+        default:
+          return (string)$inp;
+          break;
+      }
+    }
     private function parseResultData($stmt) {
       $result = [];
       while($row = $stmt->fetch(PDO::FETCH_NUM)) {
         $r = [];
         $x = [];
         foreach($row as $idx => $val) {
-          $meta = $stmt->getColumnMeta($idx);            
+          $meta = $stmt->getColumnMeta($idx);
           $table = $meta["table"];
           $col = $meta["name"];
+          $dtype = $meta['native_type'];
+          $test = implode(' - ', [$meta['len'], $meta['precision']]);
           //echo "$table.$col -> $val<br>";
           // Split Table and place into correct place in origin
           if (strpos($table, '_____') !== FALSE) {
@@ -218,28 +239,28 @@
             if (count($splited) == 2) {
               // Layer 1
               if (is_array($x[$splited[1]]))
-                $x[$splited[1]][$col] = $val; // Append
+                $x[$splited[1]][$col] = $this->fmtCell($dtype, $val, $test); // Append
               else {
                 // Convert to array
                 $x[$splited[1]] = array();
-                $x[$splited[1]][$col] = $val; // Append
+                $x[$splited[1]][$col] = $this->fmtCell($dtype, $val, $test); // Append
               }
             }
             elseif (count($splited) == 3) {
               // Layer 2
               if (is_array($x[$splited[1]][$splited[2]] ))
-                $x[$splited[1]][$splited[2]][$col] = $val; // Append
+                $x[$splited[1]][$splited[2]][$col] = $this->fmtCell($dtype, $val, $test); // Append
               else {
                 // Convert to array
                 $x[$splited[1]][$splited[2]] = array();
-                $x[$splited[1]][$splited[2]][$col] = $val; // Append
+                $x[$splited[1]][$splited[2]][$col] = $this->fmtCell($dtype, $val, $test); // Append
               }
             }
           } else {
             // Origin Table
-            $x[$col] = $val;
+            $x[$col] = $this->fmtCell($dtype, $val, $test);
           }
-          $r[$table][$col] = $val;
+          $r[$table][$col] = $this->fmtCell($dtype, $val, $test);
         }
         $result[] = $x;
       }
@@ -249,8 +270,8 @@
     private function getFormCreate($param) {
       $tablename = $param["table"];
       // Check Parameter
-      if (!Config::isValidTablename($tablename)) die(formatError('Invalid Tablename!'));
-      if (!Config::doesTableExist($tablename)) die(formatError('Table does not exist!'));
+      if (!Config::isValidTablename($tablename)) die(fmtError('Invalid Tablename!'));
+      if (!Config::doesTableExist($tablename)) die(fmtError('Table does not exist!'));
 
       $SM = new StateMachine(DB::getInstance()->getConnection(), $tablename);
       // StateMachine ?
@@ -269,7 +290,7 @@
       $stateID = $this->getActualStateByRow($tablename, $param['row']);
       // Check Parameter
       if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
-      if (!Config::doesTableExist($tablename)) die(formatError('Table does not exist!'));
+      if (!Config::doesTableExist($tablename)) die(fmtError('Table does not exist!'));
       // execute query
       $SE = new StateMachine(DB::getInstance()->getConnection(), $tablename);
       $res = $SE->getNextStates($stateID);
@@ -308,9 +329,9 @@
       //--------------------- Check Params
       $validParams = ['table', 'limitStart', 'limitSize', 'ascdesc', 'orderby', 'filter'];
       $hasValidParams = $this->validateParamStruct($validParams, $param);
-      if (!$hasValidParams) die(formatError('Invalid parameters! (allowed are: '.implode(', ', $validParams).')'));
+      if (!$hasValidParams) die(fmtError('Invalid parameters! (allowed are: '.implode(', ', $validParams).')'));
       // Parameters and default values
-      @$tablename = isset($param["table"]) ? $param["table"] : die(formatError('Table is not set!'));
+      @$tablename = isset($param["table"]) ? $param["table"] : die(fmtError('Table is not set!'));
       @$limitStart = isset($param["limitStart"]) ? $param["limitStart"] : null;
       @$limitSize = isset($param["limitSize"]) ? $param["limitSize"] : null;
       @$ascdesc = isset($param["ascdesc"]) ? $param["ascdesc"] : null; 
@@ -321,31 +342,31 @@
       $token_uid = -1;
       if (property_exists($token, 'uid')) $token_uid = $token->uid;
       // Table
-      if (!Config::isValidTablename($tablename)) die(formatError('Invalid Tablename!'));
-      if (!Config::doesTableExist($tablename)) die(formatError('Table does not exist!'));
+      if (!Config::isValidTablename($tablename)) die(fmtError('Invalid Tablename!'));
+      if (!Config::doesTableExist($tablename)) die(fmtError('Table does not exist!'));
       //--- Limit
-      if (!is_null($limitStart) && is_null($limitSize)) die(formatError("Error in Limit Params (LimitSize is not set)!"));
-      if (is_null($limitStart) && !is_null($limitSize)) die(formatError("Error in Limit Params (LimitStart is not set)!"));
+      if (!is_null($limitStart) && is_null($limitSize)) die(fmtError("Error in Limit Params (LimitSize is not set)!"));
+      if (is_null($limitStart) && !is_null($limitSize)) die(fmtError("Error in Limit Params (LimitStart is not set)!"));
       if (!is_null($limitStart) && !is_null($limitSize)) {
         // Valid structure
-        if (!is_numeric($limitStart)) die(formatError("LimitStart is not numeric!"));
-        if (!is_numeric($limitSize)) die(formatError("LimitSize is not numeric!"));
+        if (!is_numeric($limitStart)) die(fmtError("LimitStart is not numeric!"));
+        if (!is_numeric($limitSize)) die(fmtError("LimitSize is not numeric!"));
       } else {
         // default: 1000 rows
         $limitStart = 0;
         $limitSize = 1000;
       }
       //--- OrderBy
-      if (!is_null($ascdesc) && is_null($orderby)) die(formatError("AscDesc can not be set without OrderBy!"));
+      if (!is_null($ascdesc) && is_null($orderby)) die(fmtError("AscDesc can not be set without OrderBy!"));
       if (!is_null($orderby)) {
-        if (!Config::isValidColname($orderby)) die(formatError('OrderBy: Invalid Columnname!'));
-        if (!Config::doesColExistInTable($tablename, $orderby)) die(formatError('OrderBy: Column does not exist in this Table!'));
+        if (!Config::isValidColname($orderby)) die(fmtError('OrderBy: Invalid Columnname!'));
+        if (!Config::doesColExistInTable($tablename, $orderby)) die(fmtError('OrderBy: Column does not exist in this Table!'));
         //--- ASC/DESC
         $ascdesc = strtolower(trim($ascdesc));
         if ($ascdesc == "") $ascdesc == "ASC";
         elseif ($ascdesc == "asc") $ascdesc == "ASC";
         elseif ($ascdesc == "desc") $ascdesc == "DESC";
-        else die(formatError("AscDesc has no valid value (value has to be empty, ASC or DESC)!"));
+        else die(fmtError("AscDesc has no valid value (value has to be empty, ASC or DESC)!"));
       }
       //--- Filter
       if ($this->isValidFilterStruct($filter))
@@ -358,7 +379,7 @@
       //--------------------- Check Params
       $validParams = ['table', 'filter'];
       $hasValidParams = $this->validateParamStruct($validParams, $param);
-      if (!$hasValidParams) die(formatError('Invalid parameters! (allowed are: '.implode(', ', $validParams).')'));
+      if (!$hasValidParams) die(fmtError('Invalid parameters! (allowed are: '.implode(', ', $validParams).')'));
       // TODO !!!
       $tablename = $param["table"];
       $filter = isset($param["filter"]) ? $param["filter"] : null;
@@ -379,13 +400,13 @@
       return json_encode(array(array('cnt' => count($data))));
     }
 
-    // Interface (Get + Post)
+    // Interface (could be GET or PUT/POST)
     public function call($param) {
       // Strcuture: {name: "sp_table", inputs: ["test", 13, 42, "2019-01-01"]}
       //--------------------- Check Params
       $validParams = ['name', 'inputs'];
       $hasValidParams = $this->validateParamStruct($validParams, $param);
-      if (!$hasValidParams) die(formatError('Invalid parameters! (allowed are: '.implode(', ', $validParams).')'));
+      if (!$hasValidParams) die(fmtError('Invalid parameters! (allowed are: '.implode(', ', $validParams).')'));
       $name = $param["name"];
       $inputs = $param["inputs"];
       $inp_count = count($inputs);
@@ -415,8 +436,8 @@
       $tablename = $param["table"];
       $row = $param["row"];
       // Check Parameter
-      if (!Config::isValidTablename($tablename)) die(formatError('Invalid Tablename!'));
-      if (!Config::doesTableExist($tablename)) die(formatError('Table does not exist!'));
+      if (!Config::isValidTablename($tablename)) die(fmtError('Invalid Tablename!'));
+      if (!Config::doesTableExist($tablename)) die(fmtError('Table does not exist!'));
 
       // New State Machine
       $pdo = DB::getInstance()->getConnection();
@@ -500,14 +521,14 @@
       $tablename = $param["table"];
       $row = $param["row"];
       // Check Parameter
-      if (!Config::isValidTablename($tablename)) die(formatError('Invalid Tablename!'));
-      if (!Config::doesTableExist($tablename)) die(formatError('Table does not exist!'));
+      if (!Config::isValidTablename($tablename)) die(fmtError('Invalid Tablename!'));
+      if (!Config::doesTableExist($tablename)) die(fmtError('Table does not exist!'));
 
       // Check if has Table has NO state-machine
       if (!$allowUpdateFromSM) {
         $SM = new StateMachine(DB::getInstance()->getConnection(), $tablename);
         $SMID = $SM->getID();
-        if ($SMID > 0) die(formatError("Table with state-machine can not be updated! Use state-machine instead!"));
+        if ($SMID > 0) die(fmtError("Table with state-machine can not be updated! Use state-machine instead!"));
       }
       // Extract relevant Info via Config     
       $pcol = Config::getPrimaryColNameByTablename($tablename);
@@ -551,8 +572,8 @@
       // INPUT [table, ElementID, (next)state_id]
       $tablename = $param["table"];
       // Check Parameter
-      if (!Config::isValidTablename($tablename)) die(formatError('Invalid Tablename!'));
-      if (!Config::doesTableExist($tablename)) die(formatError('Table does not exist!'));
+      if (!Config::isValidTablename($tablename)) die(fmtError('Invalid Tablename!'));
+      if (!Config::doesTableExist($tablename)) die(fmtError('Table does not exist!'));
       
       // Get Primary Column
       $pcol = Config::getPrimaryColNameByTablename($tablename);
@@ -627,19 +648,19 @@
         exit;
 
       } else 
-        die(formatError("Transition not possible!"));
+        die(fmtError("Transition not possible!"));
     }
 
     // [DELETE] Deleting
     public function delete($param) {
       //---- NOT SUPPORTED FOR NOW [!]
-      die(formatError('The Delete-Command is currently not supported!'));
+      die(fmtError('The Delete-Command is currently not supported!'));
       // Parameter
       $tablename = $param["table"];
       $row = $param["row"];
       // Check Parameter
-      if (!Config::isValidTablename($tablename)) die(formatError('Invalid Tablename!'));
-      if (!Config::doesTableExist($tablename)) die(formatError('Table does not exist!'));
+      if (!Config::isValidTablename($tablename)) die(fmtError('Invalid Tablename!'));
+      if (!Config::doesTableExist($tablename)) die(fmtError('Table does not exist!'));
       // Extract relevant Info via Config
       $pcol = Config::getPrimaryColNameByTablename($tablename);
       $id = (int)$row[$pcol];
@@ -654,7 +675,6 @@
       return $success ? "1" : "0";
     }
   
-
     //---------------------------------- File Handling (check Token) ... [GET]
     public function getFile($param) {
       // Download File from Server
@@ -679,9 +699,9 @@
           $filecontent = file_get_contents($filepathcomplete);
           echo $filecontent;
         } else 
-          die(formatError("error"));
+          die(fmtError("error"));
       } else
-        die(formatError("error"));
+        die(fmtError("error"));
     }
   }
 ?>
