@@ -17,7 +17,15 @@
     $(document).ready(function() {
       DB.API_URL = 'api.php';
       // Create objects
-      /*###JS_TABLE_OBJECTS###*/
+      DB.loadConfig(function(config){
+        Object.keys(config).forEach(tablename => {
+          let tmp = new Table(tablename, 0);
+          tmp.GUIOptions.showWorkflowButton = true;
+          tmp.loadRows(function(){
+            tmp.renderHTML('.table_'+tablename);
+          })
+        });
+      });
       // Loading disable
       $('.initloadingtext').hide();
       $('.mainapp').show();

@@ -122,8 +122,8 @@
       `User_id` bigint(20) NOT NULL,
       `History_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       `History_table` varchar(128) NOT NULL,
-      `History_valueold` LONGTEXT NOT NULL,
       `History_valuenew` LONGTEXT NOT NULL,
+      `History_created` tinyint(1) NOT NULL DEFAULT 0,
       PRIMARY KEY (`History_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8;');
   }  
@@ -148,13 +148,17 @@
         "<div role=\"tabpanel\" class=\"tab-pane\" id=\"$tablename\">".
         "<div class=\"table_$tablename\"></div></div>\n";
       // Init a JS-Object
+      /*
       $tableVarName = "tbl_$tablename";
       $content_jsObjects .= "      let $tableVarName = new Table('$tablename', 0, function(){
         $tableVarName.GUIOptions.showWorkflowButton = true;
         $tableVarName.loadRows(function(){ $tableVarName.renderHTML('.table_$tablename'); });
       });\n";
+      */
     }
     //---/Create HTML Content
+
+
 
     // TODO: Check if the "table" is no view
 
@@ -503,7 +507,6 @@ END";
   $output_content = str_replace('<!--###TAB_PANELS###-->', $content_tabpanels, $output_content); // Tabs (Panels)
   $output_content = str_replace('replaceDBName', $db_name, $output_content); // Project Name
   $output_content = str_replace('<!-- replaceAccountHandler -->', $AccountHandler, $output_content); // Account-URL
-  $output_footer = str_replace('/*###JS_TABLE_OBJECTS###*/', $content_jsObjects, $output_footer); // Init functions for JS-Tables
   $output_css = str_replace('/*###CSS_STATES###*/', $content_css_statecolors, $output_css); // CSS State Colors
   $output_all = $output_header.$output_content.$output_footer; // Compose Main HTML File
 

@@ -56,26 +56,43 @@ class DB {
     static request(command, params, callback) {
         let me = this;
         let data = { cmd: command };
-        // If Params are set, then append them to data object
-        if (params)
-            data['paramJS'] = params;
+        let options = { method: 'POST' };
+        let url = me.API_URL;
+        if (params) {
+            data['paramJS'] = params; // append to data Object 
+        }
+        // Set HTTP Method
+        if (command == 'init')
+            options.method = 'OPTIONS';
+        else if (command == 'create') {
+            options.method = 'POST';
+            options['body'] = JSON.stringify(data);
+        }
+        else if (command == 'read') {
+            options.method = 'GET';
+            const getString = Object.keys(params).map(function (key) {
+                const val = params[key];
+                return key + '=' + (isObject(val) ? JSON.stringify(val) : val);
+            }).join('&');
+            url += '?' + getString;
+        }
+        //else if (command == 'update') options.method = 'PATCH';
+        else if (command == 'delete')
+            options.method = 'DELETE';
+        else {
+            options['body'] = JSON.stringify(data);
+        }
         // Request (every Request is processed by this function)
-        $.ajax({
-            method: "POST",
-            url: me.API_URL,
-            contentType: 'json',
-            data: JSON.stringify(data),
-            error: function (xhr, status) {
-                // Not Authorized
-                if (xhr.status == 401) {
-                    document.location.assign('login.php'); // Redirect to Login-Page
-                }
-                else if (xhr.status == 403) {
-                    alert("Sorry! You dont have the rights to do this.");
-                }
-            }
-        }).done(function (response) {
-            callback(response);
+        fetch(url, options).then(response => {
+            return response.json();
+        }).then(res => {
+            callback(res);
+        });
+    }
+    static loadConfig(callback) {
+        DB.request('init', {}, config => {
+            this.Config = config;
+            callback(config);
         });
     }
 }
@@ -330,22 +347,6 @@ class RawTable {
             callback();
         });
     }
-    loadRows(callback) {
-        let me = this;
-        let data = {
-            table: this.tablename,
-            limitStart: this.PageIndex * this.PageLimit,
-            limitSize: this.PageLimit,
-            orderby: this.OrderBy,
-            ascdesc: this.AscDesc,
-            filter: this.Filter
-        };
-        // HTTP Request
-        DB.request('read', data, function (response) {
-            me.Rows = response; // Cache
-            callback(response);
-        });
-    }
     loadRow(RowID, callback) {
         let data = { table: this.tablename, limitStart: 0, limitSize: 1, filter: { columns: {} } };
         data.filter.columns[this.PrimaryColumn] = RowID;
@@ -355,6 +356,23 @@ class RawTable {
             callback(row);
         });
     }
+    loadRows(callback) {
+        let me = this;
+        let data = {
+            table: me.tablename,
+            limitStart: me.PageIndex * me.PageLimit,
+            limitSize: me.PageLimit,
+            orderby: me.OrderBy,
+            ascdesc: me.AscDesc,
+            filter: me.Filter
+        };
+        // HTTP Request
+        DB.request('read', data, function (response) {
+            me.Rows = response; // Cache
+            callback(response);
+        });
+    }
+    //---------------------------
     getNrOfRows() {
         return this.actRowCount;
     }
@@ -378,7 +396,7 @@ class RawTable {
 // Class: Table
 //==============================================================
 class Table extends RawTable {
-    constructor(tablename, SelType = SelectType.NoSelect, callback = function () { }, defaultObj = {}, initFilter = {}) {
+    constructor(tablename, SelType = SelectType.NoSelect) {
         super(tablename); // Call parent constructor
         this.FilterText = ''; // TODO: Remove
         this.SM = null;
@@ -406,7 +424,6 @@ class Table extends RawTable {
         let me = this;
         me.GUID = GUI.getID();
         // Check this values
-        me.defaultValues = defaultObj;
         me.selType = SelType;
         // Inherited
         me.PageIndex = 0;
@@ -414,31 +431,30 @@ class Table extends RawTable {
         me.selectedRow = undefined;
         me.tablename = tablename;
         me.OrderBy = '';
-        DB.request('init', { table: tablename, filter: initFilter }, function (resp) {
-            // Save Form Data
-            me.TableConfig = resp['config'];
-            me.actRowCount = resp['count'];
-            me.diffFormCreateObject = JSON.parse(resp['formcreate']);
-            me.Columns = me.TableConfig.columns;
-            me.ReadOnly = me.TableConfig.mode == 'ro';
-            me.TableType = me.TableConfig.table_type;
-            // Initialize StateMachine for the Table
-            if (me.TableConfig['se_active']) {
-                me.SM = new StateMachine(me, resp['sm_states'], resp['sm_rules']);
-            }
-            // check if is ReadOnly and NoSelect then hide first column
-            if (me.ReadOnly && me.selType == SelectType.NoSelect)
-                me.GUIOptions.showControlColumn = false;
-            // Loop all cloumns from this table
-            for (const col of Object.keys(me.Columns)) {
-                if (me.Columns[col].is_primary)
-                    me.PrimaryColumn = col; // Get Primary Column          
-                if (me.Columns[col].show_in_grid && me.OrderBy == '')
-                    me.OrderBy = col; // Get SortColumn (DEFAULT: Sort by first visible Col)
-            }
-            // Initializing finished
-            callback();
-        });
+        // Save Form Data
+        let resp = JSON.parse(JSON.stringify(DB.Config[tablename])); // Deep Copy!
+        me.TableConfig = resp['config'];
+        me.actRowCount = resp['count'];
+        me.diffFormCreateObject = JSON.parse(resp['formcreate']);
+        me.Columns = me.TableConfig.columns;
+        me.ReadOnly = me.TableConfig.mode == 'ro';
+        me.TableType = me.TableConfig.table_type;
+        // Initialize StateMachine for the Table
+        if (me.TableConfig['se_active'])
+            me.SM = new StateMachine(me, resp['sm_states'], resp['sm_rules']);
+        // check if is ReadOnly and NoSelect then hide first column
+        if (me.ReadOnly && me.selType == SelectType.NoSelect)
+            me.GUIOptions.showControlColumn = false;
+        // Loop all cloumns from this table
+        for (const col of Object.keys(me.Columns)) {
+            if (me.Columns[col].is_primary)
+                me.PrimaryColumn = col; // Get Primary Column          
+            if (me.Columns[col].show_in_grid && me.OrderBy == '')
+                me.OrderBy = col; // Get SortColumn (DEFAULT: Sort by first visible Col)
+        }
+    }
+    setDefaultValues(values) {
+        this.defaultValues = values;
     }
     getPrimaryColname() {
         return this.PrimaryColumn;
@@ -1109,17 +1125,17 @@ class Table extends RawTable {
                         const colsnames = Object.keys(cols);
                         if (colsnames.length > 1) {
                             // Get the config from the remote table
-                            let getSubHeaders = new Promise((resolve, reject) => {
+                            let getSubHeaders = new Promise((resolve) => {
                                 let subheaders = '';
-                                let tmpTable = new Table(t.Columns[colname].foreignKey.table, 0, function () {
-                                    const split = (100 * (1 / colsnames.length)).toFixed(0);
-                                    for (const c of colsnames) {
-                                        const tmpAlias = tmpTable.Columns[c].column_alias;
-                                        subheaders += '<td class="border-0 align-middle" style="width: ' + split + '%">' + tmpAlias + '</td>';
-                                    }
-                                    ;
-                                    resolve(subheaders);
-                                });
+                                let tmpTable = new Table(t.Columns[colname].foreignKey.table); //, 0, function(){
+                                const split = (100 * (1 / colsnames.length)).toFixed(0);
+                                for (const c of colsnames) {
+                                    const tmpAlias = tmpTable.Columns[c].column_alias;
+                                    subheaders += '<td class="border-0 align-middle" style="width: ' + split + '%">' + tmpAlias + '</td>';
+                                }
+                                ;
+                                resolve(subheaders);
+                                //});
                             });
                             const res = yield getSubHeaders;
                             th += `<table class="w-100 border-0"><tr>${res}</tr></table>`;
@@ -1434,24 +1450,6 @@ class FormGenerator {
     constructor(originTable, originRowID, rowData) {
         this.editors = {};
         this.GUID = GUI.getID();
-        /*
-        // Tests
-        const testForm1 = {
-          column_name_1: {field_type: 'text', column_alias: '', mode_form: 'ro', value: 'standard-value'},
-          column_name_2: {field_type: 'number', column_alias: 'Number of Questions', mode_form: 'rw'},
-          column_name_3: {field_type: 'textarea', column_alias: 'Description', mode_form: 'ro'},
-          column_name_7: {field_type: 'date', column_alias: 'Date', mode_form: 'rw', value: '2019-01-01'},
-          column_name_8: {field_type: 'time', column_alias: 'Time', mode_form: 'ro', value: "13:37"},
-          column_name_6: {field_type: 'foreignkey', column_alias: 'Select a ForeignKey', mode_form: 'rw'},
-          column_name_4: {field_type: 'switch', column_alias: 'Correct', mode_form: 'rw', value: 1},
-          column_name_5: {field_type: 'switch', column_alias: 'Just another Switch', mode_form: 'ro', value: 0},
-        };
-        const testForm2 = {
-          column_n: {field_type: 'foreignkey', column_alias: 'First element', mode_form: 'rw'},
-          column_m: {field_type: 'foreignkey', column_alias: 'Second element', mode_form: 'rw'},
-        };
-        */
-        //if (!Input) Input = testForm1;
         // Save data internally
         this.oTable = originTable;
         this.oRowID = originRowID;
@@ -1545,22 +1543,20 @@ class FormGenerator {
             let defValues = {};
             defValues[hideCol] = OriginRowID;
             result += `<div class="${tmpGUID}"></div>`; // Container for Table
-            const tmpFilter = { columns: {} };
-            tmpFilter.columns[hideCol] = OriginRowID;
             //--- Create new Table
-            let tmp = new Table(ext_tablename, SelectType.NoSelect, function () {
-                // Hide this columns
-                tmp.Columns[hideCol].show_in_grid = false; // Hide the primary column
-                tmp.Columns[tmp.getPrimaryColname()].show_in_grid = false; // Hide the origin column
-                tmp.ReadOnly = (el.mode_form == 'ro');
-                tmp.GUIOptions.showControlColumn = !tmp.ReadOnly;
-                tmp.setColumnFilter(hideCol, '' + OriginRowID);
-                // Load Rows
-                tmp.loadRows(function () {
-                    tmp.renderHTML('.' + tmpGUID);
-                });
-            }, defValues, // Default Values
-            tmpFilter);
+            let tmp = new Table(ext_tablename, SelectType.NoSelect);
+            // Hide this columns
+            tmp.Columns[hideCol].show_in_grid = false; // Hide the primary column
+            tmp.Columns[tmp.getPrimaryColname()].show_in_grid = false; // Hide the origin column
+            tmp.ReadOnly = (el.mode_form == 'ro');
+            tmp.GUIOptions.showControlColumn = !tmp.ReadOnly;
+            // Custom Filter
+            tmp.setColumnFilter(hideCol, '' + OriginRowID);
+            tmp.setDefaultValues(defValues);
+            // Load Rows
+            tmp.loadRows(function () {
+                tmp.renderHTML('.' + tmpGUID);
+            });
         }
         //--- Quill Editor
         else if (el.field_type == 'htmleditor') {
@@ -1760,17 +1756,17 @@ function test(x) {
     let fkInput = me.parent().parent().parent().find('.inputFK');
     fkInput.val(''); // Reset Selection
     me.parent().parent().parent().find('.external-table').replaceWith('<div class="' + randID + '"></div>');
-    let tmpTable = new Table(FKTable, 1, function () {
-        // TODO: Set Filter
-        //tmpTable.setColumnFilter('state_id', '6');
-        // Load
-        tmpTable.loadRows(function () {
-            return __awaiter(this, void 0, void 0, function* () {
-                yield tmpTable.renderHTML('.' + randID);
-                $('.' + randID).find('.filterText').focus();
-            });
+    let tmpTable = new Table(FKTable, 1); // function(){
+    // TODO: Set Filter
+    //tmpTable.setColumnFilter('state_id', '6');
+    // Load
+    tmpTable.loadRows(function () {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield tmpTable.renderHTML('.' + randID);
+            $('.' + randID).find('.filterText').focus();
         });
     });
+    //});
     tmpTable.SelectionHasChanged.on(function () {
         const selRowID = tmpTable.getSelectedRowID();
         if (selRowID)
@@ -1781,8 +1777,9 @@ function test(x) {
 }
 function gEdit(tablename, RowID) {
     // Load Table, load Row, display Edit-Modal
-    let tmpTable = new Table(tablename, 0, function () {
-        tmpTable.setColumnFilter(tmpTable.getPrimaryColname(), RowID);
-        tmpTable.loadRows(function () { tmpTable.modifyRow(RowID); });
+    let tmpTable = new Table(tablename, 0);
+    tmpTable.setColumnFilter(tmpTable.getPrimaryColname(), RowID);
+    tmpTable.loadRows(function () {
+        tmpTable.modifyRow(RowID);
     });
 }

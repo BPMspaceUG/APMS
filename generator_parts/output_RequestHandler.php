@@ -76,6 +76,10 @@
     public static function getLoginSystemURL() {
       return API_URL_LIAM;
     }
+    public static function hasHistory() {
+      // TODO: !!!
+      return true;
+    }
     // Checks
     public static function doesTableExist($tablename) {
       $result = false;
@@ -139,20 +143,6 @@
           );
       }
       return $res;
-    }
-    public static function checkSQLParts($queryPart) {
-      $disAllow = array(
-        '--', 'SELECT', 'INSERT','UPDATE','DELETE','UNION','RENAME','DROP','CREATE','TRUNCATE','ALTER','COMMIT',
-        'ROLLBACK','MERGE','CALL','EXPLAIN','LOCK','GRANT','REVOKE','SAVEPOINT','TRANSACTION','SET'
-      );
-      // Convert array to pipe-seperated string
-      $disAllow = implode('|', $disAllow);
-      // Check if no other harmfull statements exist
-      if (preg_match('/('.$disAllow.')/', strtoupper($queryPart)) == 0) {
-        // Execute query
-        return true;
-      }
-      return false;
     }
   }
 
@@ -296,46 +286,72 @@
       $res = $SE->getNextStates($stateID);
       return json_encode($res);
     }
+    private function logHistory($tablename, $value, $isCreate) {
+      if (Config::hasHistory()) {
+        // Identify via Token
+        global $token;
+        $token_uid = -1;
+        if (property_exists($token, 'uid')) $token_uid = $token->uid;
+        // Write into Database
+        $sql = "INSERT INTO History (User_id, History_table, History_valuenew, History_created) VALUES (?,?,?,?)";
+        $pdo = DB::getInstance()->getConnection();
+        $histStmt = $pdo->prepare($sql);
+        $histStmt->execute([$token_uid, $tablename, json_encode($value), ($isCreate ? "1" : "0")]);
+      }
+    }
 
     //=======================================================
  
-    // [GET] Reading
-    public function init($param = null) {
-      if (is_null($param))
-        return Config::getConfig(); // return entire config
-      else {
-        // Send only data from a specific Table
-        // Send info: structure (from config) the createForm and Count of all entries
-        $tablename = $param["table"];
-        // Check Parameter
-        if (!Config::isValidTablename($tablename)) die('Invalid Tablename!');
-        if (!Config::doesTableExist($tablename)) die('Table does not exist!');
-
-        $pdo = DB::getInstance()->getConnection();
-        $SE = new StateMachine($pdo, $tablename);
-        $result = [];
-        // ---- Structure
-        $config = json_decode(Config::getConfig(), true);
-        $result['config'] = $config[$tablename];
-        $result['count'] = json_decode($this->count($param), true)[0]['cnt'];
-        $result['formcreate'] = $this->getFormCreate($param);
-        $result['sm_states'] = $SE->getStates();
-        $result['sm_rules'] = $SE->getLinks();
-        // Return result as JSON
-        return json_encode($result);
-      }
+    // [HEAD]
+    private function inititalizeTable($tablename) {
+      // Init Vars
+      $pdo = DB::getInstance()->getConnection();
+      $SE = new StateMachine($pdo, $tablename);
+      $param = ["table" => $tablename];
+      // TODO: If Table = hidden then return
+      // TODO: If Table = readonly then exclude formcreate and statemachine      
+      // ---- Structure
+      $config = json_decode(Config::getConfig(), true);
+      $result = [];
+      $result['config'] = $config[$tablename];
+      $result['count'] = json_decode($this->count($param), true)[0]['cnt'];
+      $result['formcreate'] = $this->getFormCreate($param);
+      $result['sm_states'] = $SE->getStates();
+      $result['sm_rules'] = $SE->getLinks();
+      return $result;
     }
+    public function init($param = null) {
+      $tablename = $param["table"];
+      if (is_null($param) && empty($tablename)) {
+        // Read all Tables
+        $conf = json_decode(Config::getConfig(), true);
+        $result = [];
+        foreach ($conf as $tablename => $t) {
+          //echo $tablename;
+          $result[$tablename] = $this->inititalizeTable($tablename);
+        }
+      } else {
+        // Check Parameter
+        if (!Config::isValidTablename($tablename)) die(fmtError('Invalid Tablename!'));
+        if (!Config::doesTableExist($tablename)) die(fmtError('Table does not exist!'));
+        $result = $this->inititalizeTable($tablename);
+      }
+      return json_encode($result);
+    }
+    // [GET] Reading
     public function read($param) {
       //--------------------- Check Params
-      $validParams = ['table', 'limitStart', 'limitSize', 'ascdesc', 'orderby', 'filter'];
+      $validParams = ['table', 'limitStart', 'limitSize', 'ascdesc', 'orderby', 'filter'/*, 'page'*/];
       $hasValidParams = $this->validateParamStruct($validParams, $param);
       if (!$hasValidParams) die(fmtError('Invalid parameters! (allowed are: '.implode(', ', $validParams).')'));
       // Parameters and default values
       @$tablename = isset($param["table"]) ? $param["table"] : die(fmtError('Table is not set!'));
+      // -- Ordering, Limit, and Pagination
       @$limitStart = isset($param["limitStart"]) ? $param["limitStart"] : null;
       @$limitSize = isset($param["limitSize"]) ? $param["limitSize"] : null;
       @$ascdesc = isset($param["ascdesc"]) ? $param["ascdesc"] : null; 
       @$orderby = isset($param["orderby"]) ? $param["orderby"] : null; // has to be a column name
+      //@$page = isset($param["page"]) ? $param["page"] : null;
       @$filter = isset($param["filter"]) ? $param["filter"] : null;
       // Identify via Token
       global $token;
@@ -344,6 +360,7 @@
       // Table
       if (!Config::isValidTablename($tablename)) die(fmtError('Invalid Tablename!'));
       if (!Config::doesTableExist($tablename)) die(fmtError('Table does not exist!'));
+
       //--- Limit
       if (!is_null($limitStart) && is_null($limitSize)) die(fmtError("Error in Limit Params (LimitSize is not set)!"));
       if (is_null($limitStart) && !is_null($limitSize)) die(fmtError("Error in Limit Params (LimitStart is not set)!"));
@@ -389,9 +406,12 @@
       $token_uid = -1;
       if (property_exists($token, 'uid'))
         $token_uid = $token->uid;
+
       //--- Filter
       if ($this->isValidFilterStruct($filter))
         $filter = json_encode($filter);
+
+
       // Prepare Structure
       $p = ['name' => 'sp_'.$tablename, 'inputs' => [$token_uid, $filter, '', 'ASC', 0, 1000000]];
       $res = $this->call($p);
@@ -400,7 +420,7 @@
       return json_encode(array(array('cnt' => count($data))));
     }
 
-    // Interface (could be GET or PUT/POST)
+    // Interface (GET and POST)
     public function call($param) {
       // Strcuture: {name: "sp_table", inputs: ["test", 13, 42, "2019-01-01"]}
       //--------------------- Check Params
@@ -442,7 +462,8 @@
       // New State Machine
       $pdo = DB::getInstance()->getConnection();
       $SM = new StateMachine($pdo, $tablename);
-      $script_result = array();
+
+      $script_result = []; // init
 
       //--- Has StateMachine? then execute Scripts
       if ($SM->getID() > 0) {
@@ -452,13 +473,14 @@
         // Execute Transition Script
         $script = $SM->getTransitionScriptCreate();
         $script_result[] = $SM->executeScript($script, $param, $tablename);
-        $script_result[0]['_entry-point-state'] = $EP;
-        $row = $param["row"];
+        $script_result[0]['_entry-point-state'] = $EP; // append info
+        $row = $param["row"]; // modify row via Script
       }
       else {
         // NO StateMachine => goto next step (write min data)
         $script_result[] = array("allow_transition" => true);
       }
+
 
       //--- If allow transition then Create
       if (@$script_result[0]["allow_transition"] == true) {
@@ -485,37 +507,44 @@
         $stmt->execute($vals);
         $newElementID = $pdo->lastInsertId();
 
-        // Execute IN-Script, but only when Insert was successful and Statemachine exists
-        if (($SM->getID() > 0) && ($newElementID > 0)) {
-          // IN-Script
-          $script = $SM->getINScript( $EP['id'] );
-          // Refresh row (add ID)
-          $pcol = Config::getPrimaryColNameByTablename($tablename);
+
+        // INSERT successful
+        if ($newElementID > 0) {
+          // Refresh row (+ add ID)
+          $pcol = Config::getPrimaryColNameByTablename($tablename);          
           $param['row'] = $row;
-          $param['row'][$pcol] = (string)$newElementID;
-          // IN-Script          
-          $tmp_script_res = $SM->executeScript($script, $param, $tablename);
-          // Append Metadata (New ID and stateID)
-          $tmp_script_res["element_id"] = $newElementID;
-          $tmp_script_res['_entry-point-state'] = $EP;
-          // Append Script
-          $script_result[] = $tmp_script_res;
-        }
-        else {
-          // No Statemachine
-          $script_result[0]["element_id"] = $newElementID;
-          // ErrorHandling
-          if ($newElementID == 0) {
-            $script_result[0]["errormsg"] = $stmt->errorInfo()[2];
+          $param['row'] = [$pcol => $newElementID] + $param['row']; // Add PrimaryID at the beginning  
+          $this->logHistory($tablename, $param["row"], true); // Write in History-Table (Create)
+
+          // Execute IN-Script, but only when Insert was successful and Statemachine exists
+          // If Statemachine execute IN-Script
+          if ($SM->getID() > 0) {
+            $script = $SM->getINScript($EP['id']);
+            $tmp_script_res = $SM->executeScript($script, $param, $tablename);
+            // Append Metadata (New ID and stateID)
+            $tmp_script_res["element_id"] = $newElementID;
+            $tmp_script_res['_entry-point-state'] = $EP;
+            // Append Script
+            $script_result[] = $tmp_script_res;
+          } else {
+            // No Statemachine
+            $script_result[0]["element_id"] = $newElementID;
           }
         }
-
+        else {
+          // ErrorHandling
+          //if ($newElementID == 0) {
+          $script_result[0]["element_id"] = 0;
+          $script_result[0]["errormsg"] = $stmt->errorInfo()[2];
+          //}
+        }
       }
       // Return
       return json_encode($script_result);
     }
 
-    // [PUT] Changing
+    // [PATCH] Changing
+    // TODO: Remove Update function bzw. combine into 1 Function (update = specialcase)
     public function update($param, $allowUpdateFromSM = false) {
        // Parameter
       $tablename = $param["table"];
@@ -561,9 +590,15 @@
       if ($stmt->execute($vals)) {
         // Check if rows where updated
         $success = ($stmt->rowCount() > 0);
-      } else {
+      }
+      else {
+        //--Error
         echo $stmt->queryString."<br />";
         var_dump($stmt->errorInfo());
+      }
+      // Log History
+      if ($success) {
+        $this->logHistory($tablename, $param["row"], false);
       }
       // Output
       return $success ? "1" : "0";
@@ -610,11 +645,9 @@
         $res = $SE->executeScript($out_script, $param, $tablename);
         if (!$res['allow_transition']) {
           $feedbackMsgs[] = $res;
-          //$feedbackMsgs[0]['state'] = $actstateID;
           return json_encode($feedbackMsgs); // Exit -------->
         } else {
           $feedbackMsgs[] = $res;
-          //$feedbackMsgs[0]['state'] = $actstateID;
           // Continue
         }
 
@@ -623,32 +656,29 @@
         $res = $SE->executeScript($tr_script, $param, $tablename);
         if (!$res["allow_transition"]) {
           $feedbackMsgs[] = $res;
-          /*$feedbackMsgs[1]['state'] = $actstateID;
-          $feedbackMsgs[1]['stateTo'] = $nextStateID;*/
           return json_encode($feedbackMsgs); // Exit -------->
         } else {
           $feedbackMsgs[] = $res;
-          /*$feedbackMsgs[1]['state'] = $actstateID;
-          $feedbackMsgs[1]['stateTo'] = $nextStateID;*/
           // Continue
         }
 
         // Update all rows
-        $this->update($param, true); 
+        $this->update($param, true);
 
         //---[3]- Execute IN Script
         $in_script = $SE->getINScript($nextStateID); // from target state
         $res = $SE->executeScript($in_script, $param, $tablename);
         $res["allow_transition"] = true;
         $feedbackMsgs[] = $res;
-        /*$feedbackMsgs[2]['state'] = $actstateID;
-        $feedbackMsgs[2]['stateTo'] = $nextStateID;
-        */
         echo json_encode($feedbackMsgs);
         exit;
 
       } else 
         die(fmtError("Transition not possible!"));
+    }
+    // TODO => this function merges update + makeTransition
+    public function change($param) {
+
     }
 
     // [DELETE] Deleting
@@ -675,6 +705,7 @@
       return $success ? "1" : "0";
     }
   
+
     //---------------------------------- File Handling (check Token) ... [GET]
     public function getFile($param) {
       // Download File from Server

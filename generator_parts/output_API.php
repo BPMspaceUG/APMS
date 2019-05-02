@@ -1,18 +1,17 @@
 <?php
+  $param = null;
   $ReqMethod = $_SERVER['REQUEST_METHOD'];
+  
   // API Header
   if ($ReqMethod === 'OPTIONS') {
-    header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: POST, GET, DELETE, PUT, PATCH, OPTIONS');
     header('Access-Control-Allow-Headers: token, Content-Type, Authorization, X-HTTP-Method-Override');
     header('Access-Control-Max-Age: 3600');
-    header('Content-Length: 0');
-    header('Content-Type: text/plain');
-    die();
   }
   header('Access-Control-Allow-Origin: *');
   header('Content-Type: application/json; charset=utf-8');
   //-----------------------------------------------------------------------------------
+
   // Includes
   require_once(__DIR__.'/src/AuthHandler.inc.php');
   include_once(__DIR__."/src/RequestHandler.inc.php");
@@ -41,18 +40,35 @@
     $token = null;
   }
   //========================================= Parameter & Handling
+  $bodyData = json_decode(file_get_contents('php://input'), true);
+
   try {    
     if ($ReqMethod === 'GET') {
-      // GET (useful for read, count)
-      $command = 'read'; // preset
+      $command = 'read'; // or call
       $param['table'] = isset($_GET['table']) ? $_GET['table'] : null;
       $param['filter'] = isset($_GET['filter']) ? $_GET['filter'] : null;
+      $param['limitStart'] = isset($_GET['limitStart']) ? $_GET['limitStart'] : null;
+      $param['limitSize'] = isset($_GET['limitSize']) ? $_GET['limitSize'] : null;
+      $param['orderby'] = isset($_GET['orderby']) ? $_GET['orderby'] : null;
+      $param['ascdesc'] = isset($_GET['ascdesc']) ? $_GET['ascdesc'] : null;
     }
-    else if ($ReqMethod === 'POST') {
-      // POST (useful for: create, call)
-      $postData = json_decode(file_get_contents('php://input'), true);
-      $command = $postData["cmd"]; // HAS TO EXIST!
-      $param = isset($postData["paramJS"]) ? $postData["paramJS"] : null;
+    else if ($ReqMethod === 'OPTIONS') {
+      $command = 'init';
+    }
+    else if ($ReqMethod === 'POST') { 
+      $command = $bodyData["cmd"]; // TODO: --> create
+      $param = isset($bodyData["paramJS"]) ? $bodyData["paramJS"] : null;
+    }
+    else if ($ReqMethod === 'PATCH') {
+      $command = 'update'; // TODO: transit
+      $param = isset($bodyData["paramJS"]) ? $bodyData["paramJS"] : null;
+    }
+    else if ($ReqMethod === 'DELETE') {
+      $command = 'delete';
+      $param = isset($bodyData["paramJS"]) ? $bodyData["paramJS"] : null;
+    }
+    else {
+      die(json_encode(['error' => ['msg' => "This HTTP Method is not supported!"]]));
     }
   }
   catch (Exception $e) {

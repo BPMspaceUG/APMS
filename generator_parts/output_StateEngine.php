@@ -266,7 +266,12 @@
       $stmt = $this->db->prepare("SELECT state_id AS id, name, entrypoint, form_data FROM state WHERE statemachine_id = ? ORDER BY state_id");
       $stmt->execute(array($this->ID));
       while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $result[] = $row;
+        $result[] = [
+          'id' => (int)$row['id'],
+          'name' => $row['name'],
+          'entrypoint' => (int)$row['entrypoint'],
+          'form_data' => $row['form_data']
+        ];
       }
       return $result;
     }
@@ -278,7 +283,7 @@
         ORDER BY state_id_TO");
       $stmt->execute(array($this->ID));
       while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $result[] = $row;
+        $result[] = ['from' => (int)$row['from'], 'to' => (int)$row['to']];
       }
       return $result;
     }
