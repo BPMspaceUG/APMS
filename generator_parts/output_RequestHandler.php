@@ -533,10 +533,8 @@
         }
         else {
           // ErrorHandling
-          //if ($newElementID == 0) {
           $script_result[0]["element_id"] = 0;
           $script_result[0]["errormsg"] = $stmt->errorInfo()[2];
-          //}
         }
       }
       // Return
@@ -592,9 +590,12 @@
         $success = ($stmt->rowCount() > 0);
       }
       else {
-        //--Error
-        echo $stmt->queryString."<br />";
-        var_dump($stmt->errorInfo());
+        // ErrorHandling
+        //echo $stmt->queryString."<br />";
+        //var_dump($stmt->errorInfo());
+        //$script_result[0]["element_id"] = 0;
+        //$script_result[0]["errormsg"] = $stmt->errorInfo()[2];
+        die(fmtError($stmt->errorInfo()[2]));
       }
       // Log History
       if ($success) {

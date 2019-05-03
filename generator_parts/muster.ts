@@ -659,33 +659,11 @@ class Table extends RawTable {
       if (row[t.PrimaryColumn] == RowID)
         actState = row['state_id'];
     }
-    // Set a loading icon or indicator when transition is running
-    /*
-    if (MID != '') {
-      // Remove all Error Messages
-      $('#'+MID+' .modal-body .alert').remove();
-      // Read out all input fields with {key:value}
-      //data = t.readDataFromForm('#'+MID);
-      $('#'+MID+' .modal-title').prepend(`<span class="loadingtext"><i class="fa fa-spinner fa-pulse"></i></span>`);
-      $('#'+MID+' :input').prop("disabled", true);
-    }
-    */
-
     // REQUEST
-    t.transitRow(RowID, targetState.state_id, data, function(r) {
-      // When a response came back
-      /*if (MID != '') {
-        $('#'+MID+' .loadingtext').remove();
-        $('#'+MID+' :input').prop("disabled", false);
-      }*/
-      // Try to parse result messages
-      try {
-        parsedData = r;
-      }
-      catch(err) {
-        let resM = new Modal('<b class="text-danger">Script Error!</b>', r);
-        resM.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose
-        resM.show();
+    t.transitRow(RowID, targetState.state_id, data, function(response) {
+      // Check for Error
+      if ('error' in response) {
+        $('#'+ myModal.getDOMID() +' .modal-body').prepend(`<div class="alert alert-danger" role="alert"><b>Database Error!</b>&nbsp;${response['error']['msg']}</div>`);
         return
       }
       // Remove all Error Messages from Modal
@@ -694,15 +672,13 @@ class Table extends RawTable {
       // Handle Transition Feedback
       let counter = 0;
       let messages = [];
-      parsedData.forEach(msg => {
-        // Show Messages
+      response.forEach(msg => {
         if (msg.show_message)
-          messages.push({type: counter, text: msg.message});
-        // Increase Counter for Modals
+          messages.push({type: counter, text: msg.message}); // for GUI
         counter++;
       });
       // Re-Sort the messages
-      messages.reverse(); // like the process => [Out, Transit, In]
+      messages.reverse(); // sort in Order of the process => [1. Out, 2. Transition, 3. In]
 
       // Check if Transition was successful
       if (counter == 3) {
@@ -734,7 +710,7 @@ class Table extends RawTable {
         });
       }
 
-      // Show all Script-Result Messages
+      // GUI: Show all Script-Result Messages
       for (const msg of messages) {
         const stateFrom = t.renderStateButton(actState.state_id, actState.name);
         const stateTo = t.renderStateButton(targetState.state_id, targetState.name);
@@ -849,11 +825,11 @@ class Table extends RawTable {
                 })
               })
             }
-            // ElementID has to be 0! otherwise the transscript aborted
+          }
+          else {
+            // ElementID is defined but 0 => the transscript aborted
             if (msg.element_id == 0) {
-              $('#'+ModalID+' .modal-body').prepend(
-                `<div class="alert alert-danger" role="alert"><b>Database Error!</b>&nbsp;${msg.errormsg}</div>`
-              )
+              $('#'+ModalID+' .modal-body').prepend(`<div class="alert alert-danger" role="alert"><b>Database Error!</b>&nbsp;${msg.errormsg}</div>`);
             }
           }
           // Special Case for Relations (reactivate them)
@@ -1582,7 +1558,7 @@ class FormGenerator {
       // Load Rows
       tmp.loadRows(function(){
         tmp.renderHTML('.' + tmpGUID);
-      })
+      });
     }
     //--- Quill Editor
     else if (el.field_type == 'htmleditor') {
@@ -1631,18 +1607,26 @@ class FormGenerator {
       if (type == 'checkbox') {
         value = inp.is(':checked') ? 1 : 0;
       }
+      // Float numbers
       else if (type == 'text' && inp.hasClass('inpFloat')) {
         const input = inp.val().replace(',', '.');
         value = parseFloat(input);
-        //console.log(input, '-->', value);
-      } 
+      }
       // DateTime
       else if (type == 'time' && inp.hasClass('dtm')) {
         if (key in result) // if key already exists in result
           value = result[key] + ' ' + inp.val(); // append Time to Date
-       } else 
-        // Other
+      }
+      // ForeignKey
+      else if (type == 'hidden' && inp.hasClass('inputFK')) {
+        let tmpVal = inp.val();
+        if (tmpVal == '') tmpVal = null;
+        value = tmpVal;
+      }
+      // Every other type
+      else {
         value = inp.val();
+      }
       //----
       // Only add to result object if value is valid
       if (!(value == '' && (type == 'number' || type == 'date' || type == 'time' || type == 'datetime')))
