@@ -56,20 +56,22 @@ class DB {
     static request(command, params, callback) {
         let me = this;
         let data = { cmd: command };
-        let options = { method: 'POST' };
+        let HTTPMethod = 'POST';
+        let HTTPBody = undefined;
         let url = me.API_URL;
         if (params) {
             data['paramJS'] = params; // append to data Object 
         }
         // Set HTTP Method
-        if (command == 'init')
-            options.method = 'OPTIONS';
+        if (command == 'init') {
+            HTTPMethod = 'OPTIONS';
+        }
         else if (command == 'create') {
-            options.method = 'POST';
-            options['body'] = JSON.stringify(data);
+            HTTPMethod = 'POST';
+            HTTPBody = JSON.stringify(data);
         }
         else if (command == 'read') {
-            options.method = 'GET';
+            HTTPMethod = 'GET';
             const getString = Object.keys(params).map(function (key) {
                 const val = params[key];
                 return key + '=' + (isObject(val) ? JSON.stringify(val) : val);
@@ -77,13 +79,18 @@ class DB {
             url += '?' + getString;
         }
         //else if (command == 'update') options.method = 'PATCH';
-        else if (command == 'delete')
-            options.method = 'DELETE';
+        else if (command == 'delete') {
+            HTTPMethod = 'DELETE';
+        }
         else {
-            options['body'] = JSON.stringify(data);
+            HTTPBody = JSON.stringify(data);
         }
         // Request (every Request is processed by this function)
-        fetch(url, options).then(response => {
+        fetch(url, {
+            method: HTTPMethod,
+            body: HTTPBody,
+            credentials: 'same-origin'
+        }).then(response => {
             return response.json();
         }).then(res => {
             callback(res);
@@ -144,13 +151,16 @@ class Modal {
         });
     }
     setHeader(html) {
-        $('#' + this.DOM_ID + ' .modal-title').html(html);
+        //$('#'+this.DOM_ID+' .modal-title').html(html);
+        document.getElementById(this.DOM_ID).getElementsByClassName('modal-title')[0].innerHTML = html;
     }
     setFooter(html) {
-        $('#' + this.DOM_ID + ' .customfooter').html(html);
+        //$('#'+this.DOM_ID+' .customfooter').html(html);
+        document.getElementById(this.DOM_ID).getElementsByClassName('customfooter')[0].innerHTML = html;
     }
     setContent(html) {
-        $('#' + this.DOM_ID + ' .modal-body').html(html);
+        //$('#'+this.DOM_ID+' .modal-body').html(html);
+        document.getElementById(this.DOM_ID).getElementsByClassName('modal-body')[0].innerHTML = html;
     }
     show() {
         $("#" + this.DOM_ID).modal();

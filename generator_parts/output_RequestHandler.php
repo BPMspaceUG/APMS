@@ -389,7 +389,7 @@
       if ($this->isValidFilterStruct($filter))
         $filter = json_encode($filter);
       // Prepare Structure
-      $p = ['name' => 'sp_'.$tablename, 'inputs' => [$token_uid, $filter, 'a.'.$orderby, $ascdesc, $limitStart, $limitSize]];
+      $p = ['name' => 'sp_'.$tablename, 'inputs' => [$token_uid, $filter, $orderby, $ascdesc, $limitStart, $limitSize]];
       return $this->call($p);
     }
     public function count($param) {

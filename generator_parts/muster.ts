@@ -48,18 +48,24 @@ abstract class DB {
 
   public static request(command: string, params: any, callback) {
     let me = this;
-    let data = {cmd: command}
-    let options = {method: 'POST'}
+    let data = {cmd: command};
+    let HTTPMethod = 'POST';
+    let HTTPBody = undefined;
     let url = me.API_URL;
 
     if (params) {
       data['paramJS'] = params; // append to data Object 
     }
     // Set HTTP Method
-    if (command == 'init') options.method = 'OPTIONS';
-    else if (command == 'create') { options.method = 'POST'; options['body'] = JSON.stringify(data); }
+    if (command == 'init') {
+      HTTPMethod = 'OPTIONS';
+    } 
+    else if (command == 'create') {
+      HTTPMethod = 'POST';
+      HTTPBody = JSON.stringify(data);
+    }
     else if (command == 'read') {
-      options.method = 'GET';
+      HTTPMethod = 'GET';
       const getString = Object.keys(params).map(function(key) { 
         const val = params[key];
         return key + '=' + ( isObject(val) ? JSON.stringify(val) : val);
@@ -67,11 +73,19 @@ abstract class DB {
       url += '?' + getString;
     }
     //else if (command == 'update') options.method = 'PATCH';
-    else if (command == 'delete') options.method = 'DELETE';
-    else { options['body'] = JSON.stringify(data); }
+    else if (command == 'delete') {
+      HTTPMethod = 'DELETE';
+    }
+    else {
+      HTTPBody = JSON.stringify(data);
+    }
 
     // Request (every Request is processed by this function)
-    fetch(url, options).then(
+    fetch(url, {
+      method: HTTPMethod,
+      body: HTTPBody,
+      credentials: 'same-origin'
+    }).then(
       response => {
         return response.json();
       }).then(
@@ -104,17 +118,15 @@ class Modal {
   public constructor(heading: string, content: string, footer: string = '', isBig: boolean = false) {
     this.DOM_ID = GUI.getID()
     // Set Params
-    this.heading = heading
-    this.content = content
-    this.footer = footer
-    this.isBig = isBig
+    this.heading = heading;
+    this.content = content;
+    this.footer = footer;
+    this.isBig = isBig;
 
     // Render and add to DOM-Tree
-    let sizeType = ''
-    if (this.isBig)
-      sizeType = ' modal-xl'
+    let sizeType = '';
+    if (this.isBig) sizeType = ' modal-xl';
     // Result
-
     let html = `<div id="${this.DOM_ID}" class="modal fade" tabindex="-1" role="dialog">
       <div class="modal-dialog${sizeType}" role="document">
         <div class="modal-content">
@@ -145,13 +157,16 @@ class Modal {
     });
   }
   public setHeader(html: string) {
-    $('#'+this.DOM_ID+' .modal-title').html(html);
+    //$('#'+this.DOM_ID+' .modal-title').html(html);
+    document.getElementById(this.DOM_ID).getElementsByClassName('modal-title')[0].innerHTML = html;
   }
   public setFooter(html: string) {
-    $('#'+this.DOM_ID+' .customfooter').html(html);
+    //$('#'+this.DOM_ID+' .customfooter').html(html);
+    document.getElementById(this.DOM_ID).getElementsByClassName('customfooter')[0].innerHTML = html;
   }
   public setContent(html: string) {
-    $('#'+this.DOM_ID+' .modal-body').html(html);
+    //$('#'+this.DOM_ID+' .modal-body').html(html);
+    document.getElementById(this.DOM_ID).getElementsByClassName('modal-body')[0].innerHTML = html;
   }
   public show(): void {
     $("#"+this.DOM_ID).modal();
@@ -161,7 +176,7 @@ class Modal {
     $("#"+this.DOM_ID).modal('hide');
   }
   public getDOMID(): string {
-    return this.DOM_ID
+    return this.DOM_ID;
   }
 }
 

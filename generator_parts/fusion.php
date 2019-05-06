@@ -147,18 +147,8 @@
       $content_tabpanels .= "            ".
         "<div role=\"tabpanel\" class=\"tab-pane\" id=\"$tablename\">".
         "<div class=\"table_$tablename\"></div></div>\n";
-      // Init a JS-Object
-      /*
-      $tableVarName = "tbl_$tablename";
-      $content_jsObjects .= "      let $tableVarName = new Table('$tablename', 0, function(){
-        $tableVarName.GUIOptions.showWorkflowButton = true;
-        $tableVarName.loadRows(function(){ $tableVarName.renderHTML('.table_$tablename'); });
-      });\n";
-      */
     }
     //---/Create HTML Content
-
-
 
     // TODO: Check if the "table" is no view
 
@@ -176,16 +166,20 @@
     unset($virtualcols);
     unset($stdcols);
     unset($allcolnames);
+    unset($colnamesWOforeignKeys);
 
     $joincolsubst = [];
     $jointexts = [];
     $virtualcols = [];
     $stdcols = [];
     $allcolnames = [];
+    $colnamesWOforeignKeys = [];
     $seperator = '_____';
 
     foreach ($colnames as $colname) {
       $has_FK = ($table["columns"][$colname]["field_type"] == 'foreignkey');
+      $isVc = $table["columns"][$colname]["is_virtual"];
+
       // -- Foreign Key
       if ($has_FK) {
         $fk = $table["columns"][$colname]["foreignKey"];
@@ -196,6 +190,7 @@
         $jointexts[] = ' LEFT JOIN `'.$ft.'` AS a'.$seperator.$colname.' ON a.'.$colname.' = a'.$seperator.$colname.'.'.$fkey."\n";
         $joincolsubst[] = 'a'.$seperator.$colname.'.'.$fkey;
         $allcolnames[] = 'a'.$seperator.$colname.'.'.$fkey;
+        $colnamesWOforeignKeys[$colname] = 'a.'.$colname;
 
         // Check if contains more than one
         if (strpos($fsub, "{") !== FALSE) {
@@ -230,10 +225,16 @@
           $joincolsubst[] = 'a'.$seperator.$colname.'.'.$fsub;
           $allcolnames[] = 'a'.$seperator.$colname.'.'.$fsub;
         }
+      } else {
+        if ($isVc) {
+          $virtSelect = $table["columns"][$colname]["virtual_select"];
+          if (strlen($virtSelect) > 0)
+            $colnamesWOforeignKeys[$colname] = $colname;
+        } else
+          $colnamesWOforeignKeys[$colname] = 'a.'.$colname;
       }
 
-      // -- Virtual Column
-      $isVc = $table["columns"][$colname]["is_virtual"];
+      // -- Virtual Column      
       if ($isVc) {
         $virtSelect = $table["columns"][$colname]["virtual_select"];
         if (strlen($virtSelect) > 0) {
@@ -241,7 +242,7 @@
           $allcolnames[] = $virtSelect;
         }
       }
-      elseif (!$isVc) {
+      else {
         $stdcols[] = "a.".$colname;
         $allcolnames[] = "a.".$colname;
       }
@@ -253,7 +254,7 @@
     foreach ($stdcols as $stdcol) {
       $parts = explode('.', $stdcol);
       $cname = end($parts);
-      if ($se_active && !$table["columns"][$cname]["is_primary"] && $cname != 'state_id') { 
+      if ($se_active && !$table["columns"][$cname]["is_primary"] && $cname != 'state_id') {
         $stdColText .= "IF(JSON_UNQUOTE(JSON_EXTRACT(a_____state_id.form_data, '$.$cname.mode_form')) = 'hi', NULL, $stdcol) AS $cname,\n";
       } else {
         $stdColText .= $stdcol.",\n";
@@ -262,7 +263,6 @@
     $stdColText = substr($stdColText, 0, -2);
 
     $joinTables = implode("", $jointexts);
-
     //---- Select
     $select = $stdColText;
     if (count($virtualcols) > 0) $select .= ",\n".implode(",\n", $virtualcols);
@@ -276,10 +276,11 @@
     case when @sortDir <> 'DESC' then 0 when @sortCol = 'a.Role_id' then a.Role_id end DESC,
     case when @sortDir <> 'DESC' then 0 when @sortCol = 'a.Role_name' then a.Role_name end DESC
     */
-    foreach ($stdcols as $col) {
+
+    foreach ($colnamesWOforeignKeys as $col => $realColname) {
       $orderByText .= 
-      "case when sortDir <> 'ASC' then 0 when sortCol = '$col' then $col end ASC,\n".
-      "case when sortDir <> 'DESC' then 0 when sortCol = '$col' then $col end DESC,\n";
+      "case when sortDir <> 'ASC' then 0 when sortCol = '$col' then $realColname end ASC,\n".
+      "case when sortDir <> 'DESC' then 0 when sortCol = '$col' then $realColname end DESC,\n";
     }
     $orderByText = substr($orderByText, 0, -2);
 
