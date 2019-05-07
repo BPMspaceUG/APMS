@@ -42,15 +42,15 @@ class LiteEvent {
         return this;
     }
 }
-// Generates GUID for jQuery DOM Handling
+// Generates GUID for DOM Handling !JQ
 class GUI {
 }
 GUI.getID = function () {
     function chr4() { return Math.random().toString(16).slice(-4); }
-    return chr4() + chr4() + chr4() + chr4() + chr4() + chr4() + chr4() + chr4();
+    return 'i' + chr4() + chr4() + chr4() + chr4() + chr4() + chr4() + chr4() + chr4();
 };
 //==============================================================
-// Class: Database (Communication via API)
+// Class: Database (Communication via API) !JQ
 //==============================================================
 class DB {
     static request(command, params, callback) {
@@ -104,7 +104,7 @@ class DB {
     }
 }
 //==============================================================
-// Class: Modal (Dynamic Modal Generation and Handling)
+// Class: Modal (Dynamic Modal Generation and Handling) !JQ
 //==============================================================
 class Modal {
     constructor(heading, content, footer = '', isBig = false) {
@@ -117,6 +117,7 @@ class Modal {
         this.content = content;
         this.footer = footer;
         this.isBig = isBig;
+        var self = this;
         // Render and add to DOM-Tree
         let sizeType = '';
         if (this.isBig)
@@ -127,7 +128,7 @@ class Modal {
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">${this.heading}</h5>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <button type="button" class="close closeButton" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
           </div>
@@ -136,7 +137,7 @@ class Modal {
           </div>
           <div class="modal-footer">
             <span class="customfooter d-flex">${this.footer}</span>
-            <button type="button" class="btn btn-light" data-dismiss="modal">
+            <button type="button" class="btn btn-light closeButton" data-dismiss="modal">
               ${this.options.btnTextClose}
             </button>
           </div>
@@ -144,37 +145,45 @@ class Modal {
       </div>
     </div>`;
         // Add generated HTML to DOM
-        $('body').append(html);
-        // Remove from DOM on close
-        $('#' + this.DOM_ID).on('hidden.bs.modal', function (e) {
-            $(this).remove();
-        });
+        let body = document.getElementsByTagName('body')[0];
+        let modal = document.createElement('div');
+        modal.innerHTML = html;
+        body.appendChild(modal);
+        let closeBtns = document.getElementById(this.DOM_ID).getElementsByClassName('closeButton');
+        for (let closeBtn of closeBtns) {
+            closeBtn.addEventListener("click", function () {
+                self.close();
+            });
+        }
     }
     setHeader(html) {
-        //$('#'+this.DOM_ID+' .modal-title').html(html);
         document.getElementById(this.DOM_ID).getElementsByClassName('modal-title')[0].innerHTML = html;
     }
     setFooter(html) {
-        //$('#'+this.DOM_ID+' .customfooter').html(html);
         document.getElementById(this.DOM_ID).getElementsByClassName('customfooter')[0].innerHTML = html;
     }
     setContent(html) {
-        //$('#'+this.DOM_ID+' .modal-body').html(html);
         document.getElementById(this.DOM_ID).getElementsByClassName('modal-body')[0].innerHTML = html;
     }
-    show() {
-        $("#" + this.DOM_ID).modal();
-        $("#" + this.DOM_ID).modal('show');
+    show(focusFirstEditableField = true) {
+        let modal = document.getElementById(this.DOM_ID);
+        modal.classList.add('show');
+        modal.style.display = 'block';
+        if (focusFirstEditableField) {
+            let firstElement = modal.getElementsByClassName('rwInput')[0];
+            // TODO: check if is foreignKey || HTMLEditor
+            firstElement.focus();
+        }
     }
     close() {
-        $("#" + this.DOM_ID).modal('hide');
+        document.getElementById(this.DOM_ID).parentElement.remove();
     }
     getDOMID() {
         return this.DOM_ID;
     }
 }
 //==============================================================
-// Class: StateMachine
+// Class: StateMachine !JQ
 //==============================================================
 class StateMachine {
     constructor(table, states, links) {
@@ -210,11 +219,13 @@ class StateMachine {
     }
     getStateCSS(stateID) {
         // Workaround to get the color from css file
-        const cssClass = 'state' + stateID;
-        const element = $('<div class="' + cssClass + ' delete-this-div"></div>').appendTo('html');
-        const colBG = element.css("background-color");
-        const colFont = element.css("color");
-        $('.delete-this-div').remove(); // Delete the divs
+        let tmp = document.createElement('div');
+        tmp.classList.add('state' + stateID);
+        document.getElementsByTagName('body')[0].append(tmp);
+        const style = window.getComputedStyle(tmp);
+        const colBG = style.backgroundColor;
+        const colFont = style.color;
+        tmp.remove();
         return { background: colBG, color: colFont };
     }
     openSEPopup() {
@@ -279,15 +290,14 @@ class StateMachine {
         // Render
         let network = new vis.Network(container, data, options);
         M.show();
-        let ID = M.getDOMID();
-        // Events
-        $('#' + ID).on('shown.bs.modal', function (e) {
-            network.fit({ scale: 1, offset: { x: 0, y: 0 } });
-        });
-        $('.fitsm').click(function (e) {
-            e.preventDefault();
-            network.fit({ scale: 1, offset: { x: 0, y: 0 } });
-        });
+        network.fit({ scale: 1, offset: { x: 0, y: 0 } });
+        let btns = document.getElementsByClassName('fitsm');
+        for (let btn of btns) {
+            btn.addEventListener("click", function (e) {
+                e.preventDefault();
+                network.fit({ scale: 1, offset: { x: 0, y: 0 } });
+            });
+        }
     }
     getFormDiffByState(StateID) {
         let result = {};
@@ -302,7 +312,7 @@ class StateMachine {
     }
 }
 //==============================================================
-// Class: RawTable
+// Class: RawTable !JQ
 //==============================================================
 class RawTable {
     constructor(tablename) {
@@ -756,6 +766,7 @@ class Table extends RawTable {
         let M = new Modal(ModalTitle, fCreate.getHTML(), CreateBtns, true);
         M.options.btnTextClose = me.GUIOptions.modalButtonTextModifyClose;
         const ModalID = M.getDOMID();
+        //console.log(fCreate.getHTML());
         fCreate.initEditors();
         // Bind Buttonclick
         $('#' + ModalID + ' .btnCreateEntry').click(function (e) {
@@ -1157,14 +1168,14 @@ class Table extends RawTable {
         if (t.TableType != TableType.obj)
             NoText = 'No Relations';
         return `<form class="tbl_header form-inline">
-    <div class="form-group m-0 p-0">
-      <input type="text" ${(!hasEntries ? 'readonly disabled ' : '')}class="form-control${(!hasEntries ? '-plaintext' : '')} mr-1 filterText"
+    <div class="form-group m-0 p-0${t.selType == SelectType.Single ? ' w-50' : ''}">
+      <input type="text" ${(!hasEntries ? 'readonly disabled ' : '')}class="form-control${(!hasEntries ? '-plaintext' : '')} mr-1 w-100 filterText"
         ${(t.FilterText != '' ? ' value="' + t.FilterText + '"' : '')}
         placeholder="${(!hasEntries ? NoText : t.GUIOptions.filterPlaceholderText)}">
     </div>
     ${(t.ReadOnly ? '' :
             `<!-- Create Button -->
-      <button class="btn btn-success btnCreateEntry mr-1">
+      <button class="btn btn-${t.selType == SelectType.Single ? 'outline-' : ''}success btnCreateEntry mr-1">
         ${t.TableType != TableType.obj ?
                 '<i class="fa fa-link"></i><span class="d-none d-md-inline pl-2">Add Relation</span>' :
                 `<i class="fa fa-plus"></i><span class="d-none d-md-inline pl-2">${t.GUIOptions.modalButtonTextCreate} ${t.getTableAlias()}</span>`}
@@ -1512,7 +1523,7 @@ class FormGenerator {
             result += `
         <input type="hidden" name="${key}" value="${ID != 0 ? ID : ''}" class="inputFK${el.mode_form != 'hi' ? ' rwInput' : ''}">
         <div class="external-table">
-          <div class="input-group" ${el.mode_form == 'rw' ? 'onclick="test(this)"' : ''} data-tablename="${el.fk_table}">
+          <div class="input-group" ${el.mode_form == 'rw' ? 'onclick="loadFKTable(this)"' : ''} data-tablename="${el.fk_table}"${el.customfilter ? "data-customfilter='" + el.customfilter + "'" : ''}>
             <input type="text" class="form-control filterText${el.mode_form == 'rw' ? ' bg-white' : ''}" ${el.value ? 'value="' + el.value + '"' : ''} placeholder="Nothing selected" readonly>
             <div class="input-group-append">
               <button class="btn btn-primary btnLinkFK" title="Link Element" type="button"${el.mode_form == 'ro' ? ' disabled' : ''}>
@@ -1549,8 +1560,10 @@ class FormGenerator {
         }
         //--- Quill Editor
         else if (el.field_type == 'htmleditor') {
-            this.editors[key] = el.mode_form; // reserve key
-            result += `<div><div class="htmleditor"></div></div>`;
+            const newQuillID = GUI.getID();
+            //console.log(newQuillID);
+            this.editors[key] = { 'mode': el.mode_form, 'id': newQuillID }; // reserve key
+            result += `<div><div class="htmleditor" id="${newQuillID}"></div></div>`;
         }
         //--- Pure HTML (not working yet)
         else if (el.field_type == 'rawhtml') {
@@ -1624,7 +1637,7 @@ class FormGenerator {
         let editors = this.editors;
         for (const key of Object.keys(editors)) {
             const edi = editors[key];
-            result[key] = edi.root.innerHTML; //edi.getContents();
+            result[key] = edi['objQuill'].root.innerHTML; //edi.getContents();
         }
         // Output
         return result;
@@ -1642,64 +1655,75 @@ class FormGenerator {
         // HTML Editor
         let t = this;
         for (const key of Object.keys(t.editors)) {
-            if (t.editors[key] == 'ro')
-                t.editors[key] = new Quill('.htmleditor', { theme: 'snow', modules: { toolbar: false }, readOnly: true });
-            else
-                t.editors[key] = new Quill('.htmleditor', { theme: 'snow' });
-            t.editors[key].root.innerHTML = t.data[key].value || '';
+            const options = t.editors[key];
+            const QuillID = '#' + options.id;
+            if (options.mode == 'ro')
+                t.editors[key]['objQuill'] = new Quill(QuillID, { theme: 'snow', modules: { toolbar: false }, readOnly: true });
+            else {
+                t.editors[key]['objQuill'] = new Quill(QuillID, { theme: 'snow' });
+            }
+            t.editors[key]['objQuill'].root.innerHTML = t.data[key].value || '';
         }
     }
 }
 //-------------------------------------------
 // Bootstrap-Helper-Method: Overlay of many Modal windows (newest Modal on top)
+/*
 $(document).on('show.bs.modal', '.modal', function () {
-    //-- Stack modals correctly
-    let zIndex = 2040 + (10 * $('.modal:visible').length);
-    $(this).css('z-index', zIndex);
-    setTimeout(function () {
-        $('.modal-backdrop').not('.modal-stack').css('z-index', zIndex - 1).addClass('modal-stack');
-    }, 0);
+  //-- Stack modals correctly
+  let zIndex = 2040 + (10 * $('.modal:visible').length);
+  $(this).css('z-index', zIndex);
+  setTimeout(function() {
+    $('.modal-backdrop').not('.modal-stack').css('z-index', zIndex - 1).addClass('modal-stack');
+  }, 0);
 });
-$(document).on('shown.bs.modal', function () {
-    // Focus first visible Input in Modal (Input, Textarea, or Select)
-    let el = $('.modal').find('input,textarea,select').filter(':visible:first');
-    el.trigger('focus');
-    const val = el.val();
-    el.val('');
-    el.val(val);
-    // Do a submit - if on any R/W field return is pressed
-    $(".modal .rwInput:not(textarea)").keypress(function (e) {
-        if (e.which == 13) {
-            e.preventDefault();
-            $('.modal .btnCreateEntry:first').click(); // Do a submit
-        }
-    });
-    // On keydown
-    // Restrict input to digits and '.' by using a regular expression filter.
-    $("input[type=number]").keydown(function (e) {
-        // INTEGER
-        // comma 190, period 188, and minus 109, . on keypad
-        // key == 190 || key == 188 || key == 109 || key == 110 ||
-        // Allow: delete, backspace, tab, escape, enter and numeric . (180 = .)
-        if ($.inArray(e.keyCode, [46, 8, 9, 27, 13, 109, 110, 173, 190, 188]) !== -1 ||
-            // Allow: Ctrl+A, Command+A
-            (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
-            (e.keyCode === 67 && e.ctrlKey === true) || // Ctrl + C
-            (e.keyCode === 86 && e.ctrlKey === true) || // Ctrl + V (!)
-            // Allow: home, end, left, right, down, up
-            (e.keyCode >= 35 && e.keyCode <= 40)) {
-            // let it happen, don't do anything
-            return;
-        }
-        // Ensure that it is a number and stop the keypress
-        if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
-            e.preventDefault();
-        }
-    });
+*/
+/*
+$(document).on('shown.bs.modal', function() {
+  // Focus first visible Input in Modal (Input, Textarea, or Select)
+  let el = $('.modal').find('input,textarea,select').filter(':visible:first');
+  el.trigger('focus');
+  const val = el.val();
+  el.val('');
+  el.val(val);
+
+  // Do a submit - if on any R/W field return is pressed
+  $(".modal .rwInput:not(textarea)").keypress(function(e) {
+    if (e.which == 13) {
+      e.preventDefault();
+      $('.modal .btnCreateEntry:first').click(); // Do a submit
+    }
+  });
+
+  // On keydown
+  // Restrict input to digits and '.' by using a regular expression filter.
+  $("input[type=number]").keydown(function (e) {
+    // INTEGER
+    // comma 190, period 188, and minus 109, . on keypad
+    // key == 190 || key == 188 || key == 109 || key == 110 ||
+    // Allow: delete, backspace, tab, escape, enter and numeric . (180 = .)
+    if ($.inArray(e.keyCode, [46, 8, 9, 27, 13, 109, 110, 173, 190, 188]) !== -1 ||
+        // Allow: Ctrl+A, Command+A
+        (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) ||
+        (e.keyCode === 67 && e.ctrlKey === true ) || // Ctrl + C
+        (e.keyCode === 86 && e.ctrlKey === true ) || // Ctrl + V (!)
+        // Allow: home, end, left, right, down, up
+        (e.keyCode >= 35 && e.keyCode <= 40)) {
+          // let it happen, don't do anything
+          return;
+    }
+    // Ensure that it is a number and stop the keypress
+    if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+      e.preventDefault();
+    }
+  });
 });
+*/
+/*
 $(document).on('hidden.bs.modal', '.modal', function () {
-    $('.modal:visible').length && $(document.body).addClass('modal-open');
+  $('.modal:visible').length && $(document.body).addClass('modal-open');
 });
+*/
 // Show the actual Tab in the URL and also open Tab by URL
 $(function () {
     let hash = window.location.hash;
@@ -1746,16 +1770,22 @@ function recflattenObj(x) {
     }
 }
 //--- Expand foreign key
-function test(x) {
-    let me = $(x);
+function loadFKTable(btnElement) {
+    let me = $(btnElement);
     const randID = GUI.getID();
-    const FKTable = me.data('tablename');
+    const FKTable = me.data('tablename'); // Extern Table
+    const CustomFilter = me.data('customfilter'); // Custom Filter
     let fkInput = me.parent().parent().parent().find('.inputFK');
     fkInput.val(''); // Reset Selection
     me.parent().parent().parent().find('.external-table').replaceWith('<div class="' + randID + '"></div>');
-    let tmpTable = new Table(FKTable, 1); // function(){
-    // TODO: Set Filter
-    //tmpTable.setColumnFilter('state_id', '6');
+    let tmpTable = new Table(FKTable, SelectType.Single);
+    // Set custom Filter
+    if (CustomFilter) {
+        Object.keys(CustomFilter['columns']).forEach(key => {
+            const val = CustomFilter['columns'][key];
+            tmpTable.setColumnFilter(key, val);
+        });
+    }
     // Load
     tmpTable.loadRows(function () {
         return __awaiter(this, void 0, void 0, function* () {
@@ -1763,7 +1793,6 @@ function test(x) {
             $('.' + randID).find('.filterText').focus();
         });
     });
-    //});
     tmpTable.SelectionHasChanged.on(function () {
         const selRowID = tmpTable.getSelectedRowID();
         if (selRowID)

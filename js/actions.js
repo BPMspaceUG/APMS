@@ -22,6 +22,7 @@ APMS.controller('APMScontrol', function ($scope, $http) {
     login_url: '',
     secretkey: ''
   }
+
   //------------------------------------------------------- Methods
   $scope.refreshConfig = function(data) {
     $scope.meta.login_url = data.login_url;
@@ -260,6 +261,17 @@ APMS.controller('APMScontrol', function ($scope, $http) {
   $scope.del_virtCol = function(tbl, colname){    
     delete tbl.columns[colname];
   }
+
+  $scope.addNewOrigin = function() {
+    const text = $scope.x.newOriginText;
+    const filter = $scope.x.newOriginFilter;
+
+    console.log(text, filter);
+
+    $scope.x.newOriginText = '';
+    $scope.x.newOriginFilter = '';
+  }
+
   $scope.changeSortOrder = function(col, inc) {
     //const oldIndex = parseInt(col.col_order); // can be overwritten
     const newIndex = parseInt(col.col_order) + inc;

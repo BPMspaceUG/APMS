@@ -54,9 +54,6 @@
       text-transform: none;
       /*font-weight: 600;*/
 }
-small{
-      float: right;
-}
 .bpm-options{
       display: inline-block;
       width: 33.3%;

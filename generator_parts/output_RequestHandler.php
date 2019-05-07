@@ -351,8 +351,8 @@
       @$limitSize = isset($param["limitSize"]) ? $param["limitSize"] : null;
       @$ascdesc = isset($param["ascdesc"]) ? $param["ascdesc"] : null; 
       @$orderby = isset($param["orderby"]) ? $param["orderby"] : null; // has to be a column name
-      //@$page = isset($param["page"]) ? $param["page"] : null;
       @$filter = isset($param["filter"]) ? $param["filter"] : null;
+
       // Identify via Token
       global $token;
       $token_uid = -1;
@@ -388,6 +388,7 @@
       //--- Filter
       if ($this->isValidFilterStruct($filter))
         $filter = json_encode($filter);
+
       // Prepare Structure
       $p = ['name' => 'sp_'.$tablename, 'inputs' => [$token_uid, $filter, $orderby, $ascdesc, $limitStart, $limitSize]];
       return $this->call($p);
@@ -410,8 +411,6 @@
       //--- Filter
       if ($this->isValidFilterStruct($filter))
         $filter = json_encode($filter);
-
-
       // Prepare Structure
       $p = ['name' => 'sp_'.$tablename, 'inputs' => [$token_uid, $filter, '', 'ASC', 0, 1000000]];
       $res = $this->call($p);

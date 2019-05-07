@@ -48,6 +48,12 @@
   }
   echo "\n";
 
+  // ---------------------- Get actual Version of APMS
+  $filepath = __DIR__."/../.git/refs/heads/master";
+  $act_version = trim(file_get_contents($filepath));
+  $act_version_link = "https://github.com/BPMspaceUG/APMS/tree/" . $act_version;
+  echo "Generator-Version: " . $act_version . "\n";
+
   // Open a new DB-Connection
   define('DB_HOST', $db_server);
   define('DB_NAME', $db_name);
@@ -400,7 +406,6 @@ END";
         }
       }
 
-
       // Exclude the following Columns:
       $excludeKeys = Config::getPrimaryColsByTablename($tablename, $data);
       $excludeKeys[] = 'state_id'; // Also exclude StateMachine in the FormData
@@ -524,8 +529,10 @@ END";
 
   // ----------------------- Config File generator
   function generateConfig($dbUser, $dbPass, $dbServer, $dbName, $urlAPI, $urlLogin, $secretKey, $machineToken) {
+    global $act_version_link;
     return  "<?php
     //  APMS Generated Project (".date("Y-m-d H:i:s").")
+    //  Version: $act_version_link
     //  ==================================================
     //-- Database
     define('DB_USER', '$dbUser');

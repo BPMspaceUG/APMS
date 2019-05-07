@@ -31,16 +31,16 @@ class LiteEvent<T> implements ILiteEvent<T> {
   }
 }
 
-// Generates GUID for jQuery DOM Handling
+// Generates GUID for DOM Handling !JQ
 abstract class GUI {
   public static getID = function () {
     function chr4(){ return Math.random().toString(16).slice(-4); }
-    return chr4() + chr4() + chr4() + chr4() + chr4() + chr4() + chr4() + chr4();
+    return 'i' + chr4() + chr4() + chr4() + chr4() + chr4() + chr4() + chr4() + chr4();
   };
 }
 
 //==============================================================
-// Class: Database (Communication via API)
+// Class: Database (Communication via API) !JQ
 //==============================================================
 abstract class DB {
   private static API_URL: string;
@@ -103,7 +103,7 @@ abstract class DB {
 }
 
 //==============================================================
-// Class: Modal (Dynamic Modal Generation and Handling)
+// Class: Modal (Dynamic Modal Generation and Handling) !JQ
 //==============================================================
 class Modal {
   private DOM_ID: string;
@@ -122,6 +122,7 @@ class Modal {
     this.content = content;
     this.footer = footer;
     this.isBig = isBig;
+    var self = this;
 
     // Render and add to DOM-Tree
     let sizeType = '';
@@ -132,7 +133,7 @@ class Modal {
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">${this.heading}</h5>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <button type="button" class="close closeButton" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
           </div>
@@ -141,7 +142,7 @@ class Modal {
           </div>
           <div class="modal-footer">
             <span class="customfooter d-flex">${this.footer}</span>
-            <button type="button" class="btn btn-light" data-dismiss="modal">
+            <button type="button" class="btn btn-light closeButton" data-dismiss="modal">
               ${this.options.btnTextClose}
             </button>
           </div>
@@ -150,30 +151,39 @@ class Modal {
     </div>`;
     
     // Add generated HTML to DOM
-    $('body').append(html);
-    // Remove from DOM on close
-    $('#'+this.DOM_ID).on('hidden.bs.modal', function (e) {
-      $(this).remove();
-    });
+    let body = document.getElementsByTagName('body')[0];
+    let modal = document.createElement('div');
+    modal.innerHTML = html;
+    body.appendChild(modal);
+    
+    let closeBtns = document.getElementById(this.DOM_ID).getElementsByClassName('closeButton');
+    for (let closeBtn of closeBtns) {
+      closeBtn.addEventListener("click", function(){
+        self.close();
+      });
+    }
   }
   public setHeader(html: string) {
-    //$('#'+this.DOM_ID+' .modal-title').html(html);
     document.getElementById(this.DOM_ID).getElementsByClassName('modal-title')[0].innerHTML = html;
   }
   public setFooter(html: string) {
-    //$('#'+this.DOM_ID+' .customfooter').html(html);
     document.getElementById(this.DOM_ID).getElementsByClassName('customfooter')[0].innerHTML = html;
   }
   public setContent(html: string) {
-    //$('#'+this.DOM_ID+' .modal-body').html(html);
     document.getElementById(this.DOM_ID).getElementsByClassName('modal-body')[0].innerHTML = html;
   }
-  public show(): void {
-    $("#"+this.DOM_ID).modal();
-    $("#"+this.DOM_ID).modal('show');
+  public show(focusFirstEditableField: boolean = true): void {  
+    let modal = document.getElementById(this.DOM_ID);
+    modal.classList.add('show');
+    modal.style.display = 'block';
+    if (focusFirstEditableField) {
+      let firstElement = (modal.getElementsByClassName('rwInput')[0] as HTMLElement);
+      // TODO: check if is foreignKey || HTMLEditor
+      firstElement.focus();
+    }
   }
   public close(): void {
-    $("#"+this.DOM_ID).modal('hide');
+    document.getElementById(this.DOM_ID).parentElement.remove();
   }
   public getDOMID(): string {
     return this.DOM_ID;
@@ -181,7 +191,7 @@ class Modal {
 }
 
 //==============================================================
-// Class: StateMachine
+// Class: StateMachine !JQ
 //==============================================================
 class StateMachine {
   private myTable: Table;
@@ -221,11 +231,13 @@ class StateMachine {
   }
   private getStateCSS(stateID: number) {
     // Workaround to get the color from css file
-    const cssClass = 'state' + stateID;
-    const element = $('<div class="' + cssClass + ' delete-this-div"></div>').appendTo('html');
-    const colBG = element.css("background-color");
-    const colFont = element.css("color");
-    $('.delete-this-div').remove(); // Delete the divs
+    let tmp = document.createElement('div');
+    tmp.classList.add('state' + stateID);
+    document.getElementsByTagName('body')[0].append(tmp);
+    const style = window.getComputedStyle(tmp);
+    const colBG = style.backgroundColor;
+    const colFont = style.color;
+    tmp.remove();
     return {background: colBG, color: colFont};
   }
   public openSEPopup() {
@@ -299,15 +311,15 @@ class StateMachine {
     let network = new vis.Network(container, data, options);
 
     M.show();
-    let ID = M.getDOMID();
-    // Events
-    $('#' + ID).on('shown.bs.modal', function (e) {
-      network.fit({scale: 1, offset: {x:0, y:0}});
-    });
-    $('.fitsm').click(function(e){
-      e.preventDefault();
-      network.fit({scale: 1, offset: {x:0, y:0}})
-    });
+    network.fit({scale: 1, offset: {x:0, y:0}});
+
+    let btns = document.getElementsByClassName('fitsm');
+    for (let btn of btns) {
+      btn.addEventListener("click", function(e){
+        e.preventDefault();
+        network.fit({scale: 1, offset: {x:0, y:0}})
+      })
+    }
   }
   public getFormDiffByState(StateID: number) {
     let result = {};
@@ -323,7 +335,7 @@ class StateMachine {
 }
 
 //==============================================================
-// Class: RawTable
+// Class: RawTable !JQ
 //==============================================================
 class RawTable {
   protected tablename: string;
@@ -479,7 +491,6 @@ class Table extends RawTable {
     me.tablename = tablename;
     me.OrderBy = '';
     // Save Form Data
-
     let resp = JSON.parse(JSON.stringify(DB.Config[tablename])); // Deep Copy!
     me.TableConfig = resp['config'];
     me.actRowCount = resp['count'];
@@ -784,6 +795,7 @@ class Table extends RawTable {
     let M = new Modal(ModalTitle, fCreate.getHTML(), CreateBtns, true);
     M.options.btnTextClose = me.GUIOptions.modalButtonTextModifyClose;
     const ModalID = M.getDOMID();
+    //console.log(fCreate.getHTML());
     fCreate.initEditors();
   
     // Bind Buttonclick
@@ -1188,15 +1200,15 @@ class Table extends RawTable {
     if (t.TableType != TableType.obj) NoText = 'No Relations';
 
     return `<form class="tbl_header form-inline">
-    <div class="form-group m-0 p-0">
-      <input type="text" ${ (!hasEntries ? 'readonly disabled ' : '') }class="form-control${ (!hasEntries ? '-plaintext' : '') } mr-1 filterText"
+    <div class="form-group m-0 p-0${t.selType == SelectType.Single ? ' w-50' : ''}">
+      <input type="text" ${ (!hasEntries ? 'readonly disabled ' : '') }class="form-control${ (!hasEntries ? '-plaintext' : '') } mr-1 w-100 filterText"
         ${ (t.FilterText != '' ? ' value="'+t.FilterText+'"' : '') }
         placeholder="${ (!hasEntries ? NoText : t.GUIOptions.filterPlaceholderText) }">
     </div>
     ${
     (t.ReadOnly ? '' : 
       `<!-- Create Button -->
-      <button class="btn btn-success btnCreateEntry mr-1">
+      <button class="btn btn-${t.selType == SelectType.Single ? 'outline-' : ''}success btnCreateEntry mr-1">
         ${ t.TableType != TableType.obj ?
           '<i class="fa fa-link"></i><span class="d-none d-md-inline pl-2">Add Relation</span>' : 
           `<i class="fa fa-plus"></i><span class="d-none d-md-inline pl-2">${t.GUIOptions.modalButtonTextCreate} ${t.getTableAlias()}</span>`}
@@ -1539,7 +1551,8 @@ class FormGenerator {
       result += `
         <input type="hidden" name="${key}" value="${ID != 0 ? ID : ''}" class="inputFK${el.mode_form != 'hi' ? ' rwInput' : ''}">
         <div class="external-table">
-          <div class="input-group" ${el.mode_form == 'rw' ? 'onclick="test(this)"' : ''} data-tablename="${el.fk_table}">
+          <div class="input-group" ${el.mode_form == 'rw' ? 'onclick="loadFKTable(this)"' : ''} data-tablename="${el.fk_table}"${
+            el.customfilter ? "data-customfilter='" + el.customfilter + "'" : ''}>
             <input type="text" class="form-control filterText${el.mode_form == 'rw' ? ' bg-white' : ''}" ${el.value ? 'value="'+el.value+'"' : ''} placeholder="Nothing selected" readonly>
             <div class="input-group-append">
               <button class="btn btn-primary btnLinkFK" title="Link Element" type="button"${el.mode_form == 'ro' ? ' disabled' : ''}>
@@ -1577,8 +1590,10 @@ class FormGenerator {
     }
     //--- Quill Editor
     else if (el.field_type == 'htmleditor') {
-      this.editors[key] = el.mode_form; // reserve key
-      result += `<div><div class="htmleditor"></div></div>`;
+      const newQuillID = GUI.getID();
+      //console.log(newQuillID);
+      this.editors[key] = {'mode': el.mode_form, 'id': newQuillID}; // reserve key
+      result += `<div><div class="htmleditor" id="${newQuillID}"></div></div>`;
     }
     //--- Pure HTML (not working yet)
     else if (el.field_type == 'rawhtml') {
@@ -1651,7 +1666,7 @@ class FormGenerator {
     let editors = this.editors;
     for (const key of Object.keys(editors)) {
       const edi = editors[key];
-      result[key] = edi.root.innerHTML; //edi.getContents();
+      result[key] = edi['objQuill'].root.innerHTML; //edi.getContents();
     }
     // Output
     return result;
@@ -1669,17 +1684,21 @@ class FormGenerator {
     // HTML Editor
     let t = this;
     for (const key of Object.keys(t.editors)) {
-      if (t.editors[key] == 'ro')
-        t.editors[key] = new Quill('.htmleditor', {theme: 'snow', modules: {toolbar: false}, readOnly: true});
-      else
-        t.editors[key] = new Quill('.htmleditor', {theme: 'snow'});
-      t.editors[key].root.innerHTML = t.data[key].value || '';
+      const options = t.editors[key];
+      const QuillID = '#' + options.id;
+      if (options.mode == 'ro')
+        t.editors[key]['objQuill'] = new Quill(QuillID, {theme: 'snow', modules: {toolbar: false}, readOnly: true});
+      else {
+        t.editors[key]['objQuill']  = new Quill(QuillID, {theme: 'snow'});
+      }
+      t.editors[key]['objQuill'].root.innerHTML = t.data[key].value || '';
     }
   }
 }
 
 //-------------------------------------------
 // Bootstrap-Helper-Method: Overlay of many Modal windows (newest Modal on top)
+/*
 $(document).on('show.bs.modal', '.modal', function () {
   //-- Stack modals correctly
   let zIndex = 2040 + (10 * $('.modal:visible').length);
@@ -1688,6 +1707,8 @@ $(document).on('show.bs.modal', '.modal', function () {
     $('.modal-backdrop').not('.modal-stack').css('z-index', zIndex - 1).addClass('modal-stack');
   }, 0);
 });
+*/
+/*
 $(document).on('shown.bs.modal', function() { 
   // Focus first visible Input in Modal (Input, Textarea, or Select)
   let el = $('.modal').find('input,textarea,select').filter(':visible:first');
@@ -1727,9 +1748,12 @@ $(document).on('shown.bs.modal', function() {
     }
   });
 });
+*/
+/*
 $(document).on('hidden.bs.modal', '.modal', function () {  
   $('.modal:visible').length && $(document.body).addClass('modal-open');
 });
+*/
 // Show the actual Tab in the URL and also open Tab by URL
 $(function(){
   let hash = window.location.hash;
@@ -1775,24 +1799,28 @@ function recflattenObj(x) {
   }
 }
 //--- Expand foreign key
-function test(x): void {
-  let me = $(x);
+function loadFKTable(btnElement): void {
+  let me = $(btnElement);
   const randID = GUI.getID();
-  const FKTable = me.data('tablename');
+  const FKTable = me.data('tablename'); // Extern Table
+  const CustomFilter = me.data('customfilter'); // Custom Filter
 
   let fkInput = me.parent().parent().parent().find('.inputFK');
   fkInput.val(''); // Reset Selection
   me.parent().parent().parent().find('.external-table').replaceWith('<div class="'+randID+'"></div>');
-
-  let tmpTable = new Table(FKTable, 1);// function(){
-  // TODO: Set Filter
-  //tmpTable.setColumnFilter('state_id', '6');
+  let tmpTable = new Table(FKTable, SelectType.Single);
+  // Set custom Filter
+  if (CustomFilter) {
+    Object.keys(CustomFilter['columns']).forEach(key => {
+      const val = CustomFilter['columns'][key];
+      tmpTable.setColumnFilter(key, val);
+    });
+  }
   // Load
   tmpTable.loadRows(async function(){
     await tmpTable.renderHTML('.'+randID);
     $('.' + randID).find('.filterText').focus();
   });
-  //});
   tmpTable.SelectionHasChanged.on(function(){
     const selRowID = tmpTable.getSelectedRowID();
     if (selRowID) fkInput.val(selRowID); else fkInput.val("");

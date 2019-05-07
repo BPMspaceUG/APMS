@@ -154,7 +154,7 @@
                       <th width="25%">ALIAS</th>
                       <th width="5%">MODE</th>
                       <th width="5%">STATE-ENGINE</th>
-                      <th width="30%">ICON</th>
+                      <th width="30%" colspan="2">ICON</th>
                     </tr>
                   </thead>
 
@@ -203,21 +203,20 @@
                       <!-- Has Statemachine? -->
                       <td><input type="checkbox" class="form-control" ng-model="tbl.se_active" ng-disabled="tbl.table_name == 'state' || tbl.table_name == 'state_rules'"></td>
                       <!-- Table-Icon -->
-                      <td class="align-middle">
+                      <td class="align-middle" style="background-color: #88aaee55 !important;">
                         <div class="row">
-                          <div class="col-3">
-                            <span ng-bind-html="tbl.table_icon"></span>
+                          <div class="col-2 text-right">
+                            <span class="align-middle" ng-bind-html="tbl.table_icon"></span>
                           </div>
-                          <div class="col-9"><input type="text" class="form-control" ng-model="tbl.table_icon"/></div>
+                          <div class="col-10"><input type="text" class="form-control form-control-sm" ng-model="tbl.table_icon"/></div>
                         </div>
                       </td>
                     </tr>
 
                     <!-- C O L U M N S -->
                     <!-- Columns START -->
-
                     <tr ng-repeat="(colname, col) in tbl.columns" ng-show="tbl.showKids" ng-class="{'bg-warning' : col.is_virtual}" style="font-size: .8em;">
-                      <!-- Column Order -->
+                      <!-- Order -->
                       <td class="align-middle">
                         <div style="white-space:nowrap;overflow:hidden;">
                           <input type="text" class="form-control-plaintext d-inline" style="width: 30px" ng-model="col.col_order">                        
@@ -225,11 +224,11 @@
                           <a ng-click="changeSortOrder(col, -1)"><i class="fa fa-angle-up p-1"></i></a>
                         </div>
                       </td>
-                      <!-- Column Name and Type -->
+                      <!-- Name -->
                       <td class="align-middle">
                         <div><b>{{colname}}</b></div>
                       </td>
-
+                      <!-- Type -->
                       <td class="align-middle">
                         <select
                           class="custom-select custom-select-sm"
@@ -262,13 +261,11 @@
                           </optgroup>
                         </select>
                       </td>
-
-                      <!-- Alias(es) -->
+                      <!-- Alias -->
                       <td class="align-middle">
                         <input type="text" class="form-control form-control-sm" ng-model="col.column_alias"> 
                       </td>
-
-                      <!-- Visibility / Mode -->
+                      <!-- Mode -->
                       <td class="align-middle">
                         <select class="custom-select custom-select-sm" ng-model="col.mode_form" ng-if="!col.is_primary && colname != 'state_id'">
                           <option value="rw">RW</option>
@@ -277,7 +274,6 @@
                         </select>
                         <label class="m-0"><input type="checkbox" class="mr-1" ng-model="col.show_in_grid">Grid</label>
                       </td>
-
                       <!-- Show FK Menu if it is no Primary column -->
                       <td class="align-middle" colspan="2" ng-if="!col.is_primary && !col.is_virtual">
                         <div ng-if="col.field_type == 'foreignkey'">
@@ -292,7 +288,6 @@
                           </span>
                         </div>
                       </td>
-
                       <!-- VIRTUAL GRID COLUMN -->
                       <td colspan="4" ng-if="col.is_virtual">
                         <div class="row">
@@ -313,10 +308,28 @@
                             <button class="btn btn-sm btn-danger" title="Delete virtual Column" ng-click="del_virtCol(tbl, colname)">X</button>
                           </div>
                         </div>
-                      </td>
-
+                      </td>                      
                     </tr>
                     <!-- Columns END -->
+
+
+                    <!---- CUSTOM FILTER ---->
+                    <!--
+                    <tr ng-show="tbl.showKids">
+                      <td class="align-middle py-3" colspan="7">
+                        <small><span class="text-muted">Hier kommen Custom Filter hin mit [origin] => [filterJSON]</span></small>
+                        <div ng-repeat="(origin in tbl.origins)">
+                          <small class="m-2">{{origin.text}} -> {{origin.customfilter}}</small>
+                        </div>
+                        <small class="text-muted">Hier kommen Custom Filter hin mit [origin] => [filterJSON]</small>
+                        <form class="form-inline">
+                          <input type="text" class="form-control form-control-sm mr-2 w-100" ng-model="tbl.customfilter">
+                          <button class="btn btn-success btn-sm" ng-click="addNewOrigin()">+ new Origin</button>
+                        </form>
+                      </td>
+                    </tr>
+                    -->                    
+
                   </tbody>
                 </table>
               </div>
