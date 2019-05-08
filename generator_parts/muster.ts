@@ -179,7 +179,7 @@ class Modal {
     if (focusFirstEditableField) {
       let firstElement = (modal.getElementsByClassName('rwInput')[0] as HTMLElement);
       // TODO: check if is foreignKey || HTMLEditor
-      firstElement.focus();
+      if (firstElement) firstElement.focus();
     }
   }
   public close(): void {
@@ -331,6 +331,14 @@ class StateMachine {
       }
     });
     return result;
+  }
+  public getStateNameById(StateID: number) {
+    let name = '';
+    for (const state of this.myStates) {
+      if (state.id == StateID)
+        name = state.name;
+    }
+    return name;
   }
 }
 
@@ -609,7 +617,7 @@ class Table extends RawTable {
       // Init DropdownButton
       btns = `<div class="btn-group dropup ml-0 mr-auto">
         <button type="button" class="btn ${cssClass} text-white dropdown-toggle" data-toggle="dropdown">${actStateName}</button>
-      <div class="dropdown-menu p-0">`;
+      <div class="dropdown-menu p-0">`;      
       // Loop States
       nexstates.forEach(function(state){
         let btn_text = state.name
@@ -617,15 +625,15 @@ class Table extends RawTable {
         // Override the state-name if it is a Loop (Save)
         if (actStateID == state.id) {
           saveBtn = `<div class="ml-auto mr-0">
-<button class="btn btn-primary btnState btnStateSave mr-1" data-rowid="${RowID}" data-targetstate="${state.id}" data-targetname="${state.name}" type="button">
+<button class="btn btn-primary btnState btnStateSave mr-1" data-rowid="${RowID}" data-targetstate="${state.id}" type="button">
   <i class="fa fa-floppy-o"></i>&nbsp;${t.GUIOptions.modalButtonTextModifySave}</button>
-<button class="btn btn-outline-primary btnState btnSaveAndClose" data-rowid="${RowID}" data-targetstate="${state.id}" data-targetname="${state.name}" type="button">
+<button class="btn btn-outline-primary btnState btnSaveAndClose" data-rowid="${RowID}" data-targetstate="${state.id}" type="button">
   ${t.GUIOptions.modalButtonTextModifySaveAndClose}
 </button>
 </div>`;
         } else {
           cnt_states++;
-          btnDropdown = '<a class="dropdown-item btnState btnStateChange state' + state.id + '" data-rowid="'+RowID+'" data-targetstate="'+state.id+'" data-targetname="'+state.name+'">' + btn_text + '</a>';
+          btnDropdown = '<a class="dropdown-item btnState btnStateChange state' + state.id + '" data-rowid="'+RowID+'" data-targetstate="'+state.id+'">' + btn_text + '</a>';
         }
         btns += btnDropdown;
       })
@@ -641,20 +649,20 @@ class Table extends RawTable {
     btns += saveBtn;
     M.setFooter(btns);
     //--------------------- Bind function to StateButtons
-    $('#' + M.getDOMID() + ' .btnState').click(function(e){
-      e.preventDefault();
-      const RowID = $(this).data('rowid');
-      const TargetStateID = $(this).data('targetstate');
-      const TargetStateName = $(this).data('targetname');
-      const closeModal = $(this).hasClass("btnSaveAndClose");
-      // Set new State
-      t.setState(newForm.getValues(), RowID, {state_id: TargetStateID, name: TargetStateName}, M, closeModal);
-    })
+    let modal = document.getElementById(M.getDOMID());
+    let btnsState = modal.getElementsByClassName('btnState');
+    for (let btn of btnsState) {
+      btn.addEventListener('click', function(e: Event) {
+        e.preventDefault();
+        //const RowID: number = parseInt(btn.getAttribute('data-rowid'));
+        const TargetStateID: number = parseInt(btn.getAttribute('data-targetstate'));
+        const closeModal: boolean = btn.classList.contains('btnSaveAndClose');
+        t.setState(newForm.getValues(), RowID, TargetStateID, M, closeModal);
+      });
+    }
     //--- finally show Modal if it is a new one
     if (M) M.show();
   }
-
-
   private saveEntry(SaveModal: Modal, data: any, closeModal: boolean = true){
     let t = this
     // REQUEST
@@ -674,19 +682,17 @@ class Table extends RawTable {
       }
     })
   }
-  private setState(data: any, RowID: number, targetState: any, myModal: Modal, closeModal: boolean): void {
-    let t = this
-    //let data = {}
-    let parsedData = [];
-    let actState = undefined
 
+  private setState(data: any, RowID: number, targetStateID: number, myModal: Modal, closeModal: boolean): void {
+    let t = this;
+    let actState = undefined;
     // Get Actual State
     for (const row of t.Rows) {
       if (row[t.PrimaryColumn] == RowID)
         actState = row['state_id'];
     }
     // REQUEST
-    t.transitRow(RowID, targetState.state_id, data, function(response) {
+    t.transitRow(RowID, targetStateID, data, function(response) {
       // Check for Error
       if ('error' in response) {
         $('#'+ myModal.getDOMID() +' .modal-body').prepend(`<div class="alert alert-danger" role="alert"><b>Database Error!</b>&nbsp;${response['error']['msg']}</div>`);
@@ -696,7 +702,7 @@ class Table extends RawTable {
       if (myModal) $('#'+ myModal.getDOMID() + ' .modal-body .alert').remove();
 
       // Handle Transition Feedback
-      let counter = 0;
+      let counter: number = 0;
       let messages = [];
       response.forEach(msg => {
         if (msg.show_message)
@@ -705,9 +711,8 @@ class Table extends RawTable {
       });
       // Re-Sort the messages
       messages.reverse(); // sort in Order of the process => [1. Out, 2. Transition, 3. In]
-
       // Check if Transition was successful
-      if (counter == 3) {
+      if (counter === 3) {
         // Mark rows
         if (RowID != 0) t.lastModifiedRowID = RowID;
         // Refresh Rows (refresh whole grid because of Relation-Tables [select <-> unselect])
@@ -716,7 +721,7 @@ class Table extends RawTable {
           t.onEntriesModified.trigger();
           // Refresh Form-Data if Modal exists
           if (myModal) {
-            const diffObject = t.SM.getFormDiffByState(targetState.state_id); // Refresh Form-Content
+            const diffObject = t.SM.getFormDiffByState(targetStateID); // Refresh Form-Content
             // Refresh Row
             let newRow = null;
             t.Rows.forEach(row => { if (row[t.PrimaryColumn] == RowID) newRow = row; });
@@ -735,17 +740,16 @@ class Table extends RawTable {
             myModal.close();
         });
       }
-
       // GUI: Show all Script-Result Messages
+      let htmlStateFrom: string = t.renderStateButton(actState.state_id, t.SM.getStateNameById(actState.state_id));
+      let htmlStateTo: string = t.renderStateButton(targetStateID, t.SM.getStateNameById(targetStateID));
       for (const msg of messages) {
-        const stateFrom = t.renderStateButton(actState.state_id, actState.name);
-        const stateTo = t.renderStateButton(targetState.state_id, targetState.name);
         let tmplTitle = '';
-        if (msg.type == 0) tmplTitle = `OUT <span class="text-muted ml-2">${stateFrom} &rarr;</span>`;
-        if (msg.type == 1) tmplTitle = `Transition <span class="text-muted ml-2">${stateFrom} &rarr; ${stateTo}</span>`;
-        if (msg.type == 2) tmplTitle = `IN <span class="text-muted ml-2">&rarr; ${stateTo}</span>`;
+        if (msg.type == 0) tmplTitle = `OUT <span class="text-muted ml-2">${htmlStateFrom} &rarr;</span>`;
+        if (msg.type == 1) tmplTitle = `Transition <span class="text-muted ml-2">${htmlStateFrom} &rarr; ${htmlStateTo}</span>`;
+        if (msg.type == 2) tmplTitle = `IN <span class="text-muted ml-2">&rarr; ${htmlStateTo}</span>`;
         let resM = new Modal(tmplTitle, msg.text)
-        resM.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose
+        resM.options.btnTextClose = t.GUIOptions.modalButtonTextModifyClose;
         resM.show();
       }
     })
@@ -930,7 +934,7 @@ class Table extends RawTable {
         let fModify = new FormGenerator(me, id, FormObj);        
         let M: Modal = ExistingModal || new Modal('', fModify.getHTML(), '', true);
         M.options.btnTextClose = this.GUIOptions.modalButtonTextModifyClose;
-        fModify.initEditors();        
+        fModify.initEditors();
         // Set Modal Header
         M.setHeader(ModalTitle);
         // Save buttons
@@ -1378,8 +1382,7 @@ class Table extends RawTable {
         jQRow.find('.dropdown-menu').empty();
         let btns = '';
         nextstates.map(state => {
-          btns += '<a class="dropdown-item btnState btnStateChange state' + state.id +
-              '" data-rowid="'+RowID+'" data-targetstate="'+state.id+'" data-targetname="'+state.name+'">' + state.name + '</a>';
+          btns += `<a class="dropdown-item btnState btnStateChange state${state.id}" data-rowid="${RowID}" data-targetstate="${state.id}">${state.name}</a>`;
         });
         jQRow.find('.dropdown-menu').html(btns);
         // Bind function to StateButtons
@@ -1387,8 +1390,7 @@ class Table extends RawTable {
           e.preventDefault();
           const RowID = $(this).data('rowid');
           const TargetStateID = $(this).data('targetstate');
-          const TargetStateName = $(this).data('targetname');
-          t.setState('', RowID, {state_id: TargetStateID, name: TargetStateName}, undefined, false);
+          t.setState('', RowID, TargetStateID, undefined, false);
         })
       }
     })
@@ -1681,7 +1683,7 @@ class FormGenerator {
     return html + '</form>';
   }
   public initEditors() {
-    // HTML Editor
+    // HTML Editors
     let t = this;
     for (const key of Object.keys(t.editors)) {
       const options = t.editors[key];
@@ -1693,67 +1695,40 @@ class FormGenerator {
       }
       t.editors[key]['objQuill'].root.innerHTML = t.data[key].value || '';
     }
+    // Live-Validate Number Inputs
+    let elements = document.querySelectorAll('.modal input[type=number]');
+    for (let el of elements) {
+      el.addEventListener('keydown', function(e: KeyboardEvent){
+        const kc = e.keyCode;
+        // INTEGER
+        // comma 190, period 188, and minus 109, . on keypad
+        // key == 190 || key == 188 || key == 109 || key == 110 ||
+        // Allow: delete, backspace, tab, escape, enter and numeric . (180 = .)
+        if ($.inArray(kc, [46, 8, 9, 27, 13, 109, 110, 173, 190, 188]) !== -1 ||
+        // Allow: Ctrl+A, Command+A
+        (kc === 65 && (e.ctrlKey === true || e.metaKey === true)) || 
+        (kc === 67 && e.ctrlKey === true ) || // Ctrl + C
+        (kc === 86 && e.ctrlKey === true ) || // Ctrl + V (!)
+        // Allow: home, end, left, right, down, up
+        (kc >= 35 && kc <= 40))           
+          return; // let it happen, don't do anything
+        // Ensure that it is a number and stop the keypress
+        if ((e.shiftKey || (kc < 48 || kc> 57)) && (kc < 96 || kc > 105)) {
+          e.preventDefault();
+        }
+      })
+    }
+    // Do a submit - if on any R/W field return is pressed
+    elements = document.querySelectorAll('.modal .rwInput:not(textarea)');
+    for (let el of elements) {
+      el.addEventListener('keydown', function(e: KeyboardEvent){
+        if (e.which == 13) {
+          e.preventDefault(); // Prevent Page Reload
+        }
+      });
+    }
   }
 }
-
-//-------------------------------------------
-// Bootstrap-Helper-Method: Overlay of many Modal windows (newest Modal on top)
-/*
-$(document).on('show.bs.modal', '.modal', function () {
-  //-- Stack modals correctly
-  let zIndex = 2040 + (10 * $('.modal:visible').length);
-  $(this).css('z-index', zIndex);
-  setTimeout(function() {
-    $('.modal-backdrop').not('.modal-stack').css('z-index', zIndex - 1).addClass('modal-stack');
-  }, 0);
-});
-*/
-/*
-$(document).on('shown.bs.modal', function() { 
-  // Focus first visible Input in Modal (Input, Textarea, or Select)
-  let el = $('.modal').find('input,textarea,select').filter(':visible:first');
-  el.trigger('focus');
-  const val = el.val();
-  el.val('');
-  el.val(val);
-
-  // Do a submit - if on any R/W field return is pressed
-  $(".modal .rwInput:not(textarea)").keypress(function(e) {
-    if (e.which == 13) {
-      e.preventDefault();      
-      $('.modal .btnCreateEntry:first').click(); // Do a submit
-    }
-  });
-
-  // On keydown
-  // Restrict input to digits and '.' by using a regular expression filter.
-  $("input[type=number]").keydown(function (e) {
-    // INTEGER
-    // comma 190, period 188, and minus 109, . on keypad
-    // key == 190 || key == 188 || key == 109 || key == 110 ||
-    // Allow: delete, backspace, tab, escape, enter and numeric . (180 = .)
-    if ($.inArray(e.keyCode, [46, 8, 9, 27, 13, 109, 110, 173, 190, 188]) !== -1 ||
-        // Allow: Ctrl+A, Command+A
-        (e.keyCode === 65 && (e.ctrlKey === true || e.metaKey === true)) || 
-        (e.keyCode === 67 && e.ctrlKey === true ) || // Ctrl + C
-        (e.keyCode === 86 && e.ctrlKey === true ) || // Ctrl + V (!)
-        // Allow: home, end, left, right, down, up
-        (e.keyCode >= 35 && e.keyCode <= 40)) {
-          // let it happen, don't do anything
-          return;
-    }
-    // Ensure that it is a number and stop the keypress
-    if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
-      e.preventDefault();
-    }
-  });
-});
-*/
-/*
-$(document).on('hidden.bs.modal', '.modal', function () {  
-  $('.modal:visible').length && $(document.body).addClass('modal-open');
-});
-*/
 // Show the actual Tab in the URL and also open Tab by URL
 $(function(){
   let hash = window.location.hash;

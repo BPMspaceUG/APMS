@@ -360,17 +360,47 @@
       return $result;
     }
     public function executeScript($script, &$param = null, $tablename = null) {
-      $standardResult = array("allow_transition" => true, "show_message" => false, "message" => "");
+      $standardResult = array("allow_transition" => true, "show_message" => false, "message" => "");      
       // Check if script is not empty
       if (!empty($script)) {
         // Execute Script (WARNING -> eval = evil)
-        eval($script);
+        try {
+          ob_start();
+          @eval($script);
+          $resultTxtShouldbeEmpty = ob_get_contents();
+          ob_end_clean();
+        }
+        catch (ParseError $e) {
+          $result = $standardResult;
+          $result['allow_transition'] = false;
+          $result['show_message'] = true;
+          $result['message'] = '<h1>ERROR</h1><small>On Line: '.$e->getLine().'</small><hr>' . $e->getMessage();
+          return $result;
+        }
         // This parameter comes from the script itself
-        // check results, if no result => standard result
-        if (empty($script_result))
-          return $standardResult;
-        else
-          return $script_result;
+        // check if there where echos or var_dumps etc.
+        if (!empty($resultTxtShouldbeEmpty)) {
+          $result = $standardResult;
+          $result['show_message'] = true;
+          if (!empty($script_result['message'])) {
+            // Docu + Scriptresult
+            $result['message'] = '<small style="color: #aaa;">Documentation</small><br>' . $resultTxtShouldbeEmpty . '<hr>' . $script_result['message'];
+          } else {
+            // Only Documentation
+            $result['message'] = '<small style="color: #aaa;">Documentation</small><br>' . $resultTxtShouldbeEmpty;
+          }
+          // Check if Scripts generated message content
+          return $result;
+        }
+        else {
+          // No ECHOS, Var_dumps, etc.
+          // check results, if no result => standard result
+          if (empty($script_result)) {
+            return $standardResult;
+          }
+          else
+            return $script_result;
+        }
       }
       return $standardResult;
     }
