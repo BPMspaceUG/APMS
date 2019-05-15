@@ -495,6 +495,7 @@ END";
   $output_RequestHandler = loadFile("./output_RequestHandler.php");  
   $output_DBHandler = loadFile("./output_DatabaseHandler.php");
   $output_AuthHandler = loadFile("./output_AuthHandler.php");
+  $output_ReadQuery = loadFile("./output_ReadQuery.php");
   $output_API = loadFile("./output_API.php");
   $output_css = loadFile("./muster.css");
   $output_JS = loadFile("./muster.js");
@@ -587,6 +588,7 @@ END";
     createFile($project_dir."/src/StateMachine.inc.php", $class_StateEngine);
     createFile($project_dir."/src/DatabaseHandler.inc.php", $output_DBHandler);
     createFile($project_dir."/src/AuthHandler.inc.php", $output_AuthHandler);
+    createFile($project_dir."/src/ReadQuery.inc.php", $output_ReadQuery);
     // Main Directory
     createFile($project_dir."/api.php", $output_API);
     createFile($project_dir."/".$db_name.".inc.html", $output_all);

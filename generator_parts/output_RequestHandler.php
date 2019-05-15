@@ -4,7 +4,9 @@
   if (file_exists($file_DB)) include_once($file_DB);
   $file_SM = __DIR__."/StateMachine.inc.php";
   if (file_exists($file_SM)) include_once($file_SM);
-  
+  $file_RQ = __DIR__."/ReadQuery.inc.php";
+  if (file_exists($file_RQ)) include_once($file_RQ);
+
   // Global function for StateMachine
   function api($data) {
     $url = API_URL;
@@ -302,7 +304,7 @@
 
     //=======================================================
  
-    // [HEAD]
+    // [OPTIONS]
     private function inititalizeTable($tablename) {
       // Init Vars
       $pdo = DB::getInstance()->getConnection();
@@ -338,6 +340,7 @@
       }
       return json_encode($result);
     }
+
     // [GET] Reading
     public function read($param) {
       //--------------------- Check Params
@@ -419,7 +422,7 @@
       return json_encode(array(array('cnt' => count($data))));
     }
 
-    // Interface (GET and POST)
+    // Stored Procedure can be Read and Write (GET and POST)
     public function call($param) {
       // Strcuture: {name: "sp_table", inputs: ["test", 13, 42, "2019-01-01"]}
       //--------------------- Check Params
@@ -735,4 +738,3 @@
         die(fmtError("error"));
     }
   }
-?>
